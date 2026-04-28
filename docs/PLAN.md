@@ -88,7 +88,7 @@
 - [ ] E2E 시나리오 검증 (경매 생성 → 입찰 → 마감 → 낙찰 알림)
 - [ ] docs/ 문서 최종 정리
 - [ ] README 최종 정리
-- [ ] AI 워크플로우 도입 (선택)
+- [ ] AI 워크플로우 도입 (선택) → [docs/ai-workflows.md](ai-workflows.md)
   - [ ] `ai-doc-update.yml` — main 머지 시 docs/ 자동 업데이트 PR 생성
   - [ ] `ai-issue-analysis.yml` — `analyze` 라벨 추가 시 이슈 원인/해결 방향 코멘트
 
