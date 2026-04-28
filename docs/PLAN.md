@@ -17,6 +17,7 @@
 
 ## M1. 로컬 인프라 + 프로젝트 뼈대
 
+- [ ] GitHub 설정 (CodeRabbit App 설치, Branch Protection Rules)
 - [ ] Gradle 멀티모듈 세팅 (Kotlin DSL)
 - [ ] docker-compose 작성 (Kafka, PostgreSQL, Redis, Debezium, Schema Registry)
 - [ ] 각 서비스 Spring Boot 프로젝트 생성
@@ -87,6 +88,9 @@
 - [ ] E2E 시나리오 검증 (경매 생성 → 입찰 → 마감 → 낙찰 알림)
 - [ ] docs/ 문서 최종 정리
 - [ ] README 최종 정리
+- [ ] AI 워크플로우 도입 (선택)
+  - [ ] `ai-doc-update.yml` — main 머지 시 docs/ 자동 업데이트 PR 생성
+  - [ ] `ai-issue-analysis.yml` — `analyze` 라벨 추가 시 이슈 원인/해결 방향 코멘트
 
 **완료 기준**: 전체 시나리오 정상 동작
 

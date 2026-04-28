@@ -59,6 +59,15 @@ realtime-auction-service/
 
 ---
 
+## 현재 진행 상태
+
+현재 Stage 1 시작 전 단계입니다. (전체 7 Stage)
+
+단계별 체크리스트 → [docs/PLAN.md](docs/PLAN.md)
+진행 중 이슈 → [docs/ISSUES.md](docs/ISSUES.md)
+
+---
+
 ## 참고 문서
 
 설계 문서, API 명세, 스키마, 이슈 추적 등 상세 문서 목록은 [docs/CLAUDE.md](docs/CLAUDE.md) 참고.
