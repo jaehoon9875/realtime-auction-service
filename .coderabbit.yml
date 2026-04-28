@@ -1,7 +1,7 @@
 language: "ko-KR"
 
 reviews:
-  profile: assertive
+  profile: chill
   request_changes_workflow: true   # 문제 발견 시 Request Changes 상태로 전환
   high_level_summary: true         # PR 상단에 요약 댓글 게시
   poem: false
