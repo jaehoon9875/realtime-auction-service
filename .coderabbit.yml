@@ -1,0 +1,47 @@
+language: "ko-KR"
+
+reviews:
+  profile: assertive
+  request_changes_workflow: true   # 문제 발견 시 Request Changes 상태로 전환
+  high_level_summary: true         # PR 상단에 요약 댓글 게시
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+
+  path_instructions:
+    - path: "services/**/*.java"
+      instructions: |
+        다음 프로젝트 규칙을 기준으로 리뷰:
+        - 계층 의존 방향 엄수: Controller → Service → Repository → Entity
+        - 모든 public 메서드에 명확한 반환 타입 선언 (와일드카드 남용 금지)
+        - 입출력 검증은 Spring Validation (@Valid, @NotNull 등) 사용 (수동 null 체크 지양)
+        - 환경변수는 @ConfigurationProperties 또는 application.yml 사용 (하드코딩 금지)
+        - 로깅은 SLF4J + Logback 사용 (System.out.println() 금지)
+        - 외부 서비스 호출에 Resilience4j Circuit Breaker / Retry 적용
+        - 시크릿 하드코딩 절대 금지
+        - Kafka 직접 발행 금지: 반드시 Outbox Table 저장 → Debezium 경로로만 발행
+        - 서비스 간 DB 직접 참조 금지: 데이터 공유는 Kafka 이벤트로만 처리
+        - 통합 테스트는 Testcontainers 사용
+
+    - path: "streams/**/*.java"
+      instructions: |
+        Kafka Streams 코드 리뷰 기준:
+        - State Store 접근 시 thread-safety 확인
+        - 토폴로지 변경 시 State Store 호환성 영향도 확인
+        - 경매 최고가 상태는 State Store에서만 관리 (DB 직접 접근 금지)
+        - 이벤트 스키마 변경 시 Confluent Schema Registry 호환성 확인 (Avro)
+        - 예외 처리: DeserializationExceptionHandler, ProductionExceptionHandler 구현 여부 확인
+
+    - path: "k8s/**"
+      instructions: |
+        ArgoCD 자동 배포 대상이므로 변경 시 영향도를 반드시 확인.
+        시크릿은 Secret 리소스로 분리되어 있는지 확인.
+        ConfigMap/Secret 변경 시 관련 Deployment의 롤링 업데이트 트리거 여부 확인.
+
+    - path: "infra/terraform/**"
+      instructions: |
+        Terraform 변경 시 plan 결과를 PR에 첨부했는지 확인.
+        GKE 리소스 변경은 운영 영향도가 크므로 신중히 리뷰.
+
+chat:
+  auto_reply: true  # PR 댓글로 CodeRabbit에 질문 가능
