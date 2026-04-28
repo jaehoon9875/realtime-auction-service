@@ -11,17 +11,14 @@ reviews:
   path_instructions:
     - path: "services/**/*.java"
       instructions: |
-        다음 프로젝트 규칙을 기준으로 리뷰:
-        - 계층 의존 방향 엄수: Controller → Service → Repository → Entity
-        - 모든 public 메서드에 명확한 반환 타입 선언 (와일드카드 남용 금지)
-        - 입출력 검증은 Spring Validation (@Valid, @NotNull 등) 사용 (수동 null 체크 지양)
-        - 환경변수는 @ConfigurationProperties 또는 application.yml 사용 (하드코딩 금지)
-        - 로깅은 SLF4J + Logback 사용 (System.out.println() 금지)
-        - 외부 서비스 호출에 Resilience4j Circuit Breaker / Retry 적용
-        - 시크릿 하드코딩 절대 금지
+        다음 프로젝트 고유 규칙을 기준으로 리뷰:
         - Kafka 직접 발행 금지: 반드시 Outbox Table 저장 → Debezium 경로로만 발행
         - 서비스 간 DB 직접 참조 금지: 데이터 공유는 Kafka 이벤트로만 처리
+        - 외부 서비스 호출에 Resilience4j Circuit Breaker / Retry 적용
+        - 환경변수 하드코딩 금지: @ConfigurationProperties 또는 application.yml 사용
+        - 시크릿(API 키, 비밀번호, JWT secret) 하드코딩 절대 금지
         - 통합 테스트는 Testcontainers 사용
+        - @Transactional 범위가 불필요하게 넓지 않은지 확인 (Outbox 저장이 트랜잭션 내에 포함되어 있는지 확인)
 
     - path: "streams/**/*.java"
       instructions: |
@@ -40,8 +37,10 @@ reviews:
 
     - path: "infra/terraform/**"
       instructions: |
-        Terraform 변경 시 plan 결과를 PR에 첨부했는지 확인.
-        GKE 리소스 변경은 운영 영향도가 크므로 신중히 리뷰.
+        - PR에 terraform plan 출력 결과가 첨부되어 있는지 확인
+        - destroy 또는 replace 계획이 포함된 경우 명시적으로 지적
+        - GKE node pool, VPC 변경은 운영 중단 가능성을 경고
+        - 민감 변수(passwords, keys)가 tfvars에 하드코딩되어 있지 않은지 확인
 
 chat:
   auto_reply: true  # PR 댓글로 CodeRabbit에 질문 가능
