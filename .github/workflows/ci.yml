@@ -13,21 +13,22 @@ jobs:
     strategy:
       matrix:
         include:
-          - service: auction-service
-            path: services/auction-service
-            gradle_task: :services:auction-service
-          - service: bid-service
-            path: services/bid-service
-            gradle_task: :services:bid-service
+          # settings.gradle.kts에 등록된 모듈만 포함 — 서비스 추가 시 함께 등록
           - service: user-service
             path: services/user-service
             gradle_task: :services:user-service
-          - service: notification-service
-            path: services/notification-service
-            gradle_task: :services:notification-service
-          - service: auction-streams
-            path: streams/auction-streams
-            gradle_task: :streams:auction-streams
+          # - service: auction-service
+          #   path: services/auction-service
+          #   gradle_task: :services:auction-service
+          # - service: bid-service
+          #   path: services/bid-service
+          #   gradle_task: :services:bid-service
+          # - service: notification-service
+          #   path: services/notification-service
+          #   gradle_task: :services:notification-service
+          # - service: auction-streams
+          #   path: streams/auction-streams
+          #   gradle_task: :streams:auction-streams
       fail-fast: false  # 한 서비스 실패해도 나머지는 계속 실행
 
     steps:
