@@ -15,34 +15,35 @@ jobs:
         include:
           - service: auction-service
             path: services/auction-service
+            gradle_task: :services:auction-service
           - service: bid-service
             path: services/bid-service
+            gradle_task: :services:bid-service
           - service: user-service
             path: services/user-service
+            gradle_task: :services:user-service
           - service: notification-service
             path: services/notification-service
+            gradle_task: :services:notification-service
           - service: auction-streams
             path: streams/auction-streams
+            gradle_task: :streams:auction-streams
       fail-fast: false  # 한 서비스 실패해도 나머지는 계속 실행
-
-    defaults:
-      run:
-        working-directory: ${{ matrix.path }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
 
       # build.gradle.kts 존재 여부로 서비스 구현 여부 판단
       - name: Check if service is implemented
         id: check
         run: |
-          if [ -f build.gradle.kts ]; then
+          if [ -f ${{ matrix.path }}/build.gradle.kts ]; then
             echo "ready=true" >> $GITHUB_OUTPUT
           else
             echo "ready=false" >> $GITHUB_OUTPUT
@@ -68,12 +69,12 @@ jobs:
       # ── Build ───────────────────────────────
       - name: Build (Gradle)
         if: steps.check.outputs.ready == 'true'
-        run: ./gradlew build -x test
+        run: ./gradlew ${{ matrix.gradle_task }}:build -x test
 
       # ── Test ────────────────────────────────
       - name: Test (JUnit + Testcontainers)
         if: steps.check.outputs.ready == 'true'
-        run: ./gradlew test
+        run: ./gradlew ${{ matrix.gradle_task }}:test
         env:
           SPRING_PROFILES_ACTIVE: test
 
