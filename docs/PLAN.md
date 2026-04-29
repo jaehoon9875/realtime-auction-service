@@ -4,7 +4,7 @@
 
 | 마일스톤 | 내용 | 상태 |
 |---------|------|------|
-| M1 | 로컬 인프라 + 프로젝트 뼈대 | ⬜ 진행 전 |
+| M1 | 로컬 인프라 + 프로젝트 뼈대 | 🔄 진행 중 |
 | M2 | User Service | ⬜ 진행 전 |
 | M3 | Auction Service + Outbox + Debezium | ⬜ 진행 전 |
 | M4 | Bid Service | ⬜ 진행 전 |
@@ -17,8 +17,8 @@
 
 ## M1. 로컬 인프라 + 프로젝트 뼈대
 
-- [ ] GitHub 설정 (CodeRabbit App 설치, Branch Protection Rules)
-- [ ] Gradle 멀티모듈 세팅 (Kotlin DSL)
+- [x] GitHub 설정 (CodeRabbit App 설치, Branch Protection Rules)
+- [x] Gradle 멀티모듈 세팅 (Kotlin DSL) — Spring Boot 4.0.6 / Java 21, user-service 등록
 - [ ] docker-compose 작성 (Kafka, PostgreSQL, Redis, Debezium, Schema Registry)
 - [ ] 각 서비스 Spring Boot 프로젝트 생성
 - [ ] API Gateway 라우팅 기본 설정

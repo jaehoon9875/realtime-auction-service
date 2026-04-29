@@ -71,7 +71,7 @@ Bid Service가 Auction Service에 경매 정보를 조회할 때, Auction Servic
 ## Tech Stack
 
 ### Backend
-- Java 17, Spring Boot 3
+- Java 21, Spring Boot 4
 - Spring Cloud Gateway
 - Spring Security + JWT (Refresh Token Rotation)
 - Kafka Streams

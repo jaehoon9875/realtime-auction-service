@@ -4,14 +4,7 @@
 # Log file
 *.log
 
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
+# Package Files
 *.war
 *.nar
 *.ear
@@ -19,13 +12,34 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# virtual machine crash logs
 hs_err_pid*
 replay_pid*
 
-# IDE
-.vscode/
+# Spring Boot
+HELP.md
+
+# IDE - IntelliJ IDEA
 .idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# IDE - VS Code
+.vscode/
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
 
 # Terraform
 *.tfstate
@@ -36,6 +50,11 @@ replay_pid*
 *.tfvars
 !*.tfvars.example
 
-# etc
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS
 .DS_Store
 .claude/worktrees/
