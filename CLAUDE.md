@@ -61,7 +61,13 @@ realtime-auction-service/
 
 ## 현재 진행 상태
 
-현재 Stage 1 시작 전 단계입니다. (전체 7 Stage)
+현재 M1 진행 중입니다.
+
+- [x] GitHub 설정 완료 (CodeRabbit, Branch Protection)
+- [x] Gradle 멀티모듈 세팅 완료 (Spring Boot 4.0.6 / Java 21, user-service 등록)
+- [ ] docker-compose 작성
+- [ ] 각 서비스 Spring Boot 프로젝트 생성
+- [ ] API Gateway 라우팅 기본 설정
 
 단계별 체크리스트 → [docs/PLAN.md](docs/PLAN.md)
 진행 중 이슈 → [docs/ISSUES.md](docs/ISSUES.md)
