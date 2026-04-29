@@ -7,7 +7,7 @@
 
 ## 공통 기술 스택
 
-- **Java 17**, **Spring Boot 3.x**
+- **Java 21**, **Spring Boot 4.x**
 - **Gradle Kotlin DSL** (멀티모듈 빌드)
 - **PostgreSQL** (서비스별 독립 DB, 다른 서비스 DB 직접 접근 금지)
 - **Spring Data JPA** + **Flyway** (마이그레이션)

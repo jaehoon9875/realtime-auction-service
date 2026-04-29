@@ -33,8 +33,8 @@ realtime-auction-service/
 
 | 영역 | 기술 |
 |------|------|
-| Language | Java 17 |
-| Framework | Spring Boot 3, Spring Cloud Gateway |
+| Language | Java 21 |
+| Framework | Spring Boot 4, Spring Cloud Gateway |
 | 실시간 처리 | Kafka Streams |
 | 이벤트 발행 | Debezium CDC + Outbox Pattern |
 | 스키마 관리 | Confluent Schema Registry + Avro |
