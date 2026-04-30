@@ -1,5 +1,4 @@
--- Debezium 전용 복제 사용자 생성
-CREATE USER debezium WITH REPLICATION LOGIN PASSWORD 'debezium';
+-- Debezium 사용자 생성/암호 설정은 00-debezium-user.sh에서 환경변수로 처리
 
 -- bid DB 접근 및 outbox_events 테이블 읽기 권한 부여
 GRANT CONNECT ON DATABASE bid TO debezium;

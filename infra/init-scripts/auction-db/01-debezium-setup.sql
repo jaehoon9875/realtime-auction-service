@@ -1,6 +1,4 @@
--- Debezium 전용 복제 사용자 생성
--- REPLICATION: WAL 스트림 읽기 권한 / LOGIN: 원격 접속 허용
-CREATE USER debezium WITH REPLICATION LOGIN PASSWORD 'debezium';
+-- Debezium 사용자 생성/암호 설정은 00-debezium-user.sh에서 환경변수로 처리
 
 -- auction DB 접근 및 outbox_events 테이블 읽기 권한 부여
 GRANT CONNECT ON DATABASE auction TO debezium;

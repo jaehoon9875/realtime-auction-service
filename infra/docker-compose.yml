@@ -126,6 +126,7 @@ services:
       POSTGRES_DB: auction
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEBEZIUM_PASSWORD: ${DEBEZIUM_PASSWORD}
     # Debezium CDC를 위한 논리 복제 활성화
     command: >
       postgres
@@ -156,6 +157,7 @@ services:
       POSTGRES_DB: bid
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEBEZIUM_PASSWORD: ${DEBEZIUM_PASSWORD}
     command: >
       postgres
       -c wal_level=logical
