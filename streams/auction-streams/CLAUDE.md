@@ -90,5 +90,5 @@ DLQ 이벤트에는 원본 이벤트 + 실패 원인 + 타임스탬프를 포함
 
 ## 관련 문서
 
-- [docs/kafka.md](../../docs/kafka.md) — 토픽 스키마 상세
-- [docs/architecture.md](../../docs/architecture.md) — 전체 흐름 다이어그램
+- docs/kafka.md — 토픽 스키마 상세
+- docs/architecture.md — 전체 흐름 다이어그램

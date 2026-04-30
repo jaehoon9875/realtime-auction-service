@@ -52,4 +52,4 @@
 
 ## DB 스키마 참고
 
-[docs/schema.md](../../docs/schema.md)의 `auction-service` 섹션 참고.
+docs/schema.md의 auction-service 섹션 참고.
