@@ -16,6 +16,7 @@ GKE 클러스터, VPC/서브넷, GCP Service Account(Workload Identity), Cloud S
 - 리소스는 모듈 단위 분리
 - 변경 시 반드시 terraform plan 결과 검토 후 apply. plan 없이 apply 제안 금지
 - 기존 리소스 destroy/replace 시 사용자에게 명시적 경고
+- GKE 노드 풀 및 VPC 변경은 운영 중단을 초래할 수 있으므로 특히 주의
 
 ## 보안 주의사항
 

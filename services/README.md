@@ -17,7 +17,7 @@
 
 ## 패키지 구조 (서비스 공통)
 
-```
+```text
 {service}/
 ├── src/main/java/com/auction/{service}/
 │   ├── controller/

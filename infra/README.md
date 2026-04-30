@@ -6,7 +6,7 @@
 
 ## 디렉토리 구조
 
-```
+```text
 infra/
 ├── docker-compose.yml    # 로컬 개발 환경
 ├── .env.example          # 환경변수 템플릿
@@ -32,7 +32,7 @@ infra/
 
 Kustomize base/overlays 구조. ArgoCD GitOps로 GKE 클러스터에 배포됩니다.
 
-```
+```text
 k8s/
 ├── base/
 │   ├── auction-service/       # deployment.yaml, service.yaml, configmap.yaml
@@ -73,7 +73,7 @@ spec:
 
 프로젝트 전용 GCP 인프라 (GKE, Cloud SQL, Redis, VPC 등).
 
-```
+```text
 terraform/
 ├── main.tf / variables.tf / outputs.tf
 ├── modules/

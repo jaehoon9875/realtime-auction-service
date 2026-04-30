@@ -102,7 +102,7 @@ Bid Service가 Auction Service에 경매 정보를 조회할 때, Auction Servic
 
 ## Project Structure
 
-```
+```text
 realtime-auction-service/
 ├── services/
 │   ├── auction-service/
