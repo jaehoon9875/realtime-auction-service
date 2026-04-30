@@ -95,15 +95,15 @@ Bid Service가 Auction Service에 경매 정보를 조회할 때, Auction Servic
 
 ## Documentation
 
-- [API 명세](docs/api/README.md)
-- [DB 스키마](docs/schema/README.md)
-- [Kafka 토픽 설계](docs/architecture/kafka.md)
-- [아키텍처 상세](docs/architecture/README.md)
+- [API 명세](docs/api.md)
+- [DB 스키마](docs/schema.md)
+- [Kafka 토픽 설계](docs/kafka.md)
+- [아키텍처 상세](docs/architecture.md)
 
 ## Project Structure
 
 ```
-realtime-auction-platform/
+realtime-auction-service/
 ├── services/
 │   ├── auction-service/
 │   ├── bid-service/
@@ -112,12 +112,10 @@ realtime-auction-platform/
 ├── streams/
 │   └── auction-streams/
 ├── infra/
-│   ├── terraform/
 │   ├── k8s/
+│   ├── terraform/
 │   └── docker-compose.yml
 ├── docs/
-│   ├── api/
-│   └── architecture/
 └── README.md
 ```
 
