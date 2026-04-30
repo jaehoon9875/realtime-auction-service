@@ -4,7 +4,7 @@
 
 | 마일스톤 | 내용 | 상태 |
 |---------|------|------|
-| M1 | 로컬 인프라 + 프로젝트 뼈대 | 🔄 진행 중 |
+| M1 | 로컬 인프라 + 프로젝트 뼈대 | ✅ 완료 |
 | M2 | User Service | ⬜ 진행 전 |
 | M3 | Auction Service + Outbox + Debezium | ⬜ 진행 전 |
 | M4 | Bid Service | ⬜ 진행 전 |
@@ -19,11 +19,11 @@
 
 - [x] GitHub 설정 (CodeRabbit App 설치, Branch Protection Rules)
 - [x] Gradle 멀티모듈 세팅 (Kotlin DSL) — Spring Boot 4.0.6 / Java 21, user-service 등록
-- [ ] docker-compose 작성 (Kafka, PostgreSQL, Redis, Debezium, Schema Registry)
-- [ ] 각 서비스 Spring Boot 프로젝트 생성
-- [ ] API Gateway 라우팅 기본 설정
+- [x] docker-compose 작성 (Kafka, PostgreSQL, Redis, Debezium, Schema Registry) — `infra/docker-compose.yml`
+- [x] API Gateway 라우팅 기본 설정 — `services/api-gateway` (Spring Cloud Gateway 5.x, `spring-cloud-starter-gateway-server-webflux`)
+- auction / bid / notification 서비스 Spring Boot 모듈은 **각 마일스톤(M3, M4, M6)에서 도메인 구현과 함께 생성**
 
-**완료 기준**: `docker-compose up` 후 각 서비스가 뜨고 Gateway 라우팅 확인
+**완료 기준**: `infra/`에서 `docker-compose up` 으로 인프라 기동 확인. API Gateway는 호스트에서 `./gradlew :services:api-gateway:bootRun` 후 라우팅·헬스 확인 (하위 서비스는 M2~ 단계에서 순차 기동)
 
 ---
 
@@ -39,6 +39,7 @@
 
 ## M3. Auction Service + Outbox + Debezium
 
+- [ ] auction-service Spring Boot 모듈 생성·등록 (Gradle 멀티모듈)
 - [ ] 경매 CRUD REST API
 - [ ] Outbox Table 저장 (같은 트랜잭션)
 - [ ] Debezium connector 설정
@@ -51,6 +52,7 @@
 
 ## M4. Bid Service
 
+- [ ] bid-service Spring Boot 모듈 생성·등록 (Gradle 멀티모듈)
 - [ ] 입찰 REST API
 - [ ] 유효성 검증 (State Store 조회)
 - [ ] Resilience4j Circuit Breaker 적용
@@ -74,6 +76,7 @@
 
 ## M6. Notification Service + WebSocket
 
+- [ ] notification-service Spring Boot 모듈 생성·등록 (Gradle 멀티모듈)
 - [ ] notification-events 소비
 - [ ] Redis 기반 WebSocket 세션 관리
 - [ ] 클라이언트 실시간 push

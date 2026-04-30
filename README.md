@@ -105,6 +105,7 @@ Bid Service가 Auction Service에 경매 정보를 조회할 때, Auction Servic
 ```text
 realtime-auction-service/
 ├── services/
+│   ├── api-gateway/          # Spring Cloud Gateway (라우팅, 인증 필터)
 │   ├── auction-service/
 │   ├── bid-service/
 │   ├── user-service/
@@ -126,6 +127,7 @@ realtime-auction-service/
 docker-compose up -d
 
 # 각 서비스 실행
+./gradlew :services:api-gateway:bootRun
 ./gradlew :services:auction-service:bootRun
 ./gradlew :services:bid-service:bootRun
 ./gradlew :services:user-service:bootRun
