@@ -60,7 +60,7 @@ docker-compose down -v
 
 healthcheck 의존성에 의해 자동으로 순서가 보장됩니다.
 
-```
+```text
 kafka (KRaft 초기화, ~30초)
   └─▶ schema-registry
   └─▶ postgres-auction, postgres-bid  (병렬)
