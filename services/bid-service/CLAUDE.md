@@ -65,4 +65,4 @@
 
 ## DB 스키마 참고
 
-[docs/schema.md](../../docs/schema.md)의 `bid-service` 섹션 참고.
+docs/schema.md의 bid-service 섹션 참고.
