@@ -17,9 +17,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
     // JWT 검증 (Gateway GlobalFilter에서 사용)
-    implementation("io.jsonwebtoken:jjwt-api:0.12.8")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.8")
-    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.8")
+    implementation("io.jsonwebtoken:jjwt-api:0.12.7")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.7")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.7")
+
+    // Lombok (@ConfigurationProperties 바인딩용 getter/setter 등)
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor("org.projectlombok:lombok")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

@@ -13,9 +13,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
     // --- JWT (jjwt-api: 인터페이스, impl/jackson: 런타임 구현체) ---
-    implementation("io.jsonwebtoken:jjwt-api:0.12.8")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.8")
-    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.8")
+    implementation("io.jsonwebtoken:jjwt-api:0.12.7")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.7")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.7")
 
     // --- Database (Flyway: 마이그레이션, postgresql: JDBC 드라이버) ---
     implementation("org.springframework.boot:spring-boot-starter-flyway")
