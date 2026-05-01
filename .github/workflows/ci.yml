@@ -4,7 +4,10 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches:
+      - main
+      - "feature/**"
+      - "fix/**"
 
 jobs:
   build-and-test:
@@ -14,6 +17,9 @@ jobs:
       matrix:
         include:
           # settings.gradle.kts에 등록된 모듈만 포함 — 서비스 추가 시 함께 등록
+          - service: api-gateway
+            path: services/api-gateway
+            gradle_task: :services:api-gateway
           - service: user-service
             path: services/user-service
             gradle_task: :services:user-service
