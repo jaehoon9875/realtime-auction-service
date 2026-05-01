@@ -27,10 +27,11 @@
 
 ## JWT 설계
 
-- **Access Token**: 만료 15분, stateless. API Gateway에서 검증.
-- **Refresh Token**: 만료 7일, Redis에 저장 (userId → refreshToken 매핑).
-  - 재발급 시 기존 토큰 삭제 + 신규 토큰 저장 (Rotation).
-  - 탈취 감지: 이미 무효화된 Refresh Token으로 재발급 요청 시 해당 userId의 모든 토큰 무효화.
+- **Access Token**: 만료 15분, stateless. API Gateway에서 공개키로 직접 검증.
+- **Refresh Token**: 만료 7일, Redis에 저장.
+  - 키: `refresh_token:{userId}`, 값: token 문자열, TTL: 7일
+  - Rotation: 재발급 시 기존 키 덮어쓰기 → 이전 토큰 자동 무효화
+  - 탈취 감지: Redis에 존재하지 않는 토큰으로 재발급 요청 시 해당 userId 키 삭제 (전체 세션 무효화)
 
 ---
 

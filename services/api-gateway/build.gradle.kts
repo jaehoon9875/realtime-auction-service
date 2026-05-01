@@ -11,8 +11,16 @@ dependencyManagement {
 }
 
 dependencies {
+    // API Gateway 코어 (Spring Cloud Gateway)
     implementation("org.springframework.cloud:spring-cloud-starter-gateway-server-webflux")
+    // 운영 모니터링 (Actuator)
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+
+    // JWT 검증 (Gateway GlobalFilter에서 사용)
+    implementation("io.jsonwebtoken:jjwt-api:0.12.8")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.8")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.8")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

@@ -76,20 +76,18 @@ CREATE TABLE users (
     nickname   VARCHAR(50) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT now()
 );
-
--- Refresh Token Rotation 전략
--- 재발급 시 기존 토큰 revoked=true, 새 토큰 발급
-CREATE TABLE refresh_tokens (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID NOT NULL REFERENCES users(id),
-    token      VARCHAR(512) NOT NULL UNIQUE,
-    expires_at TIMESTAMP NOT NULL,
-    revoked    BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMP NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
 ```
+
+**Refresh Token은 PostgreSQL이 아닌 Redis에 저장합니다.**
+
+```
+# Redis 키 설계
+refresh_token:{userId}  →  {token 값}  (TTL: 7일)
+```
+
+- Rotation: 재발급 시 기존 키 덮어쓰기로 이전 토큰 자동 무효화
+- 탈취 감지: 존재하지 않는 토큰으로 재발급 요청 → 해당 userId 키 삭제 (전체 세션 무효화)
+- TTL 만료 시 Redis가 자동 삭제 (별도 배치 불필요)
 
 ---
 
@@ -103,3 +101,6 @@ DECIMAL/FLOAT은 부동소수점 오차가 발생합니다. 금액은 원 단위
 
 **Outbox Table이 서비스마다 있는 이유**
 MSA에서 서비스별 DB가 분리되어 있으므로 Outbox도 각 DB에 존재합니다. Debezium이 각 DB의 WAL을 독립적으로 읽습니다.
+
+**Refresh Token을 Redis에 저장하는 이유**
+Refresh Token은 비즈니스 데이터가 아닌 임시 인증 세션 상태입니다. TTL 자동 만료, 단순 키-값 조회, 빠른 응답이 필요한 특성이 Redis에 적합합니다. PostgreSQL에 저장하면 만료 토큰 정기 삭제 배치가 별도로 필요합니다.

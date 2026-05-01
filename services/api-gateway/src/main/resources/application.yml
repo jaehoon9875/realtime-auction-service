@@ -5,28 +5,39 @@ spring:
     gateway:
       routes:
         # User Service (README 포트: 8083)
+        # 외부: /api/users/** → 내부: /users/** (첫 세그먼트 api 제거)
         - id: user-service
           uri: ${USER_SERVICE_URI:http://localhost:8083}
           predicates:
             - Path=/api/users/**
+          filters:
+            - StripPrefix=1
 
         # Auction Service — M3 이후 구현 시 확인
+        # 외부: /api/auctions/** → 내부: /auctions/** 가정
         - id: auction-service
           uri: ${AUCTION_SERVICE_URI:http://localhost:8081}
           predicates:
             - Path=/api/auctions/**
+          filters:
+            - StripPrefix=1
 
         # Bid Service — M4 이후 구현 시 확인
+        # 외부: /api/bids/** → 내부: /bids/** 가정
         - id: bid-service
           uri: ${BID_SERVICE_URI:http://localhost:8082}
           predicates:
             - Path=/api/bids/**
+          filters:
+            - StripPrefix=1
 
         # Notification Service — M6 이후 구현 시 확인
         - id: notification-service
           uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8084}
           predicates:
             - Path=/ws/**
-
 server:
   port: ${SERVER_PORT:8080}
+app:
+  jwt:
+    secret: ${JWT_SECRET}
