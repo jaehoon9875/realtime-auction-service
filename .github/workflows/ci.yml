@@ -76,12 +76,12 @@ jobs:
       # ── Build ───────────────────────────────
       - name: Build (Gradle)
         if: steps.check.outputs.ready == 'true'
-        run: ./gradlew ${{ matrix.gradle_task }}:build -x test
+        run: ./gradlew ${{ matrix.gradle_task }}:build -x test --stacktrace
 
       # ── Test ────────────────────────────────
       - name: Test (JUnit + Testcontainers)
         if: steps.check.outputs.ready == 'true'
-        run: ./gradlew ${{ matrix.gradle_task }}:test
+        run: ./gradlew ${{ matrix.gradle_task }}:test --stacktrace
         env:
           SPRING_PROFILES_ACTIVE: test
 
