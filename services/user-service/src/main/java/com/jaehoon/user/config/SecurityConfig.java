@@ -1,5 +1,6 @@
 package com.jaehoon.user.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -34,6 +35,11 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated()
                 )
+                // 미인증 요청(토큰 없음·만료·위조)에 대해 명시적으로 401 반환
+                // 403은 인증은 됐으나 권한이 없는 경우에만 사용
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((req, res, e) ->
+                                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "인증이 필요합니다")))
                 // JWT 필터를 Spring Security 인증 필터 앞에 배치
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

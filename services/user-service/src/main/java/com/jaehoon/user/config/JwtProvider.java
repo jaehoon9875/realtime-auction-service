@@ -55,10 +55,12 @@ public class JwtProvider {
     }
 
     // Refresh Token 생성 (subject: userId) - userId를 포함해 Redis 역방향 조회 없이 파싱 가능
+    // jti(JWT ID)에 랜덤 UUID를 추가해 같은 userId·같은 초에 발급해도 항상 다른 토큰 보장
     public String generateRefreshToken(UUID userId) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(userId.toString())
+                .id(UUID.randomUUID().toString())
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + refreshTokenExpirationMs))
                 .signWith(getPrivateKeyInstance(), Jwts.SIG.RS256)

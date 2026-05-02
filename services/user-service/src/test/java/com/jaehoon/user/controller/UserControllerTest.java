@@ -245,10 +245,10 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("logout Authorization 없음 - 403 Forbidden (인증 미통과)")
-    void logout_인증없음_403() throws Exception {
+    @DisplayName("logout Authorization 없음 - 401 Unauthorized (미인증)")
+    void logout_인증없음_401() throws Exception {
         mockMvc.perform(post("/users/logout"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     // ─────────────────────────────────────────────────
@@ -272,17 +272,17 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("me Authorization 헤더 없음 - 403 Forbidden")
-    void me_인증없음_403() throws Exception {
+    @DisplayName("me Authorization 헤더 없음 - 401 Unauthorized (미인증)")
+    void me_인증없음_401() throws Exception {
         mockMvc.perform(get("/users/me"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("me 변조된 JWT - 403 Forbidden (SecurityContext 비워짐 → passthrough 필터로 인증 없음)")
-    void me_변조된JWT_403() throws Exception {
+    @DisplayName("me 변조된 JWT - 401 Unauthorized (passthrough 필터 → 인증 컨텍스트 없음)")
+    void me_변조된JWT_401() throws Exception {
         mockMvc.perform(get("/users/me")
                         .header("Authorization", "Bearer invalid.jwt.token"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 }

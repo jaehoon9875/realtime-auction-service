@@ -46,9 +46,9 @@ class BearerTokenExtractorTest {
     }
 
     @Test
-    @DisplayName("Bearer만 있고 토큰 없음 → 빈 문자열 반환")
+    @DisplayName("Bearer만 있고 토큰 없음 → null 반환")
     void extract_Bearer뒤공백만() {
-        // "Bearer " (7자) 이후가 없으면 substring(7)은 빈 문자열
-        assertThat(BearerTokenExtractor.extract("Bearer ")).isEqualTo("");
+        // "Bearer " 뒤가 비어 있으면 유효한 토큰이 없다고 판단 → null
+        assertThat(BearerTokenExtractor.extract("Bearer ")).isNull();
     }
 }
