@@ -98,11 +98,11 @@ class JwtProviderTest {
     @Test
     @DisplayName("만료된 토큰 파싱 시 InvalidTokenException")
     void parseToken_만료토큰_예외() {
-        // 만료 시간을 0ms로 설정 → 생성 즉시 만료
+        // exp를 issuedAt보다 과거로 두어 iat=exp(0ms) 경계에서의 플래키 방지
         JwtProvider shortLived = new JwtProvider(
                 Base64.getEncoder().encodeToString(keyPair.getPrivate().getEncoded()),
                 Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()),
-                0L, REFRESH_MS);
+                -1000L, REFRESH_MS);
         String expiredToken = shortLived.generateAccessToken(UUID.randomUUID(), "test@example.com");
 
         assertThatThrownBy(() -> jwtProvider.parseToken(expiredToken))
