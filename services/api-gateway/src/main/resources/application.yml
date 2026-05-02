@@ -40,4 +40,4 @@ server:
   port: ${SERVER_PORT:8080}
 app:
   jwt:
-    secret: ${JWT_SECRET}
+    public-key: ${JWT_PUBLIC_KEY}

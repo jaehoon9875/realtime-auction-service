@@ -2,26 +2,38 @@ package com.jaehoon.user.config;
 
 import com.jaehoon.user.exception.InvalidTokenException;
 import io.jsonwebtoken.Claims;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.util.Base64;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 
 class JwtProviderTest {
 
-    // HMAC-SHA256 최소 요구: 256비트(32바이트) 이상
-    private static final String SECRET = "test-secret-key-must-be-at-least-256-bits-long-for-hs256!!";
     private static final long ACCESS_MS  = 900_000L;      // 15분
     private static final long REFRESH_MS = 604_800_000L;  // 7일
 
+    private static KeyPair keyPair;
     private JwtProvider jwtProvider;
+
+    @BeforeAll
+    static void generateKeyPair() throws Exception {
+        KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
+        gen.initialize(2048);
+        keyPair = gen.generateKeyPair();
+    }
 
     @BeforeEach
     void setUp() {
-        jwtProvider = new JwtProvider(SECRET, ACCESS_MS, REFRESH_MS);
+        String encodedPrivate = Base64.getEncoder().encodeToString(keyPair.getPrivate().getEncoded());
+        String encodedPublic  = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
+        jwtProvider = new JwtProvider(encodedPrivate, encodedPublic, ACCESS_MS, REFRESH_MS);
     }
 
     // ───────────────────────────────────────────────
@@ -56,20 +68,25 @@ class JwtProviderTest {
     // ───────────────────────────────────────────────
 
     @Test
-    @DisplayName("Refresh Token 생성 - UUID 형식 문자열")
-    void generateRefreshToken_UUID형식() {
-        String refreshToken = jwtProvider.generateRefreshToken();
+    @DisplayName("Refresh Token 생성 - subject에 userId 포함된 서명된 JWT")
+    void generateRefreshToken_userId포함() {
+        UUID userId = UUID.randomUUID();
+
+        String refreshToken = jwtProvider.generateRefreshToken(userId);
 
         assertThat(refreshToken).isNotBlank();
-        // UUID.fromString()이 예외 없이 파싱되면 유효한 UUID 형식
-        assertThatCode(() -> UUID.fromString(refreshToken)).doesNotThrowAnyException();
+        // Refresh Token도 파싱 가능한 JWT여야 함
+        Claims claims = jwtProvider.parseToken(refreshToken);
+        assertThat(claims.getSubject()).isEqualTo(userId.toString());
     }
 
     @Test
     @DisplayName("Refresh Token은 호출할 때마다 다른 값 생성")
     void generateRefreshToken_호출마다다름() {
-        String token1 = jwtProvider.generateRefreshToken();
-        String token2 = jwtProvider.generateRefreshToken();
+        UUID userId = UUID.randomUUID();
+
+        String token1 = jwtProvider.generateRefreshToken(userId);
+        String token2 = jwtProvider.generateRefreshToken(userId);
 
         assertThat(token1).isNotEqualTo(token2);
     }
@@ -82,7 +99,10 @@ class JwtProviderTest {
     @DisplayName("만료된 토큰 파싱 시 InvalidTokenException")
     void parseToken_만료토큰_예외() {
         // 만료 시간을 0ms로 설정 → 생성 즉시 만료
-        JwtProvider shortLived = new JwtProvider(SECRET, 0L, REFRESH_MS);
+        JwtProvider shortLived = new JwtProvider(
+                Base64.getEncoder().encodeToString(keyPair.getPrivate().getEncoded()),
+                Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()),
+                0L, REFRESH_MS);
         String expiredToken = shortLived.generateAccessToken(UUID.randomUUID(), "test@example.com");
 
         assertThatThrownBy(() -> jwtProvider.parseToken(expiredToken))
@@ -100,10 +120,16 @@ class JwtProviderTest {
     }
 
     @Test
-    @DisplayName("다른 시크릿으로 서명된 토큰 파싱 시 InvalidTokenException")
-    void parseToken_다른시크릿_예외() {
+    @DisplayName("다른 키 쌍으로 서명된 토큰 파싱 시 InvalidTokenException")
+    void parseToken_다른키쌍_예외() throws Exception {
+        KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
+        gen.initialize(2048);
+        KeyPair otherKeyPair = gen.generateKeyPair();
+
         JwtProvider other = new JwtProvider(
-                "completely-different-secret-key-for-testing-purposes-!!", ACCESS_MS, REFRESH_MS);
+                Base64.getEncoder().encodeToString(otherKeyPair.getPrivate().getEncoded()),
+                Base64.getEncoder().encodeToString(otherKeyPair.getPublic().getEncoded()),
+                ACCESS_MS, REFRESH_MS);
         String token = other.generateAccessToken(UUID.randomUUID(), "test@example.com");
 
         assertThatThrownBy(() -> jwtProvider.parseToken(token))

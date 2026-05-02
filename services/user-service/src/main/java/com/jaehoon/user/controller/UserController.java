@@ -35,8 +35,7 @@ public class UserController {
         return ResponseEntity.ok(userService.login(request));
     }
 
-    // Refresh Token은 Authorization 헤더 또는 Body로 받을 수 있음
-    // 여기서는 Authorization: Bearer {refreshToken} 방식 사용
+    // Refresh Token은 Authorization: Bearer {refreshToken} 헤더로 수신
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refresh(
             @RequestHeader("Authorization") String bearerToken) {
@@ -44,12 +43,12 @@ public class UserController {
         return ResponseEntity.ok(userService.refresh(refreshToken));
     }
 
-    // 로그아웃: Refresh Token으로 Redis 키 삭제
+    // 로그아웃: JwtAuthFilter가 Access Token을 검증하여 SecurityContext에 userId를 주입한 후,
+    // userId 기준으로 Redis의 Refresh Token 키를 삭제하여 세션 무효화
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(
-            @RequestHeader("Authorization") String bearerToken) {
-        String refreshToken = extractBearerToken(bearerToken);
-        userService.logout(refreshToken);
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserDetails userDetails) {
+        UUID userId = UUID.fromString(userDetails.getUsername());
+        userService.logout(userId);
         return ResponseEntity.noContent().build();
     }
 

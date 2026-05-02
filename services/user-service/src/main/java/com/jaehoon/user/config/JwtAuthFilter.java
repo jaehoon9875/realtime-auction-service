@@ -55,8 +55,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (InvalidTokenException e) {
-            // 유효하지 않은 토큰 → SecurityContext 비워두고 진행 (인증 필요 경로에서 403 반환됨)
+            // 유효하지 않은 Access Token → 즉시 401 반환 (chain 진행 없이 종료)
             SecurityContextHolder.clearContext();
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, e.getMessage());
+            return;
         }
 
         filterChain.doFilter(request, response);

@@ -2,32 +2,33 @@ spring:
   application:
     name: user-service
   datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_USER_PORT:5434}/${POSTGRES_USER_DB_NAME:user_db}
-    username: ${POSTGRES_USER:appuser}
-    password: ${POSTGRES_PASSWORD:local_password}
+    url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_USER_PORT}/${POSTGRES_USER_DB_NAME}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:local_redis_password}
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
     open-in-view: false
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
   flyway:
     enabled: true
     locations:
       - classpath:db/migration
 app:
   jwt:
-    secret: ${JWT_SECRET}
-    access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:900000}      # 15분. 15 * 60 * 1000
-    refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:604800000}  # 7일. 7 * 24 * 60 * 60 * 1000
+    private-key: ${JWT_PRIVATE_KEY}
+    public-key: ${JWT_PUBLIC_KEY}
+    access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:900000}      # 15분
+    refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:604800000}  # 7일
 logging:
   level:
     root: INFO

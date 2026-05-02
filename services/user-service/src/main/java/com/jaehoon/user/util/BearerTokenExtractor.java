@@ -12,12 +12,13 @@ public final class BearerTokenExtractor {
 
     /**
      * "Bearer {token}" 형식의 헤더에서 토큰 값만 반환.
-     * 형식이 올바르지 않으면 null 반환 (Filter에서 null 체크 후 처리).
+     * 형식이 올바르지 않거나 토큰 부분이 비어 있으면 null 반환.
      */
     public static String extract(String header) {
-        if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
-            return header.substring(7);
+        if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
+            return null;
         }
-        return null;
+        String token = header.substring(7).trim();
+        return StringUtils.hasText(token) ? token : null;
     }
 }

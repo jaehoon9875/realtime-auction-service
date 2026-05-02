@@ -2,7 +2,7 @@ package com.jaehoon.gateway.filter;
 
 import com.jaehoon.gateway.config.JwtGatewayProperties;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,8 +13,9 @@ import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.util.Base64;
 import java.util.Date;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,17 +31,22 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class JwtAuthGlobalFilterTest {
 
-    // HMAC-SHA256 최소 요구: 256비트(32바이트) 이상
-    private static final String SECRET =
-            "gateway-test-secret-key-must-be-at-least-256-bits-long-for-hs256!!";
+    private static KeyPair keyPair;
 
     private JwtGatewayProperties properties;
     private JwtAuthGlobalFilter filter;
 
+    @BeforeAll
+    static void generateKeyPair() throws Exception {
+        KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
+        gen.initialize(2048);
+        keyPair = gen.generateKeyPair();
+    }
+
     @BeforeEach
     void setUp() {
         properties = new JwtGatewayProperties();
-        properties.setSecret(SECRET);
+        properties.setPublicKey(Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
         filter = new JwtAuthGlobalFilter(properties);
     }
 
@@ -93,6 +99,30 @@ class JwtAuthGlobalFilterTest {
         assertThat(chainCalled.get()).isTrue();
     }
 
+    @Test
+    @DisplayName("/actuator/env 는 공개 경로 아님 - JWT 없으면 401")
+    void actuatorEnv_비공개경로_401() {
+        MockServerWebExchange exchange = exchangeFor("GET", "/actuator/env");
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        filter.filter(exchange, chainOf(chainCalled)).block();
+
+        assertThat(chainCalled.get()).isFalse();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    @DisplayName("/api/users/login-anything 은 공개 경로 아님 - JWT 없으면 401")
+    void loginAnything_비공개경로_401() {
+        MockServerWebExchange exchange = exchangeFor("POST", "/api/users/login-anything");
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        filter.filter(exchange, chainOf(chainCalled)).block();
+
+        assertThat(chainCalled.get()).isFalse();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
     // ─────────────────────────────────────────────────
     // Authorization 헤더 누락/형식 오류
     // ─────────────────────────────────────────────────
@@ -132,15 +162,13 @@ class JwtAuthGlobalFilterTest {
     @Test
     @DisplayName("만료된 JWT - 401 반환")
     void expiredJwt_401() {
-        SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
         Date now = new Date();
-        // expiration을 과거로 설정 → 즉시 만료
         String expiredToken = Jwts.builder()
                 .subject(UUID.randomUUID().toString())
                 .claim("email", "test@example.com")
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() - 1000L))
-                .signWith(key)
+                .signWith(keyPair.getPrivate(), Jwts.SIG.RS256)
                 .compact();
 
         MockServerWebExchange exchange = MockServerWebExchange.from(
@@ -172,17 +200,19 @@ class JwtAuthGlobalFilterTest {
     }
 
     @Test
-    @DisplayName("다른 시크릿으로 서명된 JWT - 401 반환")
-    void wrongSecretJwt_401() {
-        SecretKey otherKey = Keys.hmacShaKeyFor(
-                "other-secret-key-completely-different-must-be-256-bits!!".getBytes(StandardCharsets.UTF_8));
+    @DisplayName("다른 키 쌍으로 서명된 JWT - 401 반환")
+    void wrongKeyPairJwt_401() throws Exception {
+        KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
+        gen.initialize(2048);
+        KeyPair otherKeyPair = gen.generateKeyPair();
+
         Date now = new Date();
         String token = Jwts.builder()
                 .subject(UUID.randomUUID().toString())
                 .claim("email", "test@example.com")
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + 900_000L))
-                .signWith(otherKey)
+                .signWith(otherKeyPair.getPrivate(), Jwts.SIG.RS256)
                 .compact();
 
         MockServerWebExchange exchange = MockServerWebExchange.from(
@@ -213,7 +243,6 @@ class JwtAuthGlobalFilterTest {
                         .header("Authorization", "Bearer " + token)
                         .build());
 
-        // 체인이 받은 exchange를 캡처하여 뮤테이션된 헤더 확인
         AtomicReference<ServerWebExchange> captured = new AtomicReference<>();
         GatewayFilterChain chain = ex -> {
             captured.set(ex);
@@ -222,7 +251,7 @@ class JwtAuthGlobalFilterTest {
 
         filter.filter(exchange, chain).block();
 
-        assertThat(exchange.getResponse().getStatusCode()).isNull(); // 401 아님
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
         assertThat(captured.get()).isNotNull();
         assertThat(captured.get().getRequest().getHeaders().getFirst("X-User-Id"))
                 .isEqualTo(userId.toString());
@@ -233,14 +262,12 @@ class JwtAuthGlobalFilterTest {
     @Test
     @DisplayName("유효한 JWT - email claim 없는 경우 X-User-Email 빈 문자열")
     void validJwt_email없음_빈헤더() {
-        SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
         Date now = new Date();
-        // email claim 없이 생성
         String token = Jwts.builder()
                 .subject(UUID.randomUUID().toString())
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + 900_000L))
-                .signWith(key)
+                .signWith(keyPair.getPrivate(), Jwts.SIG.RS256)
                 .compact();
 
         MockServerWebExchange exchange = MockServerWebExchange.from(
@@ -261,14 +288,13 @@ class JwtAuthGlobalFilterTest {
     // ─────────────────────────────────────────────────
 
     private String generateToken(UUID userId, String email) {
-        SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
         Date now = new Date();
         return Jwts.builder()
                 .subject(userId.toString())
                 .claim("email", email)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + 900_000L))
-                .signWith(key)
+                .signWith(keyPair.getPrivate(), Jwts.SIG.RS256)
                 .compact();
     }
 
@@ -280,7 +306,6 @@ class JwtAuthGlobalFilterTest {
         return MockServerWebExchange.from(request);
     }
 
-    /** 체인이 호출되면 AtomicBoolean을 true로 설정하고 Mono.empty() 반환 */
     private GatewayFilterChain chainOf(AtomicBoolean called) {
         return ex -> {
             called.set(true);

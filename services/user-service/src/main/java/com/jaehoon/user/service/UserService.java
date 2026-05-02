@@ -25,6 +25,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UserService {
 
+    // Redis 키: refresh_token:{userId} → refreshToken 문자열
     private static final String REFRESH_TOKEN_KEY_PREFIX = "refresh_token:";
 
     private final UserRepository userRepository;
@@ -32,7 +33,7 @@ public class UserService {
     private final JwtProvider jwtProvider;
     private final StringRedisTemplate redisTemplate;
 
-    // 회원가입: 이메일 중복 확인 → BCrypt 해싱 → 저장 (DB 쓰기 발생 → 쓰기 트랜잭션 명시)
+    // 회원가입: 이메일 중복 확인 → BCrypt 해싱 → 저장
     @Transactional
     public void signup(SignupRequest request) {
         if (userRepository.existsByEmail(request.email())) {
@@ -61,35 +62,46 @@ public class UserService {
     }
 
     // Refresh Token Rotation
-    //   1. 토큰에서 userId 추출
-    //   2. Redis에서 해당 userId의 Refresh Token 조회
-    //   3. 요청 토큰과 불일치 시 → 탈취로 판단, 해당 키 삭제 후 예외
-    //   4. 일치 시 → 신규 Access + Refresh 발급, Redis 덮어쓰기
+    //   1. Refresh JWT 파싱 → userId 추출 (서명·만료 검증 포함)
+    //   2. Redis에서 refresh_token:{userId} 조회
+    //   3. null → 세션 만료 또는 이미 무효화 → 예외
+    //   4. 불일치 → 탈취 감지 → userId 키 삭제(전체 세션 무효화) → 예외
+    //   5. 일치 → 신규 토큰 발급, Redis 덮어쓰기
     public TokenResponse refresh(String refreshToken) {
-        // Refresh Token 자체는 서명된 JWT가 아닌 UUID 문자열이므로
-        // Access Token으로 userId를 알 수 없음 → Redis에서 직접 매칭 필요
-        // 탈취 감지를 위해 모든 userId 키를 조회하는 대신,
-        // Refresh Token 값 → userId 역방향 조회를 위한 별도 키 활용
-        String userIdStr = redisTemplate.opsForValue().get(REFRESH_TOKEN_KEY_PREFIX + refreshToken);
+        // Refresh Token JWT에서 userId 추출 (서명 위변조·만료 시 InvalidTokenException)
+        UUID userId;
+        try {
+            userId = jwtProvider.extractUserId(refreshToken);
+        } catch (InvalidTokenException e) {
+            throw new InvalidTokenException("유효하지 않은 Refresh Token입니다");
+        }
 
-        if (userIdStr == null) {
+        // Redis에서 현재 userId에 저장된 Refresh Token 조회
+        String storedToken = redisTemplate.opsForValue().get(REFRESH_TOKEN_KEY_PREFIX + userId);
+
+        if (storedToken == null) {
+            // TTL 만료 또는 로그아웃으로 이미 무효화된 세션
             throw new InvalidTokenException("만료되었거나 유효하지 않은 Refresh Token입니다");
         }
 
-        UUID userId = UUID.fromString(userIdStr);
+        if (!storedToken.equals(refreshToken)) {
+            // 탈취 감지: 서명은 유효하지만 Redis 저장값과 다름 → 이전 토큰 재사용 의심
+            // 해당 userId의 세션 전체를 무효화하여 피해 확산 방지
+            redisTemplate.delete(REFRESH_TOKEN_KEY_PREFIX + userId);
+            throw new InvalidTokenException("보안을 위해 세션이 무효화되었습니다. 다시 로그인해주세요");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
         // 기존 토큰 삭제 후 신규 발급 (Rotation)
-        redisTemplate.delete(REFRESH_TOKEN_KEY_PREFIX + refreshToken);
+        redisTemplate.delete(REFRESH_TOKEN_KEY_PREFIX + userId);
         return issueTokens(user);
     }
 
-    // 로그아웃: Access Token에서 userId 추출 → Redis에서 해당 Refresh Token 삭제
-    // 주의: Refresh Token 값 → userId 구조이므로 userId로 역방향 조회 불가
-    // 클라이언트가 Refresh Token을 함께 전달해야 Redis에서 삭제 가능
-    public void logout(String refreshToken) {
-        redisTemplate.delete(REFRESH_TOKEN_KEY_PREFIX + refreshToken);
+    // 로그아웃: userId 기준으로 Redis 키 삭제 → 해당 사용자의 세션 전체 무효화
+    public void logout(UUID userId) {
+        redisTemplate.delete(REFRESH_TOKEN_KEY_PREFIX + userId);
     }
 
     // 내 정보 조회 (클래스 레벨 readOnly = true 상속)
@@ -100,17 +112,17 @@ public class UserService {
         return new UserResponse(user.getId(), user.getEmail(), user.getNickname());
     }
 
-    // Access Token + Refresh Token 발급 후 Redis 저장 공통 로직
+    // Access Token + Refresh Token 발급 후 Redis에 userId 기준으로 저장
     private TokenResponse issueTokens(User user) {
         String accessToken = jwtProvider.generateAccessToken(user.getId(), user.getEmail());
-        String refreshToken = jwtProvider.generateRefreshToken();
+        String refreshToken = jwtProvider.generateRefreshToken(user.getId());
 
-        // Redis 키: refresh_token:{refreshToken 값} → userId (TTL 7일)
-        // Rotation 시 기존 토큰 키가 달라지므로 자동으로 이전 토큰 무효화
+        // Redis 키: refresh_token:{userId} → refreshToken (TTL 7일)
+        // 같은 userId로 재로그인 시 덮어쓰기 → 이전 Refresh Token 자동 무효화
         Duration ttl = Duration.ofMillis(jwtProvider.getRefreshTokenExpirationMs());
         redisTemplate.opsForValue().set(
-                REFRESH_TOKEN_KEY_PREFIX + refreshToken,
-                user.getId().toString(),
+                REFRESH_TOKEN_KEY_PREFIX + user.getId(),
+                refreshToken,
                 ttl
         );
 

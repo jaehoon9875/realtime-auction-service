@@ -22,6 +22,12 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -29,17 +35,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * 실제 PostgreSQL + Redis 컨테이너를 기동해 전체 HTTP 흐름을 검증하는 통합 테스트.
  * 단위 테스트에서 mock으로 커버하지 못하는 영역(DB 트랜잭션, Redis TTL, Flyway 마이그레이션)을 보완한다.
- *
- * 검증 대상:
- *  - signup → login → me → refresh → logout 전체 플로우
- *  - 만료/탈취 refresh token으로 재발급 시도
- *  - 이메일 중복 저장 방지
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("integration-test")
 @Testcontainers
 class UserIntegrationTest {
+
+    // RSA 키 쌍은 클래스 로딩 시 정적 초기화 (DynamicPropertySource가 BeforeAll보다 먼저 실행됨)
+    private static final KeyPair KEY_PAIR = generateKeyPair();
+
+    private static KeyPair generateKeyPair() {
+        try {
+            KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
+            gen.initialize(2048);
+            return gen.generateKeyPair();
+        } catch (NoSuchAlgorithmException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
 
     @SuppressWarnings("resource")
     @Container
@@ -53,7 +67,7 @@ class UserIntegrationTest {
 
     /**
      * Testcontainers가 할당한 동적 포트/호스트를 스프링 설정으로 주입.
-     * JWT_SECRET은 application.yml의 ${JWT_SECRET} 플레이스홀더를 해소하기 위해 주입.
+     * RSA 키 쌍을 Base64 인코딩하여 JWT_PRIVATE_KEY, JWT_PUBLIC_KEY로 주입.
      * Redis는 비밀번호 없이 기동하므로 password를 빈 문자열로 오버라이드.
      */
     @DynamicPropertySource
@@ -63,18 +77,17 @@ class UserIntegrationTest {
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
-        // 컨테이너는 인증 없이 기동 → 빈 문자열로 설정해 AUTH 명령 미발송
         registry.add("spring.data.redis.password", () -> "");
-        registry.add("JWT_SECRET",
-                () -> "integration-test-jwt-secret-key-must-be-at-least-256-bits-long!!");
+        registry.add("JWT_PRIVATE_KEY",
+                () -> Base64.getEncoder().encodeToString(KEY_PAIR.getPrivate().getEncoded()));
+        registry.add("JWT_PUBLIC_KEY",
+                () -> Base64.getEncoder().encodeToString(KEY_PAIR.getPublic().getEncoded()));
     }
 
     @Autowired MockMvc mockMvc;
 
-    // Spring Boot 4 전체 컨텍스트에서도 ObjectMapper는 자동 빈 등록이 안 되므로 직접 생성
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // 테스트마다 다른 이메일 사용 (DB는 컨테이너 생명주기 동안 유지)
     private String testEmail;
 
     @BeforeEach
@@ -87,7 +100,7 @@ class UserIntegrationTest {
     // ─────────────────────────────────────────────────
 
     @Test
-    @DisplayName("전체 인증 플로우 - signup → login → me → refresh → logout")
+    @DisplayName("전체 인증 플로우 - signup → login → me → refresh → logout → refresh 재시도")
     void 전체인증플로우() throws Exception {
         // 1. 회원가입
         signup(testEmail, "password123", "닉네임");
@@ -105,38 +118,34 @@ class UserIntegrationTest {
 
         // 4. Refresh Token으로 토큰 재발급 (Rotation)
         TokenResponse newTokens = refresh(tokens.refreshToken());
-        assertThat(newTokens.accessToken()).isNotBlank();
-        assertThat(newTokens.refreshToken()).isNotBlank();
-        // Rotation 확인: 새로운 Refresh Token 발급
         assertThat(newTokens.refreshToken()).isNotEqualTo(tokens.refreshToken());
 
-        // 5. 로그아웃 (새 Access Token으로 인증 후 Refresh Token 무효화)
+        // 5. 로그아웃: Access Token으로 인증 후 userId 기준으로 Redis Refresh Token 삭제
         mockMvc.perform(post("/users/logout")
                         .header("Authorization", "Bearer " + newTokens.accessToken()))
                 .andExpect(status().isNoContent());
 
-        // 6. 로그아웃 후 기존 Refresh Token으로 재발급 시도 → 401 (Redis에서 삭제됨)
-        // 로그아웃 시 controller는 Access JWT에서 토큰 추출 → userService.logout(accessToken) 호출
-        // 실제 Refresh Token 무효화는 클라이언트가 Refresh Token을 직접 전달해야 하는 구조
-        // → 이 동작은 현재 설계상의 특성으로, 아래 케이스로 별도 검증
+        // 6. 로그아웃 후 Refresh Token으로 재발급 시도 → 400 (Redis에서 해당 userId 키 삭제됨)
+        mockMvc.perform(post("/users/refresh")
+                        .header("Authorization", "Bearer " + newTokens.refreshToken()))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("이메일 중복 가입 - 409 Conflict")
-    void 이메일중복가입_409() throws Exception {
+    @DisplayName("이메일 중복 가입 - 400 Bad Request")
+    void 이메일중복가입_400() throws Exception {
         signup(testEmail, "password123", "닉네임");
 
-        // 동일 이메일로 재가입 시도
         mockMvc.perform(post("/users/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new SignupRequest(testEmail, "password123", "닉네임2"))))
-                .andExpect(status().isConflict())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists());
     }
 
     @Test
-    @DisplayName("Refresh Token Rotation - 이전 Refresh Token은 재사용 불가")
+    @DisplayName("Refresh Token Rotation - 이전 Refresh Token은 재사용 불가 (400)")
     void refreshToken_Rotation_이전토큰_재사용불가() throws Exception {
         signup(testEmail, "password123", "닉네임");
         TokenResponse first = login(testEmail, "password123");
@@ -144,45 +153,50 @@ class UserIntegrationTest {
         // 첫 번째 갱신 (old → new)
         refresh(first.refreshToken());
 
-        // 이미 사용된 old refresh token으로 재시도 → 401
+        // 이미 사용된 old refresh token으로 재시도 → 탈취 감지 → 400
         mockMvc.perform(post("/users/refresh")
                         .header("Authorization", "Bearer " + first.refreshToken()))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("존재하지 않는 Refresh Token으로 갱신 시도 - 401")
-    void refresh_존재하지않는토큰_401() throws Exception {
+    @DisplayName("존재하지 않는 Refresh Token으로 갱신 시도 - 400")
+    void refresh_존재하지않는토큰_400() throws Exception {
+        // 유효한 서명의 Refresh JWT를 임시 JwtProvider로 생성하되, Redis에는 존재하지 않음
+        String encodedPrivate = Base64.getEncoder().encodeToString(KEY_PAIR.getPrivate().getEncoded());
+        String encodedPublic  = Base64.getEncoder().encodeToString(KEY_PAIR.getPublic().getEncoded());
+        JwtProvider tempProvider = new JwtProvider(encodedPrivate, encodedPublic, 900_000L, 604_800_000L);
+        String unknownToken = tempProvider.generateRefreshToken(UUID.randomUUID());
+
         mockMvc.perform(post("/users/refresh")
-                        .header("Authorization", "Bearer non-existent-token-uuid"))
-                .andExpect(status().isUnauthorized());
+                        .header("Authorization", "Bearer " + unknownToken))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("잘못된 비밀번호로 로그인 - 401 Unauthorized")
-    void login_잘못된비밀번호_401() throws Exception {
+    @DisplayName("잘못된 비밀번호로 로그인 - 400 Bad Request")
+    void login_잘못된비밀번호_400() throws Exception {
         signup(testEmail, "password123", "닉네임");
 
         mockMvc.perform(post("/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(
                                 new LoginRequest(testEmail, "wrongpassword"))))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("만료된 Access Token으로 me 조회 - 403 Forbidden")
-    void me_만료된AccessToken_403() throws Exception {
-        // 만료 시간 0ms → 즉시 만료 토큰 생성
-        JwtProvider shortLived = new JwtProvider(
-                "integration-test-jwt-secret-key-must-be-at-least-256-bits-long!!",
-                0L, 604_800_000L);
-        String expiredToken = shortLived.generateAccessToken(
-                java.util.UUID.randomUUID(), "test@example.com");
+    @DisplayName("만료된 Access Token으로 me 조회 - 401 Unauthorized")
+    void me_만료된AccessToken_401() throws Exception {
+        // 만료 시간 0ms → 즉시 만료되는 토큰 생성 (같은 RSA 키 쌍 사용)
+        String encodedPrivate = Base64.getEncoder().encodeToString(KEY_PAIR.getPrivate().getEncoded());
+        String encodedPublic  = Base64.getEncoder().encodeToString(KEY_PAIR.getPublic().getEncoded());
+        JwtProvider shortLived = new JwtProvider(encodedPrivate, encodedPublic, 0L, 604_800_000L);
+        String expiredToken = shortLived.generateAccessToken(UUID.randomUUID(), "test@example.com");
 
         mockMvc.perform(get("/users/me")
                         .header("Authorization", "Bearer " + expiredToken))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized()); // JwtAuthFilter가 즉시 401 반환
     }
 
     // ─────────────────────────────────────────────────

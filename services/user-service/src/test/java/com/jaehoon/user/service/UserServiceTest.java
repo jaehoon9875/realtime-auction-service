@@ -69,7 +69,7 @@ class UserServiceTest {
 
         assertThatThrownBy(() -> userService.signup(request))
                 .isInstanceOf(EmailAlreadyExistsException.class)
-                .hasMessageContaining("dup@example.com");
+                .hasMessage("이미 사용 중인 이메일입니다");
 
         then(userRepository).should(never()).save(any());
     }
@@ -79,7 +79,7 @@ class UserServiceTest {
     // ─────────────────────────────────────────────────
 
     @Test
-    @DisplayName("login 정상 - Access + Refresh Token 발급, Redis에 Refresh Token 저장")
+    @DisplayName("login 정상 - Access + Refresh Token 발급, Redis에 refresh_token:{userId} 저장")
     void login_정상() {
         UUID userId = UUID.randomUUID();
         User user = buildUser(userId, "test@example.com", "encoded");
@@ -88,18 +88,18 @@ class UserServiceTest {
         given(userRepository.findByEmail(request.email())).willReturn(Optional.of(user));
         given(passwordEncoder.matches(request.password(), "encoded")).willReturn(true);
         given(jwtProvider.generateAccessToken(userId, "test@example.com")).willReturn("access-jwt");
-        given(jwtProvider.generateRefreshToken()).willReturn("refresh-uuid");
+        given(jwtProvider.generateRefreshToken(userId)).willReturn("refresh-jwt");
         given(jwtProvider.getRefreshTokenExpirationMs()).willReturn(604_800_000L);
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
 
         TokenResponse result = userService.login(request);
 
         assertThat(result.accessToken()).isEqualTo("access-jwt");
-        assertThat(result.refreshToken()).isEqualTo("refresh-uuid");
-        // Redis에 refresh_token:{refreshToken} → userId 저장 확인
+        assertThat(result.refreshToken()).isEqualTo("refresh-jwt");
+        // Redis 키: refresh_token:{userId} → refreshToken 값 (userId 기준 단일 세션)
         then(valueOperations).should().set(
-                eq(REFRESH_KEY_PREFIX + "refresh-uuid"),
-                eq(userId.toString()),
+                eq(REFRESH_KEY_PREFIX + userId),
+                eq("refresh-jwt"),
                 any(Duration.class)
         );
     }
@@ -132,15 +132,17 @@ class UserServiceTest {
     @Test
     @DisplayName("refresh 정상 - 기존 Refresh Token 삭제 후 신규 토큰 발급 (Rotation)")
     void refresh_정상() {
-        String oldRefresh = "old-refresh-uuid";
+        String oldRefresh = "old-refresh-jwt";
         UUID userId = UUID.randomUUID();
         User user = buildUser(userId, "test@example.com", "encoded");
 
+        given(jwtProvider.extractUserId(oldRefresh)).willReturn(userId);
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
-        given(valueOperations.get(REFRESH_KEY_PREFIX + oldRefresh)).willReturn(userId.toString());
+        // Redis에서 userId 키로 저장된 Refresh Token이 요청 토큰과 일치
+        given(valueOperations.get(REFRESH_KEY_PREFIX + userId)).willReturn(oldRefresh);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(jwtProvider.generateAccessToken(userId, "test@example.com")).willReturn("new-access");
-        given(jwtProvider.generateRefreshToken()).willReturn("new-refresh");
+        given(jwtProvider.generateRefreshToken(userId)).willReturn("new-refresh");
         given(jwtProvider.getRefreshTokenExpirationMs()).willReturn(604_800_000L);
 
         TokenResponse result = userService.refresh(oldRefresh);
@@ -148,28 +150,62 @@ class UserServiceTest {
         assertThat(result.accessToken()).isEqualTo("new-access");
         assertThat(result.refreshToken()).isEqualTo("new-refresh");
         // 기존 Refresh Token 반드시 삭제 (Rotation 핵심)
-        then(redisTemplate).should().delete(REFRESH_KEY_PREFIX + oldRefresh);
+        then(redisTemplate).should().delete(REFRESH_KEY_PREFIX + userId);
     }
 
     @Test
-    @DisplayName("refresh Redis에 토큰 없음 (만료 or 탈취) - InvalidTokenException")
-    void refresh_Redis없는토큰() {
-        given(redisTemplate.opsForValue()).willReturn(valueOperations);
-        given(valueOperations.get(anyString())).willReturn(null);
+    @DisplayName("refresh - 유효하지 않은 JWT → InvalidTokenException")
+    void refresh_유효하지않은JWT() {
+        given(jwtProvider.extractUserId("invalid-token"))
+                .willThrow(new InvalidTokenException("유효하지 않은 토큰입니다"));
 
-        assertThatThrownBy(() -> userService.refresh("non-existent-token"))
+        assertThatThrownBy(() -> userService.refresh("invalid-token"))
                 .isInstanceOf(InvalidTokenException.class);
     }
 
     @Test
-    @DisplayName("refresh Redis에 토큰 있으나 User 삭제된 경우 - UserNotFoundException")
+    @DisplayName("refresh - Redis에 토큰 없음 (만료 or 로그아웃) → InvalidTokenException")
+    void refresh_Redis없는토큰() {
+        UUID userId = UUID.randomUUID();
+        given(jwtProvider.extractUserId("expired-token")).willReturn(userId);
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get(REFRESH_KEY_PREFIX + userId)).willReturn(null);
+
+        assertThatThrownBy(() -> userService.refresh("expired-token"))
+                .isInstanceOf(InvalidTokenException.class);
+    }
+
+    @Test
+    @DisplayName("refresh - 탈취 감지: 서명 유효하지만 Redis 저장값과 다른 토큰 → 세션 전체 무효화")
+    void refresh_탈취감지() {
+        UUID userId = UUID.randomUUID();
+        String storedToken  = "stored-refresh-jwt";    // Redis에 저장된 현재 유효 토큰
+        String attackerToken = "attacker-refresh-jwt"; // 공격자가 재사용 시도하는 이전 토큰
+
+        // 공격자 토큰도 JWT 서명 자체는 통과하지만 Redis 값과 다름
+        given(jwtProvider.extractUserId(attackerToken)).willReturn(userId);
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.get(REFRESH_KEY_PREFIX + userId)).willReturn(storedToken);
+
+        assertThatThrownBy(() -> userService.refresh(attackerToken))
+                .isInstanceOf(InvalidTokenException.class);
+
+        // 탈취 감지 → userId 기준 세션 전체 무효화
+        then(redisTemplate).should().delete(REFRESH_KEY_PREFIX + userId);
+    }
+
+    @Test
+    @DisplayName("refresh - Redis에 토큰 있으나 User 삭제된 경우 → UserNotFoundException")
     void refresh_User삭제됨() {
         UUID userId = UUID.randomUUID();
+        String refreshToken = "some-refresh-jwt";
+
+        given(jwtProvider.extractUserId(refreshToken)).willReturn(userId);
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
-        given(valueOperations.get(REFRESH_KEY_PREFIX + "token")).willReturn(userId.toString());
+        given(valueOperations.get(REFRESH_KEY_PREFIX + userId)).willReturn(refreshToken);
         given(userRepository.findById(userId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> userService.refresh("token"))
+        assertThatThrownBy(() -> userService.refresh(refreshToken))
                 .isInstanceOf(UserNotFoundException.class);
     }
 
@@ -178,20 +214,21 @@ class UserServiceTest {
     // ─────────────────────────────────────────────────
 
     @Test
-    @DisplayName("logout - Redis에서 refresh_token:{token} 키 삭제")
+    @DisplayName("logout - Redis에서 refresh_token:{userId} 키 삭제")
     void logout_정상() {
-        String refreshToken = "some-refresh-token";
+        UUID userId = UUID.randomUUID();
 
-        userService.logout(refreshToken);
+        userService.logout(userId);
 
-        then(redisTemplate).should().delete(REFRESH_KEY_PREFIX + refreshToken);
+        then(redisTemplate).should().delete(REFRESH_KEY_PREFIX + userId);
     }
 
     @Test
-    @DisplayName("logout - 존재하지 않는 토큰이어도 예외 없이 처리 (멱등성)")
-    void logout_존재하지않는토큰_예외없음() {
+    @DisplayName("logout - 이미 로그아웃된 사용자여도 예외 없이 처리 (멱등성)")
+    void logout_멱등성() {
+        UUID userId = UUID.randomUUID();
         // Redis delete는 키가 없어도 예외를 던지지 않음
-        assertThatCode(() -> userService.logout("ghost-token")).doesNotThrowAnyException();
+        assertThatCode(() -> userService.logout(userId)).doesNotThrowAnyException();
     }
 
     // ─────────────────────────────────────────────────
@@ -226,10 +263,6 @@ class UserServiceTest {
     // 헬퍼
     // ─────────────────────────────────────────────────
 
-    /**
-     * User 엔티티는 @NoArgsConstructor(PROTECTED)이고 id는 DB가 생성하므로
-     * ReflectionTestUtils로 id를 주입해 테스트용 객체 구성
-     */
     private User buildUser(UUID id, String email, String encodedPassword) {
         User user = User.builder()
                 .email(email)

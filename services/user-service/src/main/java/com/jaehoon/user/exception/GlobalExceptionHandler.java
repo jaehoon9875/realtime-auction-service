@@ -1,5 +1,7 @@
 package com.jaehoon.user.exception;
 
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -12,24 +14,24 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 이메일 중복 → 409 Conflict
+    // 이메일 중복 → 400 Bad Request (클라이언트 오류)
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handleEmailDuplicate(EmailAlreadyExistsException e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(e.getMessage()));
     }
 
-    // 이메일/비밀번호 불일치 → 401 Unauthorized
+    // 이메일/비밀번호 불일치 → 400 Bad Request (클라이언트 오류)
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleInvalidCredentials(InvalidCredentialsException e) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(e.getMessage()));
     }
 
-    // 유효하지 않은 토큰 → 401 Unauthorized
+    // 유효하지 않은 토큰 → 400 Bad Request (클라이언트 오류)
     @ExceptionHandler(InvalidTokenException.class)
     public ResponseEntity<ErrorResponse> handleInvalidToken(InvalidTokenException e) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ErrorResponse(e.getMessage()));
     }
 
@@ -41,7 +43,6 @@ public class GlobalExceptionHandler {
     }
 
     // Bean Validation 실패 (@Valid) → 400 Bad Request
-    // 여러 필드 오류를 하나의 메시지로 합산
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         String message = e.getBindingResult().getFieldErrors().stream()
@@ -49,5 +50,12 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         return ResponseEntity.badRequest()
                 .body(new ErrorResponse(message));
+    }
+
+    // Redis·외부 의존 서비스 장애 → 503 Service Unavailable (재시도 가능)
+    @ExceptionHandler({RedisConnectionFailureException.class, DataAccessResourceFailureException.class})
+    public ResponseEntity<ErrorResponse> handleDependentServiceFailure(Exception e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ErrorResponse("의존 서비스 장애가 발생했습니다"));
     }
 }

@@ -44,14 +44,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * - JWT 파싱 동작은 JwtProviderTest / JwtAuthGlobalFilterTest에서 별도 검증하므로,
  *   이 테스트의 JwtAuthFilter는 "그냥 통과"하는 passthrough 구현체를 사용한다.
- * - 인증이 필요한 엔드포인트(@WithMockUser)와 permitAll 경로를 SecurityConfig 설정 그대로 검증한다.
+ * - 인증이 필요한 엔드포인트(.with(user(...)))와 permitAll 경로를 SecurityConfig 설정 그대로 검증한다.
  */
 @WebMvcTest(UserController.class)
 @Import({SecurityConfig.class, GlobalExceptionHandler.class, UserControllerTest.TestConfig.class})
 @TestPropertySource(properties = {
-        // application.yml의 ${JWT_SECRET} 플레이스홀더 해소
-        "JWT_SECRET=test-secret-key-must-be-at-least-256-bits-long-for-hs256!!",
-        "app.jwt.secret=test-secret-key-must-be-at-least-256-bits-long-for-hs256!!",
+        // JwtProvider 생성에 필요한 프로퍼티 (JwtAuthFilter passthrough이므로 실제 RSA 키 불필요)
+        "JWT_PRIVATE_KEY=dGVzdA==",
+        "JWT_PUBLIC_KEY=dGVzdA==",
+        "app.jwt.private-key=dGVzdA==",
+        "app.jwt.public-key=dGVzdA==",
         "app.jwt.access-token-expiration-ms=900000",
         "app.jwt.refresh-token-expiration-ms=604800000"
 })
@@ -59,10 +61,8 @@ class UserControllerTest {
 
     @Autowired MockMvc mockMvc;
 
-    // Spring Boot 4 @WebMvcTest 슬라이스에는 ObjectMapper 빈이 기본 포함되지 않음
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    /** UserServiceMockConfig에서 등록한 Mockito mock 인스턴스 */
     @Autowired UserService userService;
 
     @BeforeEach
@@ -78,9 +78,8 @@ class UserControllerTest {
         }
 
         /**
-         * SecurityConfig 생성자는 JwtAuthFilter를 요구한다.
-         * 이 테스트에서 JWT 파싱 검증은 목적이 아니므로,
-         * 아무 처리 없이 체인을 통과시키는 passthrough 구현체를 제공한다.
+         * JwtAuthFilter passthrough: JWT 파싱 없이 체인을 그대로 통과.
+         * JWT 검증 동작은 JwtProviderTest / JwtAuthGlobalFilterTest에서 전담.
          */
         @Bean
         JwtAuthFilter jwtAuthFilter(JwtProvider jwtProvider) {
@@ -145,8 +144,8 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("signup 이메일 중복 - 409 Conflict")
-    void signup_이메일중복_409() throws Exception {
+    @DisplayName("signup 이메일 중복 - 400 Bad Request")
+    void signup_이메일중복_400() throws Exception {
         willThrow(new EmailAlreadyExistsException("dup@example.com"))
                 .given(userService).signup(any());
         SignupRequest body = new SignupRequest("dup@example.com", "password123", "닉네임");
@@ -154,7 +153,7 @@ class UserControllerTest {
         mockMvc.perform(post("/users/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().isConflict())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists());
     }
 
@@ -165,7 +164,7 @@ class UserControllerTest {
     @Test
     @DisplayName("login 정상 - 200 OK + accessToken/refreshToken 포함")
     void login_정상_200() throws Exception {
-        TokenResponse token = new TokenResponse("access-jwt", "refresh-uuid");
+        TokenResponse token = new TokenResponse("access-jwt", "refresh-jwt");
         given(userService.login(any())).willReturn(token);
         LoginRequest body = new LoginRequest("test@example.com", "password123");
 
@@ -174,19 +173,19 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("access-jwt"))
-                .andExpect(jsonPath("$.refreshToken").value("refresh-uuid"));
+                .andExpect(jsonPath("$.refreshToken").value("refresh-jwt"));
     }
 
     @Test
-    @DisplayName("login 자격증명 오류 - 401 Unauthorized")
-    void login_자격증명오류_401() throws Exception {
+    @DisplayName("login 자격증명 오류 - 400 Bad Request")
+    void login_자격증명오류_400() throws Exception {
         given(userService.login(any())).willThrow(new InvalidCredentialsException());
         LoginRequest body = new LoginRequest("test@example.com", "wrong");
 
         mockMvc.perform(post("/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
-                .andExpect(status().isUnauthorized())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists());
     }
 
@@ -212,21 +211,21 @@ class UserControllerTest {
         given(userService.refresh(anyString())).willReturn(newToken);
 
         mockMvc.perform(post("/users/refresh")
-                        .header("Authorization", "Bearer old-refresh-uuid"))
+                        .header("Authorization", "Bearer old-refresh-jwt"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("new-access"))
                 .andExpect(jsonPath("$.refreshToken").value("new-refresh"));
     }
 
     @Test
-    @DisplayName("refresh 유효하지 않은 토큰 - 401 Unauthorized")
-    void refresh_유효하지않은토큰_401() throws Exception {
+    @DisplayName("refresh 유효하지 않은 토큰 - 400 Bad Request")
+    void refresh_유효하지않은토큰_400() throws Exception {
         given(userService.refresh(anyString()))
                 .willThrow(new InvalidTokenException("만료되었거나 유효하지 않은 Refresh Token입니다"));
 
         mockMvc.perform(post("/users/refresh")
                         .header("Authorization", "Bearer expired-token"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isBadRequest());
     }
 
     // ─────────────────────────────────────────────────
@@ -236,20 +235,18 @@ class UserControllerTest {
     @Test
     @DisplayName("logout 인증된 사용자 - 204 No Content")
     void logout_인증된사용자_204() throws Exception {
-        // .with(user(...))로 요청 처리 시점에 SecurityContext 주입 (STATELESS 설정에서도 안전)
-        // Authorization 헤더에 refresh token을 담아 전달 → controller가 추출해 service.logout() 호출
-        willDoNothing().given(userService).logout(anyString());
+        UUID userId = UUID.randomUUID();
+        willDoNothing().given(userService).logout(any(UUID.class));
 
+        // .with(user(userId))로 SecurityContext 주입 → @AuthenticationPrincipal에 userId 전달
         mockMvc.perform(post("/users/logout")
-                        .with(user("someUser"))
-                        .header("Authorization", "Bearer some-refresh-token"))
+                        .with(user(userId.toString())))
                 .andExpect(status().isNoContent());
     }
 
     @Test
-    @DisplayName("logout Authorization 헤더 없음 - 403 Forbidden (인증 미통과)")
+    @DisplayName("logout Authorization 없음 - 403 Forbidden (인증 미통과)")
     void logout_인증없음_403() throws Exception {
-        // /users/logout은 permitAll 아님 → 인증 없이 접근 시 스프링 시큐리티가 403 반환
         mockMvc.perform(post("/users/logout"))
                 .andExpect(status().isForbidden());
     }
@@ -261,8 +258,6 @@ class UserControllerTest {
     @Test
     @DisplayName("me 인증된 사용자 - 200 OK + UserResponse 반환")
     void me_인증된사용자_200() throws Exception {
-        // .with(user(uuid))로 요청 처리 시점에 SecurityContext 주입 (STATELESS 설정에서도 안전)
-        // username = userId → 컨트롤러의 userDetails.getUsername()으로 사용됨
         UUID userId = UUID.fromString("ba68fda7-767b-468d-b722-27d913bf48b5");
         String email = "test@example.com";
         UserResponse response = new UserResponse(userId, email, "닉네임");
@@ -284,7 +279,7 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("me 변조된 JWT - 403 Forbidden (SecurityContext 비워짐)")
+    @DisplayName("me 변조된 JWT - 403 Forbidden (SecurityContext 비워짐 → passthrough 필터로 인증 없음)")
     void me_변조된JWT_403() throws Exception {
         mockMvc.perform(get("/users/me")
                         .header("Authorization", "Bearer invalid.jwt.token"))

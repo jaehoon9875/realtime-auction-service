@@ -4,7 +4,6 @@ import com.jaehoon.gateway.config.JwtGatewayProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -16,8 +15,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 import java.util.List;
 
 @Component
@@ -26,13 +27,14 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
     private final JwtGatewayProperties jwtProperties;
 
-    // 인증 없이 통과시킬 공개 경로 목록 (StripPrefix 적용 전 외부 경로 기준)
+    // 인증 없이 통과시킬 공개 경로 (정확 일치만 허용 - prefix 매칭 금지)
+    // startsWith 대신 contains를 사용해 /actuator/env, /api/users/login-anything 같은
+    // 의도치 않은 경로 노출을 차단한다.
     private static final List<String> PUBLIC_PATHS = List.of(
             "/api/users/signup",
             "/api/users/login",
             "/api/users/refresh",
-            "/actuator/health",
-            "/actuator"
+            "/actuator/health"
     );
 
     @Override
@@ -50,7 +52,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return unauthorized(exchange);
         }
 
-        // JWT 파싱·검증
+        // JWT 파싱·검증 (RSA 공개키 사용)
         Claims claims;
         try {
             claims = parseToken(token);
@@ -77,9 +79,9 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         return Ordered.HIGHEST_PRECEDENCE + 10;
     }
 
-    // 공개 경로 여부 판단 (prefix 매칭)
+    // 공개 경로 여부 판단 (정확 일치)
     private boolean isPublicPath(String path) {
-        return PUBLIC_PATHS.stream().anyMatch(path::startsWith);
+        return PUBLIC_PATHS.contains(path);
     }
 
     // Authorization: Bearer {token} 헤더에서 토큰 추출
@@ -91,11 +93,16 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         return null;
     }
 
-    // JJWT 0.12.x API로 토큰 파싱·검증
+    // RSA 공개키로 JWT 파싱·검증 (user-service의 개인키와 쌍을 이루는 공개키)
     private Claims parseToken(String token) {
-        SecretKey key = Keys.hmacShaKeyFor(
-                jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8)
-        );
+        PublicKey key;
+        try {
+            byte[] keyBytes = Base64.getDecoder().decode(jwtProperties.getPublicKey());
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+            key = KeyFactory.getInstance("RSA").generatePublic(spec);
+        } catch (Exception e) {
+            throw new JwtException("JWT 공개키 로드 실패");
+        }
         return Jwts.parser()
                 .verifyWith(key)
                 .build()

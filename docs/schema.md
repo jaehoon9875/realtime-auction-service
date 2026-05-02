@@ -80,14 +80,17 @@ CREATE TABLE users (
 
 **Refresh Token은 PostgreSQL이 아닌 Redis에 저장합니다.**
 
-```
+```text
 # Redis 키 설계
-refresh_token:{userId}  →  {token 값}  (TTL: 7일)
+refresh_token:{userId}  →  {Refresh Token 문자열}  (TTL: 7일)
 ```
 
-- Rotation: 재발급 시 기존 키 덮어쓰기로 이전 토큰 자동 무효화
-- 탈취 감지: 존재하지 않는 토큰으로 재발급 요청 → 해당 userId 키 삭제 (전체 세션 무효화)
-- TTL 만료 시 Redis가 자동 삭제 (별도 배치 불필요)
+- Refresh Token은 userId를 subject로 담은 서명된 JWT 형태 (RSA RS256).
+  → 클라이언트가 토큰을 제시하면 서버는 파싱만으로 userId를 알 수 있어 Redis 역방향 조회가 불필요.
+- Rotation: 재발급 시 기존 키 덮어쓰기 → 이전 Refresh Token 자동 무효화.
+- 탈취 감지: 서명은 유효하지만 Redis 저장값과 다른 토큰으로 재발급 요청 시
+  → `refresh_token:{userId}` 키 삭제 (전체 세션 무효화) 후 오류 반환.
+- TTL 만료 시 Redis가 자동 삭제 (별도 배치 불필요).
 
 ---
 
