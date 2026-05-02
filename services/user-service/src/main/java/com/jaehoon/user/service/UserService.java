@@ -13,11 +13,13 @@ import com.jaehoon.user.exception.UserNotFoundException;
 import com.jaehoon.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -27,6 +29,29 @@ public class UserService {
 
     // Redis 키: refresh_token:{userId} → refreshToken 문자열
     private static final String REFRESH_TOKEN_KEY_PREFIX = "refresh_token:";
+
+    /**
+     * Lua 스크립트: GET → 비교 → DEL 을 단일 원자 연산으로 처리.
+     * Redis는 스크립트 실행 중 다른 명령을 블로킹하므로 TOCTOU 경쟁 없음.
+     *
+     * 반환값:
+     *   2 → 키 자체가 없음 (TTL 만료 or 로그아웃)
+     *   1 → 값 일치 → 삭제 성공 (rotation 진행 가능)
+     *   0 → 값 불일치 → 이전 토큰 재사용 의심 (탈취 감지)
+     */
+    private static final RedisScript<Long> COMPARE_AND_DELETE = RedisScript.of(
+            """
+            local stored = redis.call('GET', KEYS[1])
+            if stored == false then
+                return 2
+            elseif stored == ARGV[1] then
+                return redis.call('DEL', KEYS[1])
+            else
+                return 0
+            end
+            """,
+            Long.class
+    );
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -63,10 +88,10 @@ public class UserService {
 
     // Refresh Token Rotation
     //   1. Refresh JWT 파싱 → userId 추출 (서명·만료 검증 포함)
-    //   2. Redis에서 refresh_token:{userId} 조회
-    //   3. null → 세션 만료 또는 이미 무효화 → 예외
-    //   4. 불일치 → 탈취 감지 → userId 키 삭제(전체 세션 무효화) → 예외
-    //   5. 일치 → 신규 토큰 발급, Redis 덮어쓰기
+    //   2. Lua 스크립트로 GET+비교+DEL 원자 실행
+    //      - 2: 키 없음 → 세션 만료/로그아웃 → 예외
+    //      - 0: 값 불일치 → 탈취 감지 → 세션 무효화 → 예외
+    //      - 1: 일치·삭제 성공 → 신규 토큰 발급
     public TokenResponse refresh(String refreshToken) {
         // Refresh Token JWT에서 userId 추출 (서명 위변조·만료 시 InvalidTokenException)
         UUID userId;
@@ -76,17 +101,21 @@ public class UserService {
             throw new InvalidTokenException("유효하지 않은 Refresh Token입니다");
         }
 
-        // Redis에서 현재 userId에 저장된 Refresh Token 조회
-        String storedToken = redisTemplate.opsForValue().get(REFRESH_TOKEN_KEY_PREFIX + userId);
+        // GET → 비교 → DEL 을 원자적으로 실행하여 동시 refresh 경쟁 방지
+        Long result = redisTemplate.execute(
+                COMPARE_AND_DELETE,
+                List.of(REFRESH_TOKEN_KEY_PREFIX + userId),
+                refreshToken
+        );
 
-        if (storedToken == null) {
-            // TTL 만료 또는 로그아웃으로 이미 무효화된 세션
+        if (Long.valueOf(2L).equals(result)) {
+            // 키 자체 없음: TTL 만료 또는 로그아웃으로 이미 무효화된 세션
             throw new InvalidTokenException("만료되었거나 유효하지 않은 Refresh Token입니다");
         }
 
-        if (!storedToken.equals(refreshToken)) {
-            // 탈취 감지: 서명은 유효하지만 Redis 저장값과 다름 → 이전 토큰 재사용 의심
-            // 해당 userId의 세션 전체를 무효화하여 피해 확산 방지
+        if (!Long.valueOf(1L).equals(result)) {
+            // 값 불일치: 서명은 유효하지만 Redis 저장값과 다름 → 이전 토큰 재사용 의심
+            // 탈취 감지 → 해당 userId의 세션 전체를 무효화하여 피해 확산 방지
             redisTemplate.delete(REFRESH_TOKEN_KEY_PREFIX + userId);
             throw new InvalidTokenException("보안을 위해 세션이 무효화되었습니다. 다시 로그인해주세요");
         }
@@ -94,8 +123,7 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
-        // 기존 토큰 삭제 후 신규 발급 (Rotation)
-        redisTemplate.delete(REFRESH_TOKEN_KEY_PREFIX + userId);
+        // 삭제 완료 후 신규 토큰 발급 (Rotation)
         return issueTokens(user);
     }
 

@@ -19,10 +19,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -130,27 +132,26 @@ class UserServiceTest {
     // ─────────────────────────────────────────────────
 
     @Test
-    @DisplayName("refresh 정상 - 기존 Refresh Token 삭제 후 신규 토큰 발급 (Rotation)")
+    @DisplayName("refresh 정상 - Lua 스크립트로 원자 삭제 후 신규 토큰 발급 (Rotation)")
     void refresh_정상() {
         String oldRefresh = "old-refresh-jwt";
         UUID userId = UUID.randomUUID();
         User user = buildUser(userId, "test@example.com", "encoded");
 
         given(jwtProvider.extractUserId(oldRefresh)).willReturn(userId);
-        given(redisTemplate.opsForValue()).willReturn(valueOperations);
-        // Redis에서 userId 키로 저장된 Refresh Token이 요청 토큰과 일치
-        given(valueOperations.get(REFRESH_KEY_PREFIX + userId)).willReturn(oldRefresh);
+        // Lua 스크립트 결과: 1 → 값 일치·삭제 성공
+        given(redisTemplate.execute(any(RedisScript.class), any(List.class), any(Object[].class)))
+                .willReturn(1L);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(jwtProvider.generateAccessToken(userId, "test@example.com")).willReturn("new-access");
         given(jwtProvider.generateRefreshToken(userId)).willReturn("new-refresh");
         given(jwtProvider.getRefreshTokenExpirationMs()).willReturn(604_800_000L);
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
 
         TokenResponse result = userService.refresh(oldRefresh);
 
         assertThat(result.accessToken()).isEqualTo("new-access");
         assertThat(result.refreshToken()).isEqualTo("new-refresh");
-        // 기존 Refresh Token 반드시 삭제 (Rotation 핵심)
-        then(redisTemplate).should().delete(REFRESH_KEY_PREFIX + userId);
     }
 
     @Test
@@ -164,28 +165,28 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("refresh - Redis에 토큰 없음 (만료 or 로그아웃) → InvalidTokenException")
+    @DisplayName("refresh - Redis에 키 없음 (만료 or 로그아웃): 스크립트 2 반환 → InvalidTokenException")
     void refresh_Redis없는토큰() {
         UUID userId = UUID.randomUUID();
         given(jwtProvider.extractUserId("expired-token")).willReturn(userId);
-        given(redisTemplate.opsForValue()).willReturn(valueOperations);
-        given(valueOperations.get(REFRESH_KEY_PREFIX + userId)).willReturn(null);
+        // Lua 스크립트 결과: 2 → 키 자체 없음
+        given(redisTemplate.execute(any(RedisScript.class), any(List.class), any(Object[].class)))
+                .willReturn(2L);
 
         assertThatThrownBy(() -> userService.refresh("expired-token"))
                 .isInstanceOf(InvalidTokenException.class);
     }
 
     @Test
-    @DisplayName("refresh - 탈취 감지: 서명 유효하지만 Redis 저장값과 다른 토큰 → 세션 전체 무효화")
+    @DisplayName("refresh - 탈취 감지: 스크립트 0 반환 → 세션 전체 무효화 후 InvalidTokenException")
     void refresh_탈취감지() {
         UUID userId = UUID.randomUUID();
-        String storedToken  = "stored-refresh-jwt";    // Redis에 저장된 현재 유효 토큰
-        String attackerToken = "attacker-refresh-jwt"; // 공격자가 재사용 시도하는 이전 토큰
+        String attackerToken = "attacker-refresh-jwt"; // JWT 서명은 유효하지만 Redis 값과 다름
 
-        // 공격자 토큰도 JWT 서명 자체는 통과하지만 Redis 값과 다름
         given(jwtProvider.extractUserId(attackerToken)).willReturn(userId);
-        given(redisTemplate.opsForValue()).willReturn(valueOperations);
-        given(valueOperations.get(REFRESH_KEY_PREFIX + userId)).willReturn(storedToken);
+        // Lua 스크립트 결과: 0 → 값 불일치 (탈취 감지)
+        given(redisTemplate.execute(any(RedisScript.class), any(List.class), any(Object[].class)))
+                .willReturn(0L);
 
         assertThatThrownBy(() -> userService.refresh(attackerToken))
                 .isInstanceOf(InvalidTokenException.class);
@@ -195,14 +196,15 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("refresh - Redis에 토큰 있으나 User 삭제된 경우 → UserNotFoundException")
+    @DisplayName("refresh - Redis 삭제 성공 후 User 없는 경우 → UserNotFoundException")
     void refresh_User삭제됨() {
         UUID userId = UUID.randomUUID();
         String refreshToken = "some-refresh-jwt";
 
         given(jwtProvider.extractUserId(refreshToken)).willReturn(userId);
-        given(redisTemplate.opsForValue()).willReturn(valueOperations);
-        given(valueOperations.get(REFRESH_KEY_PREFIX + userId)).willReturn(refreshToken);
+        // Lua 스크립트 결과: 1 → 삭제 성공
+        given(redisTemplate.execute(any(RedisScript.class), any(List.class), any(Object[].class)))
+                .willReturn(1L);
         given(userRepository.findById(userId)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.refresh(refreshToken))
