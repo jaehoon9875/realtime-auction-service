@@ -4,7 +4,6 @@ import com.jaehoon.gateway.config.JwtGatewayProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import lombok.RequiredArgsConstructor;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -22,10 +21,19 @@ import java.util.Base64;
 import java.util.List;
 
 @Component
-@RequiredArgsConstructor
 public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
-    private final JwtGatewayProperties jwtProperties;
+    // 부팅 시 한 번만 파싱해 캐싱 — 매 요청마다 역직렬화하는 비용 제거
+    private final PublicKey publicKey;
+
+    public JwtAuthGlobalFilter(JwtGatewayProperties jwtProperties) {
+        try {
+            byte[] keyBytes = Base64.getDecoder().decode(jwtProperties.getPublicKey());
+            this.publicKey = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(keyBytes));
+        } catch (Exception e) {
+            throw new IllegalStateException("JWT 공개키 로드 실패", e);
+        }
+    }
 
     // 인증 없이 통과시킬 공개 경로 (정확 일치만 허용 - prefix 매칭 금지)
     // startsWith 대신 contains를 사용해 /actuator/env, /api/users/login-anything 같은
@@ -93,18 +101,10 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         return null;
     }
 
-    // RSA 공개키로 JWT 파싱·검증 (user-service의 개인키와 쌍을 이루는 공개키)
+    // RSA 공개키로 JWT 파싱·검증 (캐싱된 publicKey 사용)
     private Claims parseToken(String token) {
-        PublicKey key;
-        try {
-            byte[] keyBytes = Base64.getDecoder().decode(jwtProperties.getPublicKey());
-            X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
-            key = KeyFactory.getInstance("RSA").generatePublic(spec);
-        } catch (Exception e) {
-            throw new JwtException("JWT 공개키 로드 실패");
-        }
         return Jwts.parser()
-                .verifyWith(key)
+                .verifyWith(publicKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
