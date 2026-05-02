@@ -2,7 +2,6 @@ package com.jaehoon.user.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jaehoon.user.config.JwtAuthFilter;
-import com.jaehoon.user.config.JwtProvider;
 import com.jaehoon.user.config.SecurityConfig;
 import com.jaehoon.user.dto.LoginRequest;
 import com.jaehoon.user.dto.SignupRequest;
@@ -16,10 +15,6 @@ import com.jaehoon.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -77,20 +72,10 @@ class UserControllerTest {
             return mock(UserService.class);
         }
 
-        /**
-         * JwtAuthFilter passthrough: JWT 파싱 없이 체인을 그대로 통과.
-         * JWT 검증 동작은 JwtProviderTest / JwtAuthGlobalFilterTest에서 전담.
-         */
+        // 실제 JwtAuthFilter 사용 — JWT 파싱 없이 X-User-Id 헤더만 읽으므로 별도 passthrough 불필요
         @Bean
-        JwtAuthFilter jwtAuthFilter(JwtProvider jwtProvider) {
-            return new JwtAuthFilter(jwtProvider) {
-                @Override
-                protected void doFilterInternal(HttpServletRequest req,
-                                                HttpServletResponse res,
-                                                FilterChain chain) throws ServletException, java.io.IOException {
-                    chain.doFilter(req, res);
-                }
-            };
+        JwtAuthFilter jwtAuthFilter() {
+            return new JwtAuthFilter();
         }
     }
 

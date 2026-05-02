@@ -85,6 +85,7 @@ class UserIntegrationTest {
     }
 
     @Autowired MockMvc mockMvc;
+    @Autowired JwtProvider jwtProvider;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -110,9 +111,10 @@ class UserIntegrationTest {
         assertThat(tokens.accessToken()).isNotBlank();
         assertThat(tokens.refreshToken()).isNotBlank();
 
-        // 3. 내 정보 조회 (Access Token으로 인증)
+        // 3. 내 정보 조회 (Gateway가 Access Token 검증 후 X-User-Id 주입)
+        UUID userId = jwtProvider.extractUserId(tokens.accessToken());
         mockMvc.perform(get("/users/me")
-                        .header("Authorization", "Bearer " + tokens.accessToken()))
+                        .header("X-User-Id", userId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(testEmail));
 
@@ -120,9 +122,10 @@ class UserIntegrationTest {
         TokenResponse newTokens = refresh(tokens.refreshToken());
         assertThat(newTokens.refreshToken()).isNotEqualTo(tokens.refreshToken());
 
-        // 5. 로그아웃: Access Token으로 인증 후 userId 기준으로 Redis Refresh Token 삭제
+        // 5. 로그아웃: Gateway가 X-User-Id 주입 → userId 기준으로 Redis Refresh Token 삭제
+        UUID newUserId = jwtProvider.extractUserId(newTokens.accessToken());
         mockMvc.perform(post("/users/logout")
-                        .header("Authorization", "Bearer " + newTokens.accessToken()))
+                        .header("X-User-Id", newUserId.toString()))
                 .andExpect(status().isNoContent());
 
         // 6. 로그아웃 후 Refresh Token으로 재발급 시도 → 400 (Redis에서 해당 userId 키 삭제됨)
@@ -186,17 +189,11 @@ class UserIntegrationTest {
     }
 
     @Test
-    @DisplayName("만료된 Access Token으로 me 조회 - 401 Unauthorized")
-    void me_만료된AccessToken_401() throws Exception {
-        // 만료 시간 0ms → 즉시 만료되는 토큰 생성 (같은 RSA 키 쌍 사용)
-        String encodedPrivate = Base64.getEncoder().encodeToString(KEY_PAIR.getPrivate().getEncoded());
-        String encodedPublic  = Base64.getEncoder().encodeToString(KEY_PAIR.getPublic().getEncoded());
-        JwtProvider shortLived = new JwtProvider(encodedPrivate, encodedPublic, 0L, 604_800_000L);
-        String expiredToken = shortLived.generateAccessToken(UUID.randomUUID(), "test@example.com");
-
-        mockMvc.perform(get("/users/me")
-                        .header("Authorization", "Bearer " + expiredToken))
-                .andExpect(status().isUnauthorized()); // JwtAuthFilter가 즉시 401 반환
+    @DisplayName("X-User-Id 헤더 없음 - 401 Unauthorized (Gateway 미통과)")
+    void me_XUserId없음_401() throws Exception {
+        // JWT 검증·만료 체크는 Gateway 책임. user-service는 X-User-Id 헤더 부재 시 401 반환.
+        mockMvc.perform(get("/users/me"))
+                .andExpect(status().isUnauthorized());
     }
 
     // ─────────────────────────────────────────────────
