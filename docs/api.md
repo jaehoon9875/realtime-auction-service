@@ -4,39 +4,48 @@
 
 ### Base URL
 ```
-http://localhost:8080/api/v1   # 로컬
-https://{domain}/api/v1        # 운영
+http://localhost:8080/api   # 로컬 (API Gateway: 8080)
 ```
 
+모든 요청은 API Gateway(`localhost:8080`)를 거친다.
+Gateway는 경로 앞의 `/api` 세그먼트를 제거한 뒤 각 서비스로 라우팅한다.
+예) `POST /api/users/signup` → user-service `POST /users/signup`
+
 ### 인증
-JWT Bearer Token 방식. 인증이 필요한 API는 `Authorization: Bearer {token}` 헤더 필요.
+JWT Bearer Token 방식. Access Token은 RSA RS256으로 서명된다.
+
+- 인증이 필요한 API: `Authorization: Bearer {accessToken}` 헤더 필수
+- Access Token 유효 시간: **15분**
+- Refresh Token 유효 시간: **7일**
 
 ### 공통 에러 응답
 ```json
 {
-  "code": "BID_AMOUNT_TOO_LOW",
-  "message": "입찰 금액이 현재 최고가보다 낮습니다.",
-  "timestamp": "2024-04-28T15:30:00Z"
+  "message": "에러 메시지"
 }
 ```
 
-| 에러 코드 | 설명 |
+| HTTP 상태 | 의미 |
 |-----------|------|
-| AUCTION_NOT_FOUND | 경매를 찾을 수 없음 |
-| AUCTION_ALREADY_CLOSED | 이미 마감된 경매 |
-| BID_AMOUNT_TOO_LOW | 입찰 금액이 현재 최고가 이하 |
-| BID_ON_OWN_AUCTION | 본인 경매에 입찰 시도 |
-| UNAUTHORIZED | 인증 필요 |
-| TOKEN_EXPIRED | 토큰 만료 |
+| 400 | 클라이언트 요청 오류 (입력 형식, 인증 실패, 토큰 오류 등) |
+| 401 | 유효하지 않은 Access Token (Gateway 또는 필터에서 즉시 차단) |
+| 404 | 리소스 없음 |
+| 503 | 의존 서비스 장애 (Redis 등) |
 
 ---
 
 ## User Service
 
-### POST /api/v1/users/register
-회원가입
+Gateway 경로 prefix: `/api/users/**` → user-service `/users/**`
 
-**Request**
+공개 경로(인증 불필요): `POST /api/users/signup`, `POST /api/users/login`, `POST /api/users/refresh`
+
+---
+
+### POST /api/users/signup
+회원가입.
+
+**Request Body**
 ```json
 {
   "email": "user@example.com",
@@ -45,22 +54,28 @@ JWT Bearer Token 방식. 인증이 필요한 API는 `Authorization: Bearer {toke
 }
 ```
 
-**Response** `201 Created`
-```json
-{
-  "userId": "uuid",
-  "email": "user@example.com",
-  "nickname": "재훈",
-  "createdAt": "2024-04-28T10:00:00Z"
-}
-```
+| 필드 | 타입 | 조건 |
+|------|------|------|
+| email | string | 필수, 이메일 형식 |
+| password | string | 필수, 8자 이상 |
+| nickname | string | 필수 |
+
+**Response** `201 Created` (본문 없음)
+
+**에러**
+| 상태 | 메시지 | 원인 |
+|------|--------|------|
+| 400 | 이미 사용 중인 이메일입니다 | 중복 이메일 |
+| 400 | (validation 메시지) | 입력 형식 오류 |
 
 ---
 
-### POST /api/v1/users/login
+### POST /api/users/login
 로그인. Access Token + Refresh Token 발급.
 
-**Request**
+Refresh Token은 userId를 subject로 담은 서명된 JWT(RS256)이다.
+
+**Request Body**
 ```json
 {
   "email": "user@example.com",
@@ -72,63 +87,83 @@ JWT Bearer Token 방식. 인증이 필요한 API는 `Authorization: Bearer {toke
 ```json
 {
   "accessToken": "eyJ...",
-  "refreshToken": "eyJ...",
-  "expiresIn": 3600
-}
-```
-
----
-
-### POST /api/v1/users/refresh
-Access Token 재발급. Refresh Token Rotation 적용 (재발급 시 Refresh Token도 교체).
-
-**Request**
-```json
-{
   "refreshToken": "eyJ..."
 }
 ```
+
+**에러**
+| 상태 | 메시지 | 원인 |
+|------|--------|------|
+| 400 | (자격증명 오류 메시지) | 이메일 없음 또는 비밀번호 불일치 |
+
+---
+
+### POST /api/users/refresh
+Access Token 재발급. Refresh Token Rotation 적용 (재발급 시 Refresh Token도 함께 교체).
+
+Refresh Token을 `Authorization: Bearer {refreshToken}` 헤더로 전달한다.
+
+**Headers**: `Authorization: Bearer {refreshToken}` (필수)
 
 **Response** `200 OK`
 ```json
 {
   "accessToken": "eyJ...",
-  "refreshToken": "eyJ...",
-  "expiresIn": 3600
+  "refreshToken": "eyJ..."
 }
 ```
 
+**에러**
+| 상태 | 메시지 | 원인 |
+|------|--------|------|
+| 400 | 만료되었거나 유효하지 않은 Refresh Token입니다 | TTL 만료 또는 이미 로그아웃된 세션 |
+| 400 | 보안을 위해 세션이 무효화되었습니다. 다시 로그인해주세요 | 탈취 감지 (이전 Refresh Token 재사용) |
+
+> **탈취 감지**: 서명은 유효하지만 현재 Redis에 저장된 토큰과 다를 경우
+> 해당 userId의 세션 전체를 무효화하고 재로그인을 요구한다.
+
 ---
 
-### DELETE /api/v1/users/logout
-로그아웃. Refresh Token 무효화.
+### POST /api/users/logout
+로그아웃. Access Token으로 인증한 userId 기준으로 Redis의 Refresh Token을 삭제하여 세션 무효화.
 
-**Headers**: `Authorization: Bearer {token}` (필수)
+**Headers**: `Authorization: Bearer {accessToken}` (필수)
 
-**Response** `204 No Content`
+**Response** `204 No Content` (본문 없음)
 
 ---
 
-### GET /api/v1/users/me
+### GET /api/users/me
 내 정보 조회.
 
-**Headers**: `Authorization: Bearer {token}` (필수)
+**Headers**: `Authorization: Bearer {accessToken}` (필수)
 
 **Response** `200 OK`
 ```json
 {
-  "userId": "uuid",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
   "email": "user@example.com",
-  "nickname": "재훈",
-  "createdAt": "2024-04-28T10:00:00Z"
+  "nickname": "재훈"
 }
 ```
+
+**에러**
+| 상태 | 원인 |
+|------|------|
+| 401 | 유효하지 않은 Access Token |
+| 404 | 사용자를 찾을 수 없음 |
 
 ---
 
 ## Auction Service
 
-### POST /api/v1/auctions
+> M3에서 구현 예정. 아래는 설계 기준 명세이며 실제 구현 시 수정될 수 있다.
+
+Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
+
+---
+
+### POST /api/auctions
 경매 생성.
 
 **Headers**: `Authorization: Bearer {token}` (필수)
@@ -159,7 +194,7 @@ Access Token 재발급. Refresh Token Rotation 적용 (재발급 시 Refresh Tok
 
 ---
 
-### GET /api/v1/auctions
+### GET /api/auctions
 경매 목록 조회. 페이징 + 상태 필터 지원.
 
 **Query Parameters**
@@ -191,7 +226,7 @@ Access Token 재발급. Refresh Token Rotation 적용 (재발급 시 Refresh Tok
 
 ---
 
-### GET /api/v1/auctions/{id}
+### GET /api/auctions/{id}
 경매 상세 조회. `currentPrice`는 DB가 아닌 Kafka Streams State Store에서 조회.
 
 **Response** `200 OK`
@@ -213,7 +248,7 @@ Access Token 재발급. Refresh Token Rotation 적용 (재발급 시 Refresh Tok
 
 ---
 
-### PATCH /api/v1/auctions/{id}
+### PATCH /api/auctions/{id}
 경매 수정. 입찰이 없을 때만 가능.
 
 **Headers**: `Authorization: Bearer {token}` (필수)
@@ -231,7 +266,7 @@ Access Token 재발급. Refresh Token Rotation 적용 (재발급 시 Refresh Tok
 
 ---
 
-### DELETE /api/v1/auctions/{id}
+### DELETE /api/auctions/{id}
 경매 취소. 입찰이 없을 때만 가능.
 
 **Headers**: `Authorization: Bearer {token}` (필수)
@@ -240,7 +275,7 @@ Access Token 재발급. Refresh Token Rotation 적용 (재발급 시 Refresh Tok
 
 ---
 
-### GET /api/v1/auctions/{id}/bids
+### GET /api/auctions/{id}/bids
 경매 입찰 내역 조회.
 
 **Response** `200 OK`
@@ -262,7 +297,13 @@ Access Token 재발급. Refresh Token Rotation 적용 (재발급 시 Refresh Tok
 
 ## Bid Service
 
-### POST /api/v1/bids
+> M4에서 구현 예정. 아래는 설계 기준 명세이며 실제 구현 시 수정될 수 있다.
+
+Gateway 경로 prefix: `/api/bids/**` → bid-service `/bids/**`
+
+---
+
+### POST /api/bids
 입찰.
 
 **Headers**: `Authorization: Bearer {token}` (필수)
@@ -288,7 +329,7 @@ Access Token 재발급. Refresh Token Rotation 적용 (재발급 시 Refresh Tok
 
 ---
 
-### GET /api/v1/bids/me
+### GET /api/bids/me
 내 입찰 내역 조회.
 
 **Headers**: `Authorization: Bearer {token}` (필수)
@@ -312,6 +353,10 @@ Access Token 재발급. Refresh Token Rotation 적용 (재발급 시 Refresh Tok
 ---
 
 ## WebSocket (Notification Service)
+
+> M6에서 구현 예정. 아래는 설계 기준 명세이며 실제 구현 시 수정될 수 있다.
+
+Gateway 경로 prefix: `/ws/**` → notification-service `/ws/**`
 
 ### 연결
 ```
