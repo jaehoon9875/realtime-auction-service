@@ -14,3 +14,4 @@ rootProject.name = "realtime-auction-service"
 
 include("services:api-gateway")
 include("services:user-service")
+include("services:auction-service")

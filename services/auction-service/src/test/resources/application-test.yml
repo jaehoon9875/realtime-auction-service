@@ -1,0 +1,7 @@
+# @ActiveProfiles("test")일 때 contextLoads 등 경량 스모크용 (DB·Flyway 없이 애플리케이션 컨텍스트만 기동)
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
