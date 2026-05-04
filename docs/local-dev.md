@@ -30,6 +30,11 @@ cp .env.example .env
 
 `.env` 파일은 Git에 커밋되지 않습니다. 로컬에서만 관리하세요.
 
+복사 후 아래 항목을 직접 생성하여 채워야 합니다.
+
+- **JWT 키 쌍** — `.env.example` 내 생성 명령어 참고
+- **INTERNAL_REQUEST_SECRET** — Gateway ↔ auction-service 간 내부 인증 시크릿. 자세한 내용은 [docs/internal-service-auth.md](./internal-service-auth.md) 참고
+
 ### Debezium 이미지 빌드
 
 Debezium 컨테이너는 `confluent-hub`으로 PostgreSQL 커넥터를 설치하기 때문에 첫 실행 시 빌드가 필요합니다. 빌드 중 인터넷 연결이 필요합니다.

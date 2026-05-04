@@ -39,14 +39,17 @@
 
 ## M3. Auction Service + Outbox + Debezium
 
-- [ ] auction-service Spring Boot 모듈 생성·등록 (Gradle 멀티모듈)
-- [ ] 경매 CRUD REST API
-- [ ] Outbox Table 저장 (같은 트랜잭션)
-- [ ] Debezium connector 설정
-- [ ] Schema Registry + Avro 스키마 등록
-- [ ] auction-events 토픽 발행 확인
+- [x] auction-service Spring Boot 모듈 생성·등록 (Gradle 멀티모듈)
+- [x] 경매 CRUD REST API
+- [x] Outbox Table 저장 (같은 트랜잭션)
+- [x] Debezium connector 설정
+- [x] Schema Registry Avro 스키마 등록 스크립트 작성 (현재 JsonConverter — AvroConverter 전환은 M5)
+- [x] Gateway 내부 시크릿 헤더 (X-Internal-Request-Token) 연결
+- [x] Gateway 인증 / 서비스 인가 역할 분리 (GatewayUserFilter)
+- [ ] auction-events 토픽 발행 E2E 확인
+- [ ] 단위·통합 테스트 (AuctionServiceTest, AuctionIntegrationTest)
 
-**완료 기준**: 경매 생성 시 auction-events 토픽에 Avro 이벤트 적재 확인
+**완료 기준**: 경매 생성 시 auction-events 토픽에 이벤트 적재 확인 (Avro 전환은 M5에서 결정)
 
 ---
 
