@@ -23,6 +23,7 @@ infra/
 | 환경 | 도구 | 문서 |
 |------|------|------|
 | 로컬 개발 | docker-compose | [docs/local-dev.md](../docs/local-dev.md) |
+| Debezium Connector 등록 | Kafka Connect REST API | [docs/debezium-connector.md](../docs/debezium-connector.md) |
 | 운영 배포 | GKE + ArgoCD | [infra/k8s/](./k8s/) |
 | 인프라 프로비저닝 | Terraform | [infra/terraform/](./terraform/) |
 

@@ -95,28 +95,23 @@ redis          (독립 기동)
 
 ## Debezium Connector 등록
 
-Debezium 컨테이너 기동 후 Connector를 별도로 등록해야 CDC가 시작됩니다.
-
-> Connector JSON 파일은 M3 단계에서 `infra/debezium/` 하위에 추가될 예정입니다.
+Debezium 컨테이너가 기동된 후 Connector를 **별도로 한 번 등록**해야 CDC 파이프라인이 시작됩니다.
+Connector 설정과 등록 방법의 자세한 내용은 [docs/debezium-connector.md](./debezium-connector.md)를 참고하세요.
 
 ```bash
-# Connector 목록 확인
-curl http://localhost:8083/connectors
-
-# Auction Outbox Connector 등록
-curl -X POST http://localhost:8083/connectors \
-  -H "Content-Type: application/json" \
-  -d @debezium/auction-connector.json
-
-# Bid Outbox Connector 등록
-curl -X POST http://localhost:8083/connectors \
-  -H "Content-Type: application/json" \
-  -d @debezium/bid-connector.json
+# 등록 스크립트 실행 (infra/.env 의 DEBEZIUM_PASSWORD 를 읽어 자동 주입)
+cd infra/debezium && ./register-connectors.sh
 
 # Connector 상태 확인
 curl http://localhost:8083/connectors/auction-outbox-connector/status
-curl http://localhost:8083/connectors/bid-outbox-connector/status
 ```
+
+> 이미 같은 이름의 Connector가 등록되어 있으면 POST 가 409 에러를 반환합니다.
+> 재등록이 필요하면 먼저 삭제하세요.
+>
+> ```bash
+> curl -X DELETE http://localhost:8083/connectors/auction-outbox-connector
+> ```
 
 ---
 
