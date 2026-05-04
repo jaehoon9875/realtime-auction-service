@@ -27,6 +27,7 @@ import com.jaehoon.auction.service.AuctionService;
 import com.jaehoon.auction.service.AuctionStreamsClient;
 
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.test.context.ActiveProfiles;
 
 /**
  * auction-service 서비스 레이어 통합 테스트.
@@ -37,6 +38,8 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
 @Transactional
+// CI에서 SPRING_PROFILES_ACTIVE=test 가 주입되어 JPA가 제외되는 것을 방지
+@ActiveProfiles("integration")
 class AuctionIntegrationTest {
 
     @Container
