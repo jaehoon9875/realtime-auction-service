@@ -45,7 +45,7 @@
 
 | 서비스 | 방식 | 용도 |
 |--------|------|------|
-| auction-streams | WebClient (Circuit Breaker) | currentPrice 조회 |
+| auction-streams | RestClient + Circuit Breaker | currentPrice 조회 |
 | Debezium | CDC (자동) | Outbox → auction-events 발행 |
 
 ---

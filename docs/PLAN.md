@@ -5,8 +5,8 @@
 | 마일스톤 | 내용 | 상태 |
 |---------|------|------|
 | M1 | 로컬 인프라 + 프로젝트 뼈대 | ✅ 완료 |
-| M2 | User Service | ⬜ 진행 전 |
-| M3 | Auction Service + Outbox + Debezium | ⬜ 진행 전 |
+| M2 | User Service | ✅ 완료 |
+| M3 | Auction Service + Outbox + Debezium | 🟡 진행 중 |
 | M4 | Bid Service | ⬜ 진행 전 |
 | M5 | Kafka Streams App | ⬜ 진행 전 |
 | M6 | Notification Service + WebSocket | ⬜ 진행 전 |
@@ -29,9 +29,9 @@
 
 ## M2. User Service
 
-- [ ] 회원가입 / 로그인 API
-- [ ] JWT 발급 + Refresh Token Rotation
-- [ ] API Gateway 인증 필터 연동
+- [x] 회원가입 / 로그인 API
+- [x] JWT 발급 + Refresh Token Rotation
+- [x] API Gateway 인증 필터 연동
 
 **완료 기준**: JWT로 인증된 요청이 Gateway 통과
 
