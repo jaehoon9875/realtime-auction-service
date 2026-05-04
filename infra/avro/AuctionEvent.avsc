@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "AuctionEvent",
+  "namespace": "com.jaehoon.auction.events",
+  "doc": "auction-events 토픽 값 스키마. docs/kafka.md 정의와 동기화 유지.",
+  "fields": [
+    { "name": "eventId", "type": "string" },
+    { "name": "eventType", "type": "string" },
+    { "name": "auctionId", "type": "string" },
+    { "name": "sellerId", "type": "string" },
+    { "name": "title", "type": "string" },
+    { "name": "startPrice", "type": "long" },
+    { "name": "currentPrice", "type": "long" },
+    { "name": "endsAt", "type": "long" },
+    { "name": "occurredAt", "type": "long" }
+  ]
+}

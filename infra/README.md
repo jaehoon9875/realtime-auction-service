@@ -10,6 +10,7 @@
 infra/
 ├── docker-compose.yml    # 로컬 개발 환경
 ├── .env.example          # 환경변수 템플릿
+├── avro/                 # Avro 스키마 원본 + Schema Registry 등록 스크립트
 ├── debezium/             # Kafka Connect + Debezium 커스텀 이미지
 ├── init-scripts/         # PostgreSQL 초기화 스크립트
 ├── k8s/                  # Kubernetes 매니페스트
@@ -24,6 +25,7 @@ infra/
 |------|------|------|
 | 로컬 개발 | docker-compose | [docs/local-dev.md](../docs/local-dev.md) |
 | Debezium Connector 등록 | Kafka Connect REST API | [docs/debezium-connector.md](../docs/debezium-connector.md) |
+| Avro / Schema Registry | Confluent Schema Registry REST API | [docs/avro-schema.md](../docs/avro-schema.md) |
 | 운영 배포 | GKE + ArgoCD | [infra/k8s/](./k8s/) |
 | 인프라 프로비저닝 | Terraform | [infra/terraform/](./terraform/) |
 

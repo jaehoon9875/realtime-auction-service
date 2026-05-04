@@ -136,6 +136,17 @@ kafka-topics --bootstrap-server localhost:9092 --list
 
 ---
 
+## Schema Registry에 Avro 스키마 등록
+
+이벤트 계약을 Registry에 올려 두려면 `infra/avro` 스크립트를 실행합니다.
+상세는 [docs/avro-schema.md](./avro-schema.md)를 참고하세요.
+
+```bash
+cd infra/avro && ./register-schemas.sh
+```
+
+---
+
 ## PostgreSQL 접속
 
 ```bash
