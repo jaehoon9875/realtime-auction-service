@@ -31,7 +31,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 경매 목록·상세 조회는 비로그인 허용
                         .requestMatchers(HttpMethod.GET, "/auctions", "/auctions/*").permitAll()
-                        .requestMatchers("/actuator/health").permitAll()
+                        // Kubernetes liveness/readiness(/actuator/health/**) 프로브도 인증 없이 접근 허용
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         // 경매 생성·상태 변경 등 나머지는 인증 필요
                         .anyRequest().authenticated()
                 )
