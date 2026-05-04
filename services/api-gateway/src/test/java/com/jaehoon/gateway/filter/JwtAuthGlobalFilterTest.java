@@ -26,7 +26,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Spring 컨텍스트 없이 MockServerWebExchange로 필터 로직을 직접 검증.
  * - 공개 경로: 체인 통과
- * - 비공개 경로 + JWT 없음/만료/변조: 401 반환
+ * - 비공개 경로 + JWT 없음: 체인 통과 (인가는 각 서비스가 결정)
+ * - 비공개 경로 + JWT 만료/변조: 401 반환
  * - 비공개 경로 + 유효 JWT: X-User-Id, X-User-Email 헤더 추가 후 체인 통과
  */
 class JwtAuthGlobalFilterTest {
@@ -100,27 +101,27 @@ class JwtAuthGlobalFilterTest {
     }
 
     @Test
-    @DisplayName("/actuator/env 는 공개 경로 아님 - JWT 없으면 401")
-    void actuatorEnv_비공개경로_401() {
+    @DisplayName("/actuator/env 는 공개 경로 아님 - JWT 없으면 체인 통과 (인가는 각 서비스가 결정)")
+    void actuatorEnv_비공개경로_JWT없으면통과() {
         MockServerWebExchange exchange = exchangeFor("GET", "/actuator/env");
         AtomicBoolean chainCalled = new AtomicBoolean(false);
 
         filter.filter(exchange, chainOf(chainCalled)).block();
 
-        assertThat(chainCalled.get()).isFalse();
-        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(chainCalled.get()).isTrue();
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
     }
 
     @Test
-    @DisplayName("/api/users/login-anything 은 공개 경로 아님 - JWT 없으면 401")
-    void loginAnything_비공개경로_401() {
+    @DisplayName("/api/users/login-anything 은 공개 경로 아님 - JWT 없으면 체인 통과 (인가는 각 서비스가 결정)")
+    void loginAnything_비공개경로_JWT없으면통과() {
         MockServerWebExchange exchange = exchangeFor("POST", "/api/users/login-anything");
         AtomicBoolean chainCalled = new AtomicBoolean(false);
 
         filter.filter(exchange, chainOf(chainCalled)).block();
 
-        assertThat(chainCalled.get()).isFalse();
-        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(chainCalled.get()).isTrue();
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
     }
 
     // ─────────────────────────────────────────────────
@@ -128,20 +129,20 @@ class JwtAuthGlobalFilterTest {
     // ─────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Authorization 헤더 없음 - 401 반환, 체인 호출 안 함")
-    void noAuthorizationHeader_401() {
+    @DisplayName("Authorization 헤더 없음 - JWT 없으면 체인 통과 (인가는 각 서비스가 결정)")
+    void noAuthorizationHeader_체인통과() {
         MockServerWebExchange exchange = exchangeFor("GET", "/api/auctions");
         AtomicBoolean chainCalled = new AtomicBoolean(false);
 
         filter.filter(exchange, chainOf(chainCalled)).block();
 
-        assertThat(chainCalled.get()).isFalse();
-        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(chainCalled.get()).isTrue();
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
     }
 
     @Test
-    @DisplayName("Bearer prefix 없는 헤더 - 401 반환")
-    void noBearerPrefix_401() {
+    @DisplayName("Bearer prefix 없는 헤더 - JWT로 인식하지 않고 체인 통과")
+    void noBearerPrefix_체인통과() {
         String token = generateToken(UUID.randomUUID(), "test@example.com");
         MockServerWebExchange exchange = MockServerWebExchange.from(
                 MockServerHttpRequest.get("/api/auctions")
@@ -151,8 +152,8 @@ class JwtAuthGlobalFilterTest {
 
         filter.filter(exchange, chainOf(chainCalled)).block();
 
-        assertThat(chainCalled.get()).isFalse();
-        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(chainCalled.get()).isTrue();
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
     }
 
     // ─────────────────────────────────────────────────
