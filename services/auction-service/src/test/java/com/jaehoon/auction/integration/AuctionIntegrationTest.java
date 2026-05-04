@@ -18,6 +18,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.jaehoon.auction.dto.AuctionResponse;
 import com.jaehoon.auction.dto.CreateAuctionRequest;
+import com.jaehoon.auction.entity.AuctionStatus;
 import com.jaehoon.auction.entity.OutboxEvent;
 import com.jaehoon.auction.exception.AuctionNotFoundException;
 import com.jaehoon.auction.exception.ForbiddenException;
@@ -74,7 +75,7 @@ class AuctionIntegrationTest {
         // then
         assertThat(auctionRepository.findById(response.id())).isPresent();
         assertThat(response.sellerId()).isEqualTo(sellerId);
-        assertThat(response.status()).isEqualTo("PENDING");
+        assertThat(response.status()).isEqualTo(AuctionStatus.PENDING);
     }
 
     @Test
@@ -128,7 +129,7 @@ class AuctionIntegrationTest {
                 sellerId);
 
         // when
-        auctionService.updateStatus(created.id(), "ONGOING", sellerId);
+        auctionService.updateStatus(created.id(), AuctionStatus.ACTIVE, sellerId);
 
         // then — AUCTION_CREATED + AUCTION_STATUS_CHANGED 두 건
         List<OutboxEvent> events = outboxEventRepository.findAll();
@@ -143,18 +144,18 @@ class AuctionIntegrationTest {
         // given
         UUID sellerId = UUID.randomUUID();
         AuctionResponse created = auctionService.createAuction(
-                new CreateAuctionRequest("ONGOING 전환 테스트", null, 1_000L, LocalDateTime.now().plusDays(1)),
+                new CreateAuctionRequest("ACTIVE 전환 테스트", null, 1_000L, LocalDateTime.now().plusDays(1)),
                 sellerId);
 
         // when
-        auctionService.updateStatus(created.id(), "ONGOING", sellerId);
+        auctionService.updateStatus(created.id(), AuctionStatus.ACTIVE, sellerId);
 
         // then — DB에서 직접 조회하여 상태 변경 확인
         assertThat(auctionRepository.findById(created.id()))
                 .isPresent()
                 .get()
                 .extracting(a -> a.getStatus())
-                .isEqualTo("ONGOING");
+                .isEqualTo(AuctionStatus.ACTIVE);
     }
 
     @Test
@@ -169,7 +170,7 @@ class AuctionIntegrationTest {
         long outboxCountBefore = outboxEventRepository.count();
 
         // when & then
-        assertThatThrownBy(() -> auctionService.updateStatus(created.id(), "ONGOING", otherId))
+        assertThatThrownBy(() -> auctionService.updateStatus(created.id(), AuctionStatus.ACTIVE, otherId))
                 .isInstanceOf(ForbiddenException.class);
 
         // 예외 발생 후 아웃박스 이벤트 수가 증가하지 않아야 함

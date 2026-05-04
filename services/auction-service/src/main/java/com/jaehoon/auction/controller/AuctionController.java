@@ -8,12 +8,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,8 +27,9 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * 경매 REST API.
- * JWT 검증은 API Gateway 에서 수행하며, auction-service 는 X-User-Id 헤더로 현재 사용자를 식별한다.
- * 내부 시크릿 헤더 검증은 SecurityConfig / InternalRequestTokenFilter 에서 처리한다.
+ * JWT 검증은 API Gateway 에서 수행하며, auction-service 는 GatewayUserFilter 가 등록한
+ * SecurityContext 의 principal 로 현재 사용자를 식별한다.
+ * 내부 시크릿 헤더 검증은 InternalRequestTokenFilter 에서 처리한다.
  */
 @RestController
 @RequestMapping("/auctions")
@@ -37,12 +38,13 @@ public class AuctionController {
 
     private final AuctionService auctionService;
 
-    /** POST /auctions — 경매 생성 (X-User-Id 필수) */
+    /** POST /auctions — 경매 생성 (인증 필수) */
     @PostMapping
     public ResponseEntity<AuctionResponse> create(
-            @RequestHeader("X-User-Id") UUID sellerId,
+            @AuthenticationPrincipal String sellerIdStr,
             @RequestBody @Valid CreateAuctionRequest request
     ) {
+        UUID sellerId = UUID.fromString(sellerIdStr);
         AuctionResponse response = auctionService.createAuction(request, sellerId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -61,13 +63,15 @@ public class AuctionController {
         return ResponseEntity.ok(auctionService.getAuctions(pageable));
     }
 
-    /** PATCH /auctions/{id}/status — 상태 변경 (내부 API, X-User-Id 선택) */
+    /** PATCH /auctions/{id}/status — 상태 변경 (인증 선택 — 시스템 내부 호출 시 null) */
     @PatchMapping("/{id}/status")
     public ResponseEntity<AuctionResponse> updateStatus(
             @PathVariable UUID id,
             @RequestBody @Valid UpdateAuctionStatusRequest request,
-            @RequestHeader(value = "X-User-Id", required = false) UUID requesterId
+            @AuthenticationPrincipal String requesterIdStr
     ) {
+        // 시스템 내부 호출(비인증)이면 null → AuctionService에서 권한 검증 생략
+        UUID requesterId = requesterIdStr != null ? UUID.fromString(requesterIdStr) : null;
         return ResponseEntity.ok(auctionService.updateStatus(id, request.status(), requesterId));
     }
 }

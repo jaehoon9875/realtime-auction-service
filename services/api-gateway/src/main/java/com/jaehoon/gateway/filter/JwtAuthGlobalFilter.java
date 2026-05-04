@@ -46,6 +46,15 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        // 클라이언트가 직접 심은 인증 헤더를 모든 요청에서 먼저 제거
+        // — SKIP 경로 포함, JWT 없는 경우 포함. 검증 성공 후에만 다시 주입한다.
+        exchange = exchange.mutate()
+                .request(r -> r.headers(h -> {
+                    h.remove("X-User-Id");
+                    h.remove("X-User-Email");
+                }))
+                .build();
+
         String path = exchange.getRequest().getURI().getPath();
 
         // 로그인·회원가입 등은 토큰 유효성과 무관하게 통과
@@ -68,7 +77,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return unauthorized(exchange);
         }
 
-        // 검증 성공 → X-User-Id, X-User-Email 헤더 추가 후 다음 필터로
+        // 검증 성공 → X-User-Id, X-User-Email 헤더 주입 후 다음 필터로
         String userId = claims.getSubject();
         String email = claims.get("email", String.class);
 

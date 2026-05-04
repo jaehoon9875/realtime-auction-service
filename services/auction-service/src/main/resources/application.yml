@@ -6,8 +6,8 @@ spring:
       enabled: true
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_AUCTION_PORT}/${POSTGRES_AUCTION_DB_NAME}
-    username: ${POSTGRES_AUCTION}
-    password: ${POSTGRES_AUCTION_PASSWORD}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

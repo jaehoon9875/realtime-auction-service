@@ -5,6 +5,8 @@ import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -39,8 +41,9 @@ public class Auction {
     @Column(name = "start_price", nullable = false)
     private Long startPrice;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String status;
+    private AuctionStatus status;
 
     @Column(name = "ends_at", nullable = false)
     private LocalDateTime endsAt;
@@ -70,7 +73,7 @@ public class Auction {
         this.createdAt = now;
         this.updatedAt = now;
         if (this.status == null) {
-            this.status = "PENDING";
+            this.status = AuctionStatus.PENDING;
         }
     }
 
@@ -81,10 +84,14 @@ public class Auction {
     }
 
     /**
-     * 경매 상태 전이. CLAUDE.md 규칙상 setter 는 금지이므로 도메인 의도를 나타내는 메서드로 표현한다.
-     * 유효한 전이: PENDING → ONGOING → CLOSED | CANCELLED
+     * 경매 상태 전이. 허용되지 않는 전이는 즉시 예외를 던진다.
+     * 유효한 전이: PENDING → ACTIVE → CLOSED
      */
-    public void changeStatus(String newStatus) {
+    public void changeStatus(AuctionStatus newStatus) {
+        if (!this.status.canTransitionTo(newStatus)) {
+            throw new IllegalStateException(
+                    "허용되지 않는 상태 전이: " + this.status + " → " + newStatus);
+        }
         this.status = newStatus;
     }
 }

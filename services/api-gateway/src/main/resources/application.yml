@@ -25,7 +25,7 @@ spring:
             - Path=/api/auctions/**
           filters:
             - StripPrefix=1
-            - AddRequestHeader=X-Internal-Request-Token, ${INTERNAL_REQUEST_SECRET}
+            - SetRequestHeader=X-Internal-Request-Token, ${INTERNAL_REQUEST_SECRET}
 
         # Bid Service — M4 이후 구현 시 확인
         # 외부: /api/bids/** → 내부: /bids/** 가정

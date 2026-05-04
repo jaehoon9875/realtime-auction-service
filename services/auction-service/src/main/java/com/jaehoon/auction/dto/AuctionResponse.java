@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import com.jaehoon.auction.entity.Auction;
+import com.jaehoon.auction.entity.AuctionStatus;
 
 /**
  * 경매 응답 DTO.
@@ -16,7 +17,7 @@ public record AuctionResponse(
         String description,
         Long startPrice,
         Long currentPrice,
-        String status,
+        AuctionStatus status,
         LocalDateTime endsAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

@@ -51,6 +51,7 @@ public class OutboxEventPublisher {
         payload.put("eventType", eventType);
         payload.put("auctionId", auction.getId().toString());
         payload.put("sellerId", auction.getSellerId().toString());
+        payload.put("status", auction.getStatus().name());
         payload.put("title", auction.getTitle());
         payload.put("startPrice", auction.getStartPrice());
         // endsAt을 Unix epoch(초) 로 변환 — Debezium/Kafka 소비자 호환

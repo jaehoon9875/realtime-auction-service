@@ -24,6 +24,7 @@ import org.springframework.data.domain.PageRequest;
 import com.jaehoon.auction.dto.AuctionResponse;
 import com.jaehoon.auction.dto.CreateAuctionRequest;
 import com.jaehoon.auction.entity.Auction;
+import com.jaehoon.auction.entity.AuctionStatus;
 import com.jaehoon.auction.exception.AuctionNotFoundException;
 import com.jaehoon.auction.exception.ForbiddenException;
 import com.jaehoon.auction.outbox.OutboxEventPublisher;
@@ -92,15 +93,15 @@ class AuctionServiceTest {
         when(auctionRepository.findById(auctionId)).thenReturn(Optional.of(auction));
 
         // when
-        AuctionResponse response = auctionService.updateStatus(auctionId, "ONGOING", sellerId);
+        AuctionResponse response = auctionService.updateStatus(auctionId, AuctionStatus.ACTIVE, sellerId);
 
         // then
-        assertThat(response.status()).isEqualTo("ONGOING");
+        assertThat(response.status()).isEqualTo(AuctionStatus.ACTIVE);
         verify(outboxEventPublisher).publish(eq(auction), eq("AUCTION_STATUS_CHANGED"));
     }
 
     @Test
-    void updateStatus_PENDING에서_ONGOING으로_전이된다() {
+    void updateStatus_PENDING에서_ACTIVE로_전이된다() {
         // given
         UUID auctionId = UUID.randomUUID();
         UUID sellerId = UUID.randomUUID();
@@ -108,27 +109,27 @@ class AuctionServiceTest {
         when(auctionRepository.findById(auctionId)).thenReturn(Optional.of(auction));
 
         // when
-        auctionService.updateStatus(auctionId, "ONGOING", sellerId);
+        auctionService.updateStatus(auctionId, AuctionStatus.ACTIVE, sellerId);
 
         // then
-        assertThat(auction.getStatus()).isEqualTo("ONGOING");
+        assertThat(auction.getStatus()).isEqualTo(AuctionStatus.ACTIVE);
     }
 
     @Test
-    void updateStatus_ONGOING에서_CLOSED로_전이된다() {
+    void updateStatus_ACTIVE에서_CLOSED로_전이된다() {
         // given
         UUID auctionId = UUID.randomUUID();
         UUID sellerId = UUID.randomUUID();
         Auction auction = buildAuction(sellerId);
-        auction.changeStatus("ONGOING"); // 사전 상태 설정
+        auction.changeStatus(AuctionStatus.ACTIVE); // 사전 상태 설정
 
         when(auctionRepository.findById(auctionId)).thenReturn(Optional.of(auction));
 
         // when
-        auctionService.updateStatus(auctionId, "CLOSED", sellerId);
+        auctionService.updateStatus(auctionId, AuctionStatus.CLOSED, sellerId);
 
         // then
-        assertThat(auction.getStatus()).isEqualTo("CLOSED");
+        assertThat(auction.getStatus()).isEqualTo(AuctionStatus.CLOSED);
         verify(outboxEventPublisher).publish(eq(auction), eq("AUCTION_STATUS_CHANGED"));
     }
 
@@ -143,7 +144,7 @@ class AuctionServiceTest {
         when(auctionRepository.findById(auctionId)).thenReturn(Optional.of(auction));
 
         // when & then
-        assertThatThrownBy(() -> auctionService.updateStatus(auctionId, "ONGOING", otherId))
+        assertThatThrownBy(() -> auctionService.updateStatus(auctionId, AuctionStatus.ACTIVE, otherId))
                 .isInstanceOf(ForbiddenException.class);
 
         // 권한 오류 시 아웃박스 이벤트가 발행되지 않아야 함
@@ -160,8 +161,8 @@ class AuctionServiceTest {
         when(auctionRepository.findById(auctionId)).thenReturn(Optional.of(auction));
 
         // when & then — 예외 없이 성공
-        AuctionResponse response = auctionService.updateStatus(auctionId, "CLOSED", null);
-        assertThat(response.status()).isEqualTo("CLOSED");
+        AuctionResponse response = auctionService.updateStatus(auctionId, AuctionStatus.CLOSED, null);
+        assertThat(response.status()).isEqualTo(AuctionStatus.CLOSED);
     }
 
     @Test
@@ -171,7 +172,7 @@ class AuctionServiceTest {
         when(auctionRepository.findById(missingId)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> auctionService.updateStatus(missingId, "ONGOING", UUID.randomUUID()))
+        assertThatThrownBy(() -> auctionService.updateStatus(missingId, AuctionStatus.ACTIVE, UUID.randomUUID()))
                 .isInstanceOf(AuctionNotFoundException.class);
     }
 

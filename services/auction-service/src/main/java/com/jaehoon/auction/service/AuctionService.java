@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.jaehoon.auction.dto.AuctionResponse;
 import com.jaehoon.auction.dto.CreateAuctionRequest;
 import com.jaehoon.auction.entity.Auction;
+import com.jaehoon.auction.entity.AuctionStatus;
 import com.jaehoon.auction.exception.AuctionNotFoundException;
 import com.jaehoon.auction.exception.ForbiddenException;
 import com.jaehoon.auction.outbox.OutboxEventPublisher;
@@ -79,12 +80,12 @@ public class AuctionService {
      * 경매 상태 변경 (내부 API).
      * 트랜잭션 경계: auctions UPDATE + outbox_events INSERT 를 하나의 커밋으로 묶는다.
      *
-     * @param auctionId  변경 대상 경매 ID
-     * @param newStatus  변경할 상태 (ONGOING | CLOSED | CANCELLED)
-     * @param requesterId 요청자 ID (X-User-Id 헤더). null 이면 권한 검증 생략 (시스템 내부 호출)
+     * @param auctionId   변경 대상 경매 ID
+     * @param newStatus   변경할 상태 (ACTIVE | CLOSED)
+     * @param requesterId 요청자 ID. null 이면 권한 검증 생략 (시스템 내부 호출)
      */
     @Transactional
-    public AuctionResponse updateStatus(UUID auctionId, String newStatus, UUID requesterId) {
+    public AuctionResponse updateStatus(UUID auctionId, AuctionStatus newStatus, UUID requesterId) {
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new AuctionNotFoundException(auctionId));
 
