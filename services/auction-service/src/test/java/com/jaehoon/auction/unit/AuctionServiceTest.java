@@ -153,10 +153,11 @@ class AuctionServiceTest {
 
     @Test
     void updateStatus_requesterId가_null이면_권한_검증을_생략한다() {
-        // given — 시스템 내부 호출 케이스 (requesterId = null)
+        // given — 시스템 내부 호출 케이스 (requesterId = null), 전이는 ACTIVE → CLOSED 만 허용
         UUID auctionId = UUID.randomUUID();
         UUID sellerId = UUID.randomUUID();
         Auction auction = buildAuction(sellerId);
+        auction.changeStatus(AuctionStatus.ACTIVE);
 
         when(auctionRepository.findById(auctionId)).thenReturn(Optional.of(auction));
 
@@ -245,11 +246,13 @@ class AuctionServiceTest {
 
     /** @PrePersist 없이 sellerId만 세팅한 최소 Auction 객체 */
     private Auction buildAuction(UUID sellerId) {
+        // 단위 테스트에서는 영속화되지 않아 @PrePersist 가 실행되지 않으므로 초기 status 명시
         return Auction.builder()
                 .sellerId(sellerId)
                 .title("테스트 경매")
                 .startPrice(1_000L)
                 .endsAt(LocalDateTime.now().plusDays(1))
+                .status(AuctionStatus.PENDING)
                 .build();
     }
 }

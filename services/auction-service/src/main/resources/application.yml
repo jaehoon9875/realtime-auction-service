@@ -33,3 +33,16 @@ app:
     connect-timeout-ms: ${AUCTION_STREAMS_CONNECT_TIMEOUT:2000}
     read-timeout-ms: ${AUCTION_STREAMS_READ_TIMEOUT:3000}
 
+resilience4j:
+  retry:
+    instances:
+      auction-streams:
+        # 총 시도 횟수(최초 1회 + 재시도 2회 = 최대 3회)
+        max-attempts: 3
+        wait-duration: 200ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        # 4xx 계열은 클라이언트 입력/요청 문제이므로 재시도하지 않는다.
+        ignore-exceptions:
+          - org.springframework.web.client.HttpClientErrorException
+

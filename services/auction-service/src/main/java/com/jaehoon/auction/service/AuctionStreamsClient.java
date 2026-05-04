@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,11 +23,12 @@ import lombok.extern.slf4j.Slf4j;
 public class AuctionStreamsClient {
 
     private static final String CIRCUIT_BREAKER_NAME = "auction-streams";
+    private static final String RETRY_NAME = "auction-streams";
 
     private final RestClient auctionStreamsRestClient;
 
-    @SuppressWarnings("rawtypes")
-    private final CircuitBreakerFactory circuitBreakerFactory;
+    private final CircuitBreakerFactory<?, ?> circuitBreakerFactory;
+    private final RetryRegistry retryRegistry;
 
     /**
      * 경매 ID 기준 현재 최고가를 State Store 에서 조회한다.
@@ -34,12 +37,12 @@ public class AuctionStreamsClient {
      * @param auctionId 경매 ID
      * @return 현재 최고가(원), 조회 불가 시 null
      */
-    @SuppressWarnings("unchecked")
     public Long getCurrentPrice(UUID auctionId) {
-        return (Long) circuitBreakerFactory
+        Retry retry = retryRegistry.retry(RETRY_NAME);
+        return circuitBreakerFactory
                 .create(CIRCUIT_BREAKER_NAME)
                 .run(
-                        () -> fetchCurrentPrice(auctionId),
+                        Retry.decorateSupplier(retry, () -> fetchCurrentPrice(auctionId))::get,
                         throwable -> {
                             log.warn("auction-streams 현재가 조회 실패 (auctionId={}): {}", auctionId, throwable.getMessage());
                             return null;

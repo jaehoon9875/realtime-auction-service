@@ -23,7 +23,7 @@ fi
 BODY="$(jq --arg pwd "${DEBEZIUM_PASSWORD}" '.config["database.password"] = $pwd' "${CONNECTOR_JSON}")"
 
 echo "POST ${CONNECT_URL}/connectors"
-curl -sS -X POST "${CONNECT_URL}/connectors" \
+curl -fsS -X POST "${CONNECT_URL}/connectors" \
   -H "Content-Type: application/json" \
   -d "${BODY}"
 

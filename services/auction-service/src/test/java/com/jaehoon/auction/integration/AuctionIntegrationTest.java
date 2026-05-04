@@ -7,11 +7,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -34,11 +34,10 @@ import org.springframework.test.context.ActiveProfiles;
  * auction-service 서비스 레이어 통합 테스트.
  * - Testcontainers PostgreSQL + Flyway 마이그레이션으로 실제 DB 사용
  * - AuctionStreamsClient는 외부 의존성이므로 @MockitoBean으로 대체
- * - @Transactional: 테스트 종료 후 롤백하여 테스트 간 격리 보장
+ * - 각 테스트 시작 전 repository 정리로 테스트 간 격리 보장
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
-@Transactional
 // CI에서 SPRING_PROFILES_ACTIVE=test 가 주입되어 JPA가 제외되는 것을 방지
 @ActiveProfiles("integration")
 class AuctionIntegrationTest {
@@ -59,6 +58,13 @@ class AuctionIntegrationTest {
 
     @Autowired
     OutboxEventRepository outboxEventRepository;
+
+    @BeforeEach
+    void cleanDatabase() {
+        // 클래스 레벨 @Transactional 없이도 테스트 간 격리를 보장하기 위해 매 테스트 시작 전 정리
+        outboxEventRepository.deleteAll();
+        auctionRepository.deleteAll();
+    }
 
     // ─────────────────────────── createAuction ───────────────────────────
 
@@ -98,6 +104,7 @@ class AuctionIntegrationTest {
         assertThat(event.getEventType()).isEqualTo("AUCTION_CREATED");
         assertThat(event.getPayload()).containsKey("auctionId");
         assertThat(event.getPayload()).containsKey("sellerId");
+        assertThat(event.getPayload()).containsKey("status");
         assertThat(event.getCreatedAt()).isNotNull();
     }
 
@@ -181,14 +188,14 @@ class AuctionIntegrationTest {
 
     @Test
     void 각_테스트는_독립적으로_빈_DB에서_시작한다_검증_A() {
-        // @Transactional 롤백 격리 확인 — 다른 테스트 데이터가 남아있지 않아야 함
+        // @BeforeEach 정리로 다른 테스트 데이터가 남아있지 않아야 함
         assertThat(auctionRepository.count()).isZero();
         assertThat(outboxEventRepository.count()).isZero();
     }
 
     @Test
     void 각_테스트는_독립적으로_빈_DB에서_시작한다_검증_B() {
-        // 위 테스트(_A)에서 데이터를 추가했더라도 롤백되어 이 테스트에서는 비어 있어야 함
+        // 위 테스트(_A) 실행 여부와 무관하게, cleanDatabase() 이후 이 테스트는 비어 있어야 함
         auctionService.createAuction(
                 new CreateAuctionRequest("격리 검증용", null, 1_000L, LocalDateTime.now().plusDays(1)),
                 UUID.randomUUID());

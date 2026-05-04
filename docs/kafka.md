@@ -29,9 +29,10 @@ Schema Registry에 등록하여 버전 관리합니다.
     { "name": "eventType",    "type": "string" },
     { "name": "auctionId",    "type": "string" },
     { "name": "sellerId",     "type": "string" },
+    { "name": "status",       "type": "string" },
     { "name": "title",        "type": "string" },
     { "name": "startPrice",   "type": "long" },
-    { "name": "currentPrice", "type": "long" },
+    { "name": "currentPrice", "type": ["null", "long"], "default": null },
     { "name": "endsAt",       "type": "long" },
     { "name": "occurredAt",   "type": "long" }
   ]

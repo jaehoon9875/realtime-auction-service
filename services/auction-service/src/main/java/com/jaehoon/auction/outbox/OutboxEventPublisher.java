@@ -44,7 +44,7 @@ public class OutboxEventPublisher {
         outboxEventRepository.save(event);
     }
 
-    /** 플랜 payload 구조에 맞춰 Map 을 구성한다. */
+    /** payload 키 순서·이름은 {@code infra/avro/AuctionEvent.avsc} 와 동기화한다. */
     private Map<String, Object> buildPayload(Auction auction, String eventType) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("eventId", UUID.randomUUID().toString());
@@ -54,6 +54,9 @@ public class OutboxEventPublisher {
         payload.put("status", auction.getStatus().name());
         payload.put("title", auction.getTitle());
         payload.put("startPrice", auction.getStartPrice());
+        // auction-service 는 입찰 정보를 모름. currentPrice 의 진짜 주인은 Kafka Streams State Store.
+        // AUCTION_CLOSED 는 Punctuator 가 발행하며 그때 실제 최고가가 채워진다.
+        payload.put("currentPrice", null);
         // endsAt을 Unix epoch(초) 로 변환 — Debezium/Kafka 소비자 호환
         payload.put("endsAt", auction.getEndsAt().toEpochSecond(java.time.ZoneOffset.UTC));
         payload.put("occurredAt", Instant.now().getEpochSecond());

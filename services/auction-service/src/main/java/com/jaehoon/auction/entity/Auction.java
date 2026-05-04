@@ -58,12 +58,14 @@ public class Auction {
      * 신규 경매 생성용. id·타임스탬프·기본 status는 {@link #prePersist()}에서 채운다.
      */
     @Builder
-    public Auction(UUID sellerId, String title, String description, Long startPrice, LocalDateTime endsAt) {
+    public Auction(UUID sellerId, String title, String description, Long startPrice, LocalDateTime endsAt,
+            AuctionStatus status) {
         this.sellerId = sellerId;
         this.title = title;
         this.description = description;
         this.startPrice = startPrice;
         this.endsAt = endsAt;
+        this.status = status;
     }
 
     // 최초 저장 시 타임스탬프 및 DB 기본값과 동일하게 status=PENDING

@@ -8,9 +8,10 @@
     { "name": "eventType", "type": "string" },
     { "name": "auctionId", "type": "string" },
     { "name": "sellerId", "type": "string" },
+    { "name": "status", "type": "string", "doc": "이벤트 시점 경매 상태 (PENDING, ACTIVE, CLOSED)" },
     { "name": "title", "type": "string" },
     { "name": "startPrice", "type": "long" },
-    { "name": "currentPrice", "type": "long" },
+    { "name": "currentPrice", "type": ["null", "long"], "default": null },
     { "name": "endsAt", "type": "long" },
     { "name": "occurredAt", "type": "long" }
   ]
