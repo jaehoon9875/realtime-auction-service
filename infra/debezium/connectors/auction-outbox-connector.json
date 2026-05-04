@@ -1,0 +1,32 @@
+{
+  "name": "auction-outbox-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+
+    "database.hostname": "postgres-auction",
+    "database.port": "5432",
+    "database.user": "debezium",
+    "database.dbname": "auction",
+
+    "topic.prefix": "auction",
+
+    "plugin.name": "pgoutput",
+    "slot.name": "debezium_auction_outbox",
+
+    "table.include.list": "public.outbox_events",
+
+    "publication.autocreate.mode": "disabled",
+    "publication.name": "debezium_publication",
+
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms.outbox.table.field.event.key": "aggregate_id",
+    "transforms.outbox.route.topic.replacement": "auction-events",
+
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false"
+  }
+}

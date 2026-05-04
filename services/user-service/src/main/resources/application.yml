@@ -1,6 +1,9 @@
 spring:
   application:
     name: user-service
+  threads:
+    virtual:
+      enabled: true
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_USER_PORT}/${POSTGRES_USER_DB_NAME}
     username: ${POSTGRES_USER}

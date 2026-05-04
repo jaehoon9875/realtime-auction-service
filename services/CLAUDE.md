@@ -12,6 +12,21 @@
 - **PostgreSQL** (서비스별 독립 DB, 다른 서비스 DB 직접 접근 금지)
 - **Spring Data JPA** + **Flyway** (마이그레이션)
 - **Testcontainers** (통합 테스트)
+- **Java 21 Virtual Threads** (`spring.threads.virtual.enabled=true`, Servlet 서비스에 적용)
+
+---
+
+## 서비스별 런타임 모델
+
+| 서비스 | 모델 | 이유 |
+|--------|------|------|
+| api-gateway | WebFlux | Spring Cloud Gateway 필수 요건 |
+| auction-service | Servlet + Virtual Threads | CRUD + JPA 위주, 단순한 동기 모델 |
+| bid-service | Servlet + Virtual Threads | CRUD + JPA 위주, 단순한 동기 모델 |
+| user-service | Servlet + Virtual Threads | CRUD + JPA 위주, 단순한 동기 모델 |
+| notification-service | WebFlux | 수천 개의 장기 WebSocket 연결 유지, 이벤트 루프 모델이 유리 |
+
+WebFlux는 notification-service에만 사용한다. 나머지 서비스는 JPA와의 자연스러운 통합과 코드 단순성을 위해 Servlet + Virtual Threads를 택한다. Virtual Threads(Java 21)가 Servlet의 동시성 한계를 해소하므로 WebFlux의 주요 도입 근거가 사라진다.
 
 ---
 
@@ -66,8 +81,10 @@ auction-service와 bid-service에만 해당.
 ## 외부 서비스 호출
 
 - 서비스 간 REST 호출에는 **반드시 Resilience4j Circuit Breaker를 적용**한다.
-- `WebClient`를 사용하며 동기 블로킹(`block()`) 호출은 금지한다.
 - Retry는 Circuit Breaker와 함께 구성한다 (최대 3회, exponential backoff).
+- HTTP 클라이언트 선택:
+  - **Servlet 서비스** (auction, bid, user): `RestClient` 사용 (Spring 6.1+, 동기). `WebClient + block()` 조합은 쓰지 않는다.
+  - **WebFlux 서비스** (notification): `WebClient` 사용 (비동기), `block()` 호출 금지.
 
 ---
 

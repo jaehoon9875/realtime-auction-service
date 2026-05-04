@@ -23,6 +23,9 @@ import java.util.Collections;
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
+    /** 상태 없는 유틸이므로 필드로 한 번만 생성해 재사용한다 */
+    private final WebAuthenticationDetailsSource authenticationDetailsSource = new WebAuthenticationDetailsSource();
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -39,7 +42,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            authentication.setDetails(authenticationDetailsSource.buildDetails(request));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }

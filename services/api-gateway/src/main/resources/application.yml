@@ -13,14 +13,19 @@ spring:
           filters:
             - StripPrefix=1
 
-        # Auction Service — M3 이후 구현 시 확인
-        # 외부: /api/auctions/** → 내부: /auctions/** 가정
+        # Auction Service
+        # 외부: /api/auctions/** → 내부: /auctions/** (첫 세그먼트 api 제거)
+        # AddRequestHeader: Gateway를 경유한 요청임을 auction-service가 검증할 수 있도록
+        # X-Internal-Request-Token 헤더에 사전 공유 시크릿을 주입한다.
+        # auction-service의 app.security.internal-request-secret 값과 반드시 일치해야 함.
+        # 참고: docs/internal-service-auth.md
         - id: auction-service
           uri: ${AUCTION_SERVICE_URI:http://localhost:8081}
           predicates:
             - Path=/api/auctions/**
           filters:
             - StripPrefix=1
+            - SetRequestHeader=X-Internal-Request-Token, ${INTERNAL_REQUEST_SECRET}
 
         # Bid Service — M4 이후 구현 시 확인
         # 외부: /api/bids/** → 내부: /bids/** 가정

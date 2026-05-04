@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "AuctionEvent",
+  "namespace": "com.jaehoon.auction.events",
+  "doc": "auction-events 토픽 값 스키마. docs/kafka.md 정의와 동기화 유지.",
+  "fields": [
+    { "name": "eventId", "type": "string" },
+    { "name": "eventType", "type": "string" },
+    { "name": "auctionId", "type": "string" },
+    { "name": "sellerId", "type": "string" },
+    { "name": "status", "type": ["null", "string"], "default": null, "doc": "이벤트 시점 경매 상태 (PENDING, ACTIVE, CLOSED). 구 스키마 메시지는 null." },
+    { "name": "title", "type": "string" },
+    { "name": "startPrice", "type": "long" },
+    { "name": "currentPrice", "type": ["null", "long"], "default": null },
+    { "name": "endsAt", "type": "long" },
+    { "name": "occurredAt", "type": "long" }
+  ]
+}

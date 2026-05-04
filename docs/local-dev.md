@@ -30,6 +30,11 @@ cp .env.example .env
 
 `.env` 파일은 Git에 커밋되지 않습니다. 로컬에서만 관리하세요.
 
+복사 후 아래 항목을 직접 생성하여 채워야 합니다.
+
+- **JWT 키 쌍** — `.env.example` 내 생성 명령어 참고
+- **INTERNAL_REQUEST_SECRET** — Gateway ↔ auction-service 간 내부 인증 시크릿. 자세한 내용은 [docs/internal-service-auth.md](./internal-service-auth.md) 참고
+
 ### Debezium 이미지 빌드
 
 Debezium 컨테이너는 `confluent-hub`으로 PostgreSQL 커넥터를 설치하기 때문에 첫 실행 시 빌드가 필요합니다. 빌드 중 인터넷 연결이 필요합니다.
@@ -95,28 +100,23 @@ redis          (독립 기동)
 
 ## Debezium Connector 등록
 
-Debezium 컨테이너 기동 후 Connector를 별도로 등록해야 CDC가 시작됩니다.
-
-> Connector JSON 파일은 M3 단계에서 `infra/debezium/` 하위에 추가될 예정입니다.
+Debezium 컨테이너가 기동된 후 Connector를 **별도로 한 번 등록**해야 CDC 파이프라인이 시작됩니다.
+Connector 설정과 등록 방법의 자세한 내용은 [docs/debezium-connector.md](./debezium-connector.md)를 참고하세요.
 
 ```bash
-# Connector 목록 확인
-curl http://localhost:8083/connectors
-
-# Auction Outbox Connector 등록
-curl -X POST http://localhost:8083/connectors \
-  -H "Content-Type: application/json" \
-  -d @debezium/auction-connector.json
-
-# Bid Outbox Connector 등록
-curl -X POST http://localhost:8083/connectors \
-  -H "Content-Type: application/json" \
-  -d @debezium/bid-connector.json
+# 등록 스크립트 실행 (infra/.env 의 DEBEZIUM_PASSWORD 를 읽어 자동 주입)
+cd infra/debezium && ./register-connectors.sh
 
 # Connector 상태 확인
 curl http://localhost:8083/connectors/auction-outbox-connector/status
-curl http://localhost:8083/connectors/bid-outbox-connector/status
 ```
+
+> 이미 같은 이름의 Connector가 등록되어 있으면 POST 가 409 에러를 반환합니다.
+> 재등록이 필요하면 먼저 삭제하세요.
+>
+> ```bash
+> curl -X DELETE http://localhost:8083/connectors/auction-outbox-connector
+> ```
 
 ---
 
@@ -137,6 +137,17 @@ kafka-topics --bootstrap-server localhost:9092 --create --topic bid-dead-letter 
 
 # 토픽 목록 확인
 kafka-topics --bootstrap-server localhost:9092 --list
+```
+
+---
+
+## Schema Registry에 Avro 스키마 등록
+
+이벤트 계약을 Registry에 올려 두려면 `infra/avro` 스크립트를 실행합니다.
+상세는 [docs/avro-schema.md](./avro-schema.md)를 참고하세요.
+
+```bash
+cd infra/avro && ./register-schemas.sh
 ```
 
 ---

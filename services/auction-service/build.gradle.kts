@@ -14,9 +14,9 @@ dependencies {
     // --- Spring Boot Starters ---
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j")
 
     // --- Database (Flyway: 마이그레이션, postgresql: JDBC 드라이버) ---

@@ -5,8 +5,8 @@
 | 마일스톤 | 내용 | 상태 |
 |---------|------|------|
 | M1 | 로컬 인프라 + 프로젝트 뼈대 | ✅ 완료 |
-| M2 | User Service | ⬜ 진행 전 |
-| M3 | Auction Service + Outbox + Debezium | ⬜ 진행 전 |
+| M2 | User Service | ✅ 완료 |
+| M3 | Auction Service + Outbox + Debezium | 🟡 진행 중 |
 | M4 | Bid Service | ⬜ 진행 전 |
 | M5 | Kafka Streams App | ⬜ 진행 전 |
 | M6 | Notification Service + WebSocket | ⬜ 진행 전 |
@@ -29,9 +29,9 @@
 
 ## M2. User Service
 
-- [ ] 회원가입 / 로그인 API
-- [ ] JWT 발급 + Refresh Token Rotation
-- [ ] API Gateway 인증 필터 연동
+- [x] 회원가입 / 로그인 API
+- [x] JWT 발급 + Refresh Token Rotation
+- [x] API Gateway 인증 필터 연동
 
 **완료 기준**: JWT로 인증된 요청이 Gateway 통과
 
@@ -39,14 +39,17 @@
 
 ## M3. Auction Service + Outbox + Debezium
 
-- [ ] auction-service Spring Boot 모듈 생성·등록 (Gradle 멀티모듈)
-- [ ] 경매 CRUD REST API
-- [ ] Outbox Table 저장 (같은 트랜잭션)
-- [ ] Debezium connector 설정
-- [ ] Schema Registry + Avro 스키마 등록
-- [ ] auction-events 토픽 발행 확인
+- [x] auction-service Spring Boot 모듈 생성·등록 (Gradle 멀티모듈)
+- [x] 경매 CRUD REST API
+- [x] Outbox Table 저장 (같은 트랜잭션)
+- [x] Debezium connector 설정
+- [x] Schema Registry Avro 스키마 등록 스크립트 작성 (현재 JsonConverter — AvroConverter 전환은 M5)
+- [x] Gateway 내부 시크릿 헤더 (X-Internal-Request-Token) 연결
+- [x] Gateway 인증 / 서비스 인가 역할 분리 (GatewayUserFilter)
+- [ ] auction-events 토픽 발행 E2E 확인
+- [ ] 단위·통합 테스트 (AuctionServiceTest, AuctionIntegrationTest)
 
-**완료 기준**: 경매 생성 시 auction-events 토픽에 Avro 이벤트 적재 확인
+**완료 기준**: 경매 생성 시 auction-events 토픽에 이벤트 적재 확인 (Avro 전환은 M5에서 결정)
 
 ---
 

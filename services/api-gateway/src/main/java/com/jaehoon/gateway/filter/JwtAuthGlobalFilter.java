@@ -35,10 +35,9 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         }
     }
 
-    // 인증 없이 통과시킬 공개 경로 (정확 일치만 허용 - prefix 매칭 금지)
-    // startsWith 대신 contains를 사용해 /actuator/env, /api/users/login-anything 같은
-    // 의도치 않은 경로 노출을 차단한다.
-    private static final List<String> PUBLIC_PATHS = List.of(
+    // 만료·위조 토큰이 있어도 통과시켜야 하는 경로 (로그인·갱신 등)
+    // JWT가 없는 요청은 이 목록과 무관하게 모두 통과한다 — 인가는 각 서비스가 결정
+    private static final List<String> SKIP_JWT_PATHS = List.of(
             "/api/users/signup",
             "/api/users/login",
             "/api/users/refresh",
@@ -47,20 +46,30 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        // 클라이언트가 직접 심은 인증 헤더를 모든 요청에서 먼저 제거
+        // — SKIP 경로 포함, JWT 없는 경우 포함. 검증 성공 후에만 다시 주입한다.
+        exchange = exchange.mutate()
+                .request(r -> r.headers(h -> {
+                    h.remove("X-User-Id");
+                    h.remove("X-User-Email");
+                }))
+                .build();
+
         String path = exchange.getRequest().getURI().getPath();
 
-        // 공개 경로는 JWT 검증 없이 통과
-        if (isPublicPath(path)) {
+        // 로그인·회원가입 등은 토큰 유효성과 무관하게 통과
+        if (SKIP_JWT_PATHS.contains(path)) {
             return chain.filter(exchange);
         }
 
-        // Authorization 헤더에서 Bearer 토큰 추출
         String token = extractBearerToken(exchange);
+
+        // JWT 없으면 인증 정보 없이 통과 — 인가는 각 서비스가 판단
         if (token == null) {
-            return unauthorized(exchange);
+            return chain.filter(exchange);
         }
 
-        // JWT 파싱·검증 (RSA 공개키 사용)
+        // JWT 있으면 검증 — 위조·만료 토큰은 차단
         Claims claims;
         try {
             claims = parseToken(token);
@@ -68,7 +77,7 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
             return unauthorized(exchange);
         }
 
-        // 검증 성공 → X-User-Id, X-User-Email 헤더 추가 후 다음 필터로
+        // 검증 성공 → X-User-Id, X-User-Email 헤더 주입 후 다음 필터로
         String userId = claims.getSubject();
         String email = claims.get("email", String.class);
 
@@ -85,11 +94,6 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
     @Override
     public int getOrder() {
         return Ordered.HIGHEST_PRECEDENCE + 10;
-    }
-
-    // 공개 경로 여부 판단 (정확 일치)
-    private boolean isPublicPath(String path) {
-        return PUBLIC_PATHS.contains(path);
     }
 
     // Authorization: Bearer {token} 헤더에서 토큰 추출

@@ -29,14 +29,17 @@ Schema Registry에 등록하여 버전 관리합니다.
     { "name": "eventType",    "type": "string" },
     { "name": "auctionId",    "type": "string" },
     { "name": "sellerId",     "type": "string" },
+    { "name": "status",       "type": ["null", "string"], "default": null },
     { "name": "title",        "type": "string" },
     { "name": "startPrice",   "type": "long" },
-    { "name": "currentPrice", "type": "long" },
+    { "name": "currentPrice", "type": ["null", "long"], "default": null },
     { "name": "endsAt",       "type": "long" },
     { "name": "occurredAt",   "type": "long" }
   ]
 }
 ```
+
+원본 Avro 파일(Schema Registry 등록용): [`infra/avro/AuctionEvent.avsc`](../infra/avro/AuctionEvent.avsc) — 필드는 동일하며 `namespace` 등 메타데이터가 포함됩니다. 등록 절차는 [docs/avro-schema.md](./avro-schema.md)를 참고하세요.
 
 | eventType | 발행 시점 |
 |-----------|----------|
