@@ -18,7 +18,7 @@ public class AuctionEndScheduler {
 
     private final AuctionService auctionService;
 
-    @Scheduled(fixedDelayString = "${app.auction.schedule.ongoing-to-closed-ms:60000}")
+    @Scheduled(fixedDelayString = "${app.auction.schedule.ongoing-to-closed-ms:30000}")
     public void closeOverdueAuctions() {
         auctionService.closeOverdueAuctions();
     }
