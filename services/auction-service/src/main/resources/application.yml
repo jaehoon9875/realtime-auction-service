@@ -32,7 +32,7 @@ app:
   # Gateway가 붙여 보내는 내부 요청 토큰 검증용 설정.
   security:
     internal-request-header-name: ${INTERNAL_REQUEST_HEADER_NAME:X-Internal-Request-Token}
-    internal-request-secret: ${INTERNAL_REQUEST_SECRET:}
+    internal-request-secret: ${INTERNAL_REQUEST_SECRET}
   auction-streams:
     # auction-streams 서비스 URL
     base-url: ${AUCTION_STREAMS_BASE_URL:http://localhost:8085}

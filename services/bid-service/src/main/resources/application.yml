@@ -26,7 +26,7 @@ app:
   # Gateway가 붙여 보내는 내부 요청 토큰 검증용 설정.
   security:
     internal-request-header-name: ${INTERNAL_REQUEST_HEADER_NAME:X-Internal-Request-Token}
-    internal-request-secret: ${INTERNAL_REQUEST_SECRET:}
+    internal-request-secret: ${INTERNAL_REQUEST_SECRET}
   auction-service:
     base-url: ${AUCTION_SERVICE_BASE_URL:http://localhost:8081}
     connect-timeout-ms: ${AUCTION_SERVICE_CONNECT_TIMEOUT:2000}
