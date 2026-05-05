@@ -174,8 +174,8 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
   "title": "맥북 프로 14인치",
   "description": "2023년형, 상태 양호",
   "startPrice": 1000000,
-  "startsAt": "2024-04-30T10:00:00Z",
-  "endsAt": "2024-05-01T18:00:00Z"
+  "startsAt": "2024-04-30T10:00:00",
+  "endsAt": "2024-05-01T18:00:00"
 }
 ```
 
@@ -190,9 +190,9 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
   "startPrice": 1000000,
   "currentPrice": 1000000,
   "status": "PENDING",
-  "startsAt": "2024-04-30T10:00:00Z",
-  "endsAt": "2024-05-01T18:00:00Z",
-  "createdAt": "2024-04-28T10:00:00Z"
+  "startsAt": "2024-04-30T10:00:00",
+  "endsAt": "2024-05-01T18:00:00",
+  "createdAt": "2024-04-28T10:00:00"
 }
 ```
 
@@ -218,8 +218,8 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
       "currentPrice": 1350000,
       "bidCount": 7,
       "status": "ONGOING",
-      "startsAt": "2024-04-30T10:00:00Z",
-      "endsAt": "2024-05-01T18:00:00Z"
+      "startsAt": "2024-04-30T10:00:00",
+      "endsAt": "2024-05-01T18:00:00"
     }
   ],
   "totalElements": 100,
@@ -246,9 +246,9 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
   "currentWinnerId": "uuid",
   "bidCount": 7,
   "status": "ONGOING",
-  "startsAt": "2024-04-30T10:00:00Z",
-  "endsAt": "2024-05-01T18:00:00Z",
-  "createdAt": "2024-04-28T10:00:00Z"
+  "startsAt": "2024-04-30T10:00:00",
+  "endsAt": "2024-05-01T18:00:00",
+  "createdAt": "2024-04-28T10:00:00"
 }
 ```
 
@@ -264,7 +264,7 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
 {
   "title": "맥북 프로 14인치 (수정)",
   "description": "설명 수정",
-  "endsAt": "2024-05-02T18:00:00Z"
+  "endsAt": "2024-05-02T18:00:00"
 }
 ```
 
@@ -294,7 +294,7 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
       "bidId": "uuid",
       "bidderId": "uuid",
       "amount": 1350000,
-      "placedAt": "2024-04-28T15:30:00Z"
+      "placedAt": "2024-04-28T15:30:00"
     }
   ],
   "totalElements": 7
@@ -331,7 +331,7 @@ Gateway 경로 prefix: `/api/bids/**` → bid-service `/bids/**`
   "auctionId": "uuid",
   "amount": 1400000,
   "status": "ACCEPTED",
-  "placedAt": "2024-04-28T15:30:00Z"
+  "placedAt": "2024-04-28T15:30:00"
 }
 ```
 
@@ -351,7 +351,7 @@ Gateway 경로 prefix: `/api/bids/**` → bid-service `/bids/**`
       "auctionId": "uuid",
       "amount": 1400000,
       "status": "ACCEPTED",
-      "placedAt": "2024-04-28T15:30:00Z"
+      "placedAt": "2024-04-28T15:30:00"
     }
   ],
   "totalElements": 3
@@ -381,7 +381,7 @@ WS /ws/users/me         # 개인 알림 구독
   "auctionId": "uuid",
   "currentPrice": 1400000,
   "bidCount": 8,
-  "occurredAt": "2024-04-28T15:30:00Z"
+  "occurredAt": "2024-04-28T15:30:00"
 }
 ```
 
@@ -392,7 +392,7 @@ WS /ws/users/me         # 개인 알림 구독
   "auctionId": "uuid",
   "finalPrice": 1400000,
   "winnerId": "uuid",
-  "occurredAt": "2024-04-28T18:00:00Z"
+  "occurredAt": "2024-04-28T18:00:00"
 }
 ```
 
@@ -402,7 +402,7 @@ WS /ws/users/me         # 개인 알림 구독
   "type": "OUTBID",
   "auctionId": "uuid",
   "currentPrice": 1500000,
-  "occurredAt": "2024-04-28T15:35:00Z"
+  "occurredAt": "2024-04-28T15:35:00"
 }
 ```
 
@@ -412,6 +412,6 @@ WS /ws/users/me         # 개인 알림 구독
   "type": "AUCTION_WON",
   "auctionId": "uuid",
   "finalPrice": 1400000,
-  "occurredAt": "2024-04-28T18:00:00Z"
+  "occurredAt": "2024-04-28T18:00:00"
 }
 ```

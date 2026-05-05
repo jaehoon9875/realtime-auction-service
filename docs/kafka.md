@@ -45,7 +45,8 @@ Schema Registry에 등록하여 버전 관리합니다.
 | eventType | 발행 시점 |
 |-----------|----------|
 | AUCTION_CREATED | 경매 생성 |
-| AUCTION_CLOSED | 경매 마감 (Punctuator) |
+| AUCTION_STATUS_CHANGED | 상태 전이 (PENDING→ONGOING, ONGOING→CLOSED) — Auction Service Outbox/Debezium |
+| AUCTION_CLOSED | 경매 마감 (Kafka Streams Punctuator) |
 
 > 경매 취소도 DB `status`는 `CLOSED`로 통일한다. 별도 `AUCTION_CANCELLED` 이벤트 타입은 사용하지 않는다.
 >

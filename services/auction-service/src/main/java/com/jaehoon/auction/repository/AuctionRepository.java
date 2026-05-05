@@ -16,6 +16,8 @@ import com.jaehoon.auction.entity.Auction;
 import com.jaehoon.auction.entity.AuctionStatus;
 
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
+import org.springframework.data.jpa.repository.QueryHints;
 
 public interface AuctionRepository extends JpaRepository<Auction, UUID> {
 
@@ -29,6 +31,7 @@ public interface AuctionRepository extends JpaRepository<Auction, UUID> {
      * 스케줄러가 동시에 같은 행을 전환할 때 경합을 줄이기 위해 배타 락으로 조회한다.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000"))
     @Query("SELECT a FROM Auction a WHERE a.id = :id")
     Optional<Auction> findByIdForUpdate(@Param("id") UUID id);
 
