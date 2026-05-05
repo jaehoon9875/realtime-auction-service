@@ -28,6 +28,7 @@
 |---|--------|------|------|--------|
 | 3 | 🟡 중간 | State Store 초기 `currentPrice` | 입찰 0건일 때 `GET /api/auctions/{id}`의 `currentPrice`를 State Store에서 어떻게 **시작가와 일치**시킬지(예: `auction-events` 시드, 기본값 규칙) 문서에 없음. | 2026-05-05 |
 | 4 | 🟢 낮음 | `BID_REJECTED` 클라이언트 알림 | `docs/kafka.md`에 `BID_REJECTED` 이벤트는 있으나 `docs/api.md` WebSocket 메시지에 **입찰 거부** 타입 없음. 실시간 거부 UX 미정. | 2026-05-05 |
+| 5 | 🟡 중간 | Avro/Json 컨버터 불일치 | `docker-compose.yml` Kafka Connect 기본값은 `AvroConverter`이나 `auction-outbox-connector.json`, `bid-outbox-connector.json` 모두 `JsonConverter`로 명시 오버라이드. Avro 스키마(`infra/avro/`)는 등록 스크립트만 작성된 상태. **M5 Kafka Streams 구현 시점에 AvroConverter 전환 여부 결정** (전환 시 커넥터에 `schema.registry.url` + `table.expand.json.payload=true` 추가 필요). | 2026-05-05 |
 
 ---
 

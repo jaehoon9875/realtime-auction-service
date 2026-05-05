@@ -6,8 +6,8 @@
 |---------|------|------|
 | M1 | 로컬 인프라 + 프로젝트 뼈대 | ✅ 완료 |
 | M2 | User Service | ✅ 완료 |
-| M3 | Auction Service + Outbox + Debezium | 🟡 진행 중 |
-| M4 | Bid Service | ⬜ 진행 전 |
+| M3 | Auction Service + Outbox + Debezium | ✅ 완료 |
+| M4 | Bid Service | 🟡 진행 중 |
 | M5 | Kafka Streams App | ⬜ 진행 전 |
 | M6 | Notification Service + WebSocket | ⬜ 진행 전 |
 | M7 | 통합 테스트 + 문서화 | ⬜ 진행 전 |
@@ -55,13 +55,14 @@
 
 ## M4. Bid Service
 
-- [ ] bid-service Spring Boot 모듈 생성·등록 (Gradle 멀티모듈)
-- [ ] 입찰 REST API
-- [ ] 유효성 검증 (State Store 조회)
-- [ ] Resilience4j Circuit Breaker 적용
-- [ ] Outbox + Debezium → bid-events 발행
+- [x] bid-service Spring Boot 모듈 생성·등록 (Gradle 멀티모듈)
+- [x] 입찰 REST API
+- [x] 유효성 검증 (State Store 조회)
+- [x] Resilience4j Circuit Breaker 적용
+- [x] Outbox + Debezium → bid-events 발행
+- [x] bid-outbox-connector.json 작성 (현재 JsonConverter — AvroConverter 전환은 M5)
 
-**완료 기준**: 입찰 시 bid-events 토픽 적재 + Circuit Breaker 동작 확인
+**완료 기준**: 입찰 시 bid-events 토픽 적재 + Circuit Breaker 동작 확인 (Avro 전환은 M5에서 결정)
 
 ---
 
