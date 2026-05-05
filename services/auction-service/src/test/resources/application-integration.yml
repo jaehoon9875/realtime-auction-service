@@ -1,0 +1,5 @@
+# 통합 테스트(Testcontainers)에서는 스케줄러가 DB를 주기적으로 건드리지 않도록 비활성화
+app:
+  auction:
+    schedule:
+      enabled: false

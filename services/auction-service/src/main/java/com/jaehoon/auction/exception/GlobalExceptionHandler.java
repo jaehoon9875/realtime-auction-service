@@ -19,6 +19,13 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(e.getMessage()));
     }
 
+    // 잘못된 요청(도메인 검증 실패) → 400 Bad Request
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException e) {
+        return ResponseEntity.badRequest()
+                .body(new ErrorResponse(e.getMessage()));
+    }
+
     // 판매자 본인 아님 → 403 Forbidden (클라이언트 오류, 재시도 불필요)
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ErrorResponse> handleForbidden(ForbiddenException e) {

@@ -174,9 +174,12 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
   "title": "맥북 프로 14인치",
   "description": "2023년형, 상태 양호",
   "startPrice": 1000000,
-  "endsAt": "2024-05-01T18:00:00Z"
+  "startsAt": "2024-04-30T10:00:00",
+  "endsAt": "2024-05-01T18:00:00"
 }
 ```
+
+`startsAt` 은 생략 가능하다. 생략 시 서버가 요청 시각을 시작 시각으로 사용하며, 그 시각이 `endsAt` 이전이면 곧바로 `ONGOING` 이 될 수 있다. 미래 시각이면 `PENDING` 이었다가 스케줄러가 `ONGOING` 으로 전환한다.
 
 **Response** `201 Created`
 ```json
@@ -187,8 +190,9 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
   "startPrice": 1000000,
   "currentPrice": 1000000,
   "status": "PENDING",
-  "endsAt": "2024-05-01T18:00:00Z",
-  "createdAt": "2024-04-28T10:00:00Z"
+  "startsAt": "2024-04-30T10:00:00",
+  "endsAt": "2024-05-01T18:00:00",
+  "createdAt": "2024-04-28T10:00:00"
 }
 ```
 
@@ -202,7 +206,7 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
 |---------|------|--------|------|
 | page | int | 0 | 페이지 번호 |
 | size | int | 20 | 페이지 크기 |
-| status | string | - | PENDING, ONGOING, CLOSED, CANCELLED |
+| status | string | - | PENDING, ONGOING, CLOSED |
 
 **Response** `200 OK`
 ```json
@@ -214,7 +218,8 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
       "currentPrice": 1350000,
       "bidCount": 7,
       "status": "ONGOING",
-      "endsAt": "2024-05-01T18:00:00Z"
+      "startsAt": "2024-04-30T10:00:00",
+      "endsAt": "2024-05-01T18:00:00"
     }
   ],
   "totalElements": 100,
@@ -241,8 +246,9 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
   "currentWinnerId": "uuid",
   "bidCount": 7,
   "status": "ONGOING",
-  "endsAt": "2024-05-01T18:00:00Z",
-  "createdAt": "2024-04-28T10:00:00Z"
+  "startsAt": "2024-04-30T10:00:00",
+  "endsAt": "2024-05-01T18:00:00",
+  "createdAt": "2024-04-28T10:00:00"
 }
 ```
 
@@ -258,7 +264,7 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
 {
   "title": "맥북 프로 14인치 (수정)",
   "description": "설명 수정",
-  "endsAt": "2024-05-02T18:00:00Z"
+  "endsAt": "2024-05-02T18:00:00"
 }
 ```
 
@@ -268,6 +274,8 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
 
 ### DELETE /api/auctions/{id}
 경매 취소. 입찰이 없을 때만 가능.
+
+취소 완료 시 `status`는 **`CLOSED`** 로 저장한다. 별도 `CANCELLED` 값은 두지 않는다.
 
 **Headers**: `Authorization: Bearer {token}` (필수)
 
@@ -286,7 +294,7 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
       "bidId": "uuid",
       "bidderId": "uuid",
       "amount": 1350000,
-      "placedAt": "2024-04-28T15:30:00Z"
+      "placedAt": "2024-04-28T15:30:00"
     }
   ],
   "totalElements": 7
@@ -323,7 +331,7 @@ Gateway 경로 prefix: `/api/bids/**` → bid-service `/bids/**`
   "auctionId": "uuid",
   "amount": 1400000,
   "status": "ACCEPTED",
-  "placedAt": "2024-04-28T15:30:00Z"
+  "placedAt": "2024-04-28T15:30:00"
 }
 ```
 
@@ -343,7 +351,7 @@ Gateway 경로 prefix: `/api/bids/**` → bid-service `/bids/**`
       "auctionId": "uuid",
       "amount": 1400000,
       "status": "ACCEPTED",
-      "placedAt": "2024-04-28T15:30:00Z"
+      "placedAt": "2024-04-28T15:30:00"
     }
   ],
   "totalElements": 3
@@ -373,7 +381,7 @@ WS /ws/users/me         # 개인 알림 구독
   "auctionId": "uuid",
   "currentPrice": 1400000,
   "bidCount": 8,
-  "occurredAt": "2024-04-28T15:30:00Z"
+  "occurredAt": "2024-04-28T15:30:00"
 }
 ```
 
@@ -384,7 +392,7 @@ WS /ws/users/me         # 개인 알림 구독
   "auctionId": "uuid",
   "finalPrice": 1400000,
   "winnerId": "uuid",
-  "occurredAt": "2024-04-28T18:00:00Z"
+  "occurredAt": "2024-04-28T18:00:00"
 }
 ```
 
@@ -394,7 +402,7 @@ WS /ws/users/me         # 개인 알림 구독
   "type": "OUTBID",
   "auctionId": "uuid",
   "currentPrice": 1500000,
-  "occurredAt": "2024-04-28T15:35:00Z"
+  "occurredAt": "2024-04-28T15:35:00"
 }
 ```
 
@@ -404,6 +412,6 @@ WS /ws/users/me         # 개인 알림 구독
   "type": "AUCTION_WON",
   "auctionId": "uuid",
   "finalPrice": 1400000,
-  "occurredAt": "2024-04-28T18:00:00Z"
+  "occurredAt": "2024-04-28T18:00:00"
 }
 ```

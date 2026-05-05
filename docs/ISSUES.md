@@ -26,7 +26,8 @@
 
 | # | 심각도 | 항목 | 내용 | 등록일 |
 |---|--------|------|------|--------|
-| - | - | - | (아직 없음) | - |
+| 3 | 🟡 중간 | State Store 초기 `currentPrice` | 입찰 0건일 때 `GET /api/auctions/{id}`의 `currentPrice`를 State Store에서 어떻게 **시작가와 일치**시킬지(예: `auction-events` 시드, 기본값 규칙) 문서에 없음. | 2026-05-05 |
+| 4 | 🟢 낮음 | `BID_REJECTED` 클라이언트 알림 | `docs/kafka.md`에 `BID_REJECTED` 이벤트는 있으나 `docs/api.md` WebSocket 메시지에 **입찰 거부** 타입 없음. 실시간 거부 UX 미정. | 2026-05-05 |
 
 ---
 
@@ -34,7 +35,9 @@
 
 | # | 심각도 | 마일스톤 | 제목 | 해결일 | 해결 방법 |
 |---|--------|---------|------|--------|-----------|
-| - | - | - | (아직 없음) | - | - |
+| 2 | 🟡 중간 | docs · auction-service | 마감 후 `auctions.status` 동기화 | 2026-05-05 | **역할 분리**: DB **`CLOSED`는 Auction Service** (`endsAt` 경과 시 스케줄러·명시적 전이). Streams **`AUCTION_CLOSED`/notification** 은 알림·실시간용. 입찰 **`endsAt` + 상태** 검증. 문서: `docs/architecture.md`, `docs/kafka.md`, `services/CLAUDE.md`. **구현**: `AuctionEndScheduler`·`AuctionService.closeOverdueAuctions()`, `findIdsOngoingPastEnd`, 설정 `app.auction.schedule.ongoing-to-closed-ms`(기본 60초), Outbox `AUCTION_STATUS_CHANGED`. |
+| 5 | 🟢 낮음 | infra | CI 트리거 중복 | 2026-05-05 | `push: branches`에서 `feature/**`, `fix/**` 제거. PR 브랜치는 `pull_request` 트리거만으로 커버. |
+| 1 | 🟡 중간 | auction-service | 경매 상태 정합 + `startsAt`·PENDING→ONGOING (구 보류 이슈 1) | 2026-05-05 | **용어·종료**: 코드·DB 진행 중 상태 **`ONGOING`** 통일, 종료는 **`CLOSED`** 만 (`CANCELLED`/`AUCTION_CANCELLED` 문서·설명 정리). Flyway **`V4`** CHECK·`ACTIVE`→`ONGOING` 마이그레이션. **시작·전환**: **`starts_at`** 컬럼·API **`startsAt`** (생략 시 생성 시각), 생성 시 `startsAt > now` → **`PENDING`**, 그 외 **`ONGOING`**. **`AuctionStartScheduler`**·`activateDueAuctions()` 로 예약 경매 시작 시 **`AUCTION_STATUS_CHANGED`** Outbox. Outbox/Avro에 **`startsAt`** epoch, `docs/schema.md`·`api.md`·`kafka.md`·`CLAUDE.md` 동기화. 입찰 시점 검증(Bid Service)은 후속. |
 
 ---
 

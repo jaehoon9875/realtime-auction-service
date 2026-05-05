@@ -33,6 +33,7 @@ Schema Registry에 등록하여 버전 관리합니다.
     { "name": "title",        "type": "string" },
     { "name": "startPrice",   "type": "long" },
     { "name": "currentPrice", "type": ["null", "long"], "default": null },
+    { "name": "startsAt",     "type": ["null", "long"], "default": null },
     { "name": "endsAt",       "type": "long" },
     { "name": "occurredAt",   "type": "long" }
   ]
@@ -44,8 +45,12 @@ Schema Registry에 등록하여 버전 관리합니다.
 | eventType | 발행 시점 |
 |-----------|----------|
 | AUCTION_CREATED | 경매 생성 |
-| AUCTION_CLOSED | 경매 마감 (Punctuator) |
-| AUCTION_CANCELLED | 경매 취소 |
+| AUCTION_STATUS_CHANGED | 상태 전이 (PENDING→ONGOING, ONGOING→CLOSED) — Auction Service Outbox/Debezium |
+| AUCTION_CLOSED | 경매 마감 (Kafka Streams Punctuator) |
+
+> 경매 취소도 DB `status`는 `CLOSED`로 통일한다. 별도 `AUCTION_CANCELLED` 이벤트 타입은 사용하지 않는다.
+>
+> **`auction-events`의 `AUCTION_CLOSED`(Streams 발행)와 Auction Service DB `CLOSED`의 관계**: DB 컬럼 `CLOSED`는 **Auction Service가 `endsAt`·스케줄러·명시적 상태 변경으로 관리**한다. Punctuator가 토픽에 올리는 마감 이벤트는 **알림·실시간 파이프라인** 위주이며, **Auction DB의 진실 원본을 대체하지 않는다**. 전체 정책은 [architecture.md](./architecture.md)의 “경매 생명주기와 마감 정책”을 참고한다.
 
 ---
 

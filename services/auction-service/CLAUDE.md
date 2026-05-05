@@ -7,7 +7,10 @@
 ## 도메인 책임
 
 - 경매 생성, 조회, 수정, 삭제 (CRUD)
-- 경매 상태 관리: `PENDING` → `ACTIVE` → `CLOSED`
+- `startsAt`(생략 시 생성 시각)과 `endsAt`로 입찰 가능 구간을 정의. 생성 시 `startsAt`이 아직 오지 않았으면 `PENDING`, 이미 도래했으면 `ONGOING`
+- 스케줄러(`app.auction.schedule.*`): `AuctionStartScheduler` — `PENDING` 중 시작 시각이 지난 경매를 `ONGOING` + `AUCTION_STATUS_CHANGED` Outbox로 전환 (`pending-to-ongoing-ms`). `AuctionEndScheduler` — `endsAt`이 지난 `ONGOING`을 `CLOSED` + Outbox (`ongoing-to-closed-ms`, 기본 30초)
+- 마감·DB 책임 요약: `services/CLAUDE.md` 「경매 마감·상태 책임」, 상세는 `docs/architecture.md`
+- 경매 상태 관리: `PENDING` → `ONGOING` → `CLOSED`
 - Outbox 테이블에 `auction-events` 이벤트 기록 (Debezium이 읽어 Kafka 발행)
 - `currentPrice` 조회는 DB가 아닌 **Kafka Streams State Store REST API**에서 조회
 
@@ -15,21 +18,25 @@
 
 ## 주요 엔드포인트
 
-| Method | Path | 설명 |
-|--------|------|------|
-| POST | `/auctions` | 경매 생성 |
-| GET | `/auctions/{id}` | 경매 상세 조회 (currentPrice는 State Store 조회) |
-| GET | `/auctions` | 경매 목록 조회 |
-| PATCH | `/auctions/{id}/status` | 경매 상태 변경 (내부 API) |
+
+| Method | Path                    | 설명                                      |
+| ------ | ----------------------- | --------------------------------------- |
+| POST   | `/auctions`             | 경매 생성                                   |
+| GET    | `/auctions/{id}`        | 경매 상세 조회 (currentPrice는 State Store 조회) |
+| GET    | `/auctions`             | 경매 목록 조회                                |
+| PATCH  | `/auctions/{id}/status` | 경매 상태 변경 (내부 API)                       |
+
 
 ---
 
 ## Outbox 이벤트 타입
 
-| eventType | 발행 시점 |
-|-----------|-----------|
-| `AUCTION_CREATED` | 경매 생성 |
-| `AUCTION_STATUS_CHANGED` | 상태 변경 (ACTIVE, CLOSED) |
+
+| eventType                | 발행 시점                   |
+| ------------------------ | ----------------------- |
+| `AUCTION_CREATED`        | 경매 생성                   |
+| `AUCTION_STATUS_CHANGED` | 상태 변경 (ONGOING, CLOSED) |
+
 
 ---
 
@@ -43,10 +50,12 @@
 
 ## 의존 서비스
 
-| 서비스 | 방식 | 용도 |
-|--------|------|------|
-| auction-streams | RestClient + Circuit Breaker | currentPrice 조회 |
-| Debezium | CDC (자동) | Outbox → auction-events 발행 |
+
+| 서비스             | 방식                           | 용도                         |
+| --------------- | ---------------------------- | -------------------------- |
+| auction-streams | RestClient + Circuit Breaker | currentPrice 조회            |
+| Debezium        | CDC (자동)                     | Outbox → auction-events 발행 |
+
 
 ---
 

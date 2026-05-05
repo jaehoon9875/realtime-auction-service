@@ -8,6 +8,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -20,15 +23,18 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import com.jaehoon.auction.dto.AuctionResponse;
 import com.jaehoon.auction.dto.CreateAuctionRequest;
 import com.jaehoon.auction.entity.Auction;
 import com.jaehoon.auction.entity.AuctionStatus;
 import com.jaehoon.auction.exception.AuctionNotFoundException;
+import com.jaehoon.auction.exception.BadRequestException;
 import com.jaehoon.auction.exception.ForbiddenException;
 import com.jaehoon.auction.outbox.OutboxEventPublisher;
 import com.jaehoon.auction.repository.AuctionRepository;
+import com.jaehoon.auction.service.AuctionLifecycleTxHelper;
 import com.jaehoon.auction.service.AuctionService;
 import com.jaehoon.auction.service.AuctionStreamsClient;
 
@@ -44,8 +50,14 @@ class AuctionServiceTest {
     @Mock
     AuctionStreamsClient auctionStreamsClient;
 
+    @Mock
+    AuctionLifecycleTxHelper auctionLifecycleTxHelper;
+
     @InjectMocks
     AuctionService auctionService;
+
+    @Captor
+    ArgumentCaptor<Auction> auctionCaptor;
 
     // ─────────────────────────── createAuction ───────────────────────────
 
@@ -54,7 +66,7 @@ class AuctionServiceTest {
         // given
         UUID sellerId = UUID.randomUUID();
         CreateAuctionRequest request = new CreateAuctionRequest(
-                "테스트 경매", "설명", 10_000L, LocalDateTime.now().plusDays(1));
+                "테스트 경매", "설명", 10_000L, null, LocalDateTime.now().plusDays(1));
 
         // when
         AuctionResponse response = auctionService.createAuction(request, sellerId);
@@ -64,6 +76,7 @@ class AuctionServiceTest {
         verify(outboxEventPublisher).publish(any(Auction.class), eq("AUCTION_CREATED"));
         assertThat(response.sellerId()).isEqualTo(sellerId);
         assertThat(response.currentPrice()).isNull(); // 생성 시점엔 State Store 조회 불필요
+        assertThat(response.status()).isEqualTo(AuctionStatus.ONGOING); // startsAt 생략 → 즉시 진행
     }
 
     @Test
@@ -71,7 +84,7 @@ class AuctionServiceTest {
         // given
         UUID sellerId = UUID.randomUUID();
         CreateAuctionRequest request = new CreateAuctionRequest(
-                "부분 저장 방지 검증", null, 1_000L, LocalDateTime.now().plusDays(1));
+                "부분 저장 방지 검증", null, 1_000L, null, LocalDateTime.now().plusDays(1));
 
         // when
         auctionService.createAuction(request, sellerId);
@@ -79,6 +92,59 @@ class AuctionServiceTest {
         // then — 저장과 발행은 반드시 쌍으로 호출 (원자성 의도 표현)
         verify(auctionRepository).save(any(Auction.class));
         verify(outboxEventPublisher).publish(any(Auction.class), any());
+    }
+
+    @Test
+    void createAuction_startsAt가_미래면_PENDING이다() {
+        UUID sellerId = UUID.randomUUID();
+        LocalDateTime futureStart = LocalDateTime.now().plusDays(1);
+        LocalDateTime futureEnd = LocalDateTime.now().plusDays(2);
+        CreateAuctionRequest request = new CreateAuctionRequest(
+                "예약 경매", null, 1_000L, futureStart, futureEnd);
+
+        auctionService.createAuction(request, sellerId);
+
+        verify(auctionRepository).save(auctionCaptor.capture());
+        assertThat(auctionCaptor.getValue().getStatus()).isEqualTo(AuctionStatus.PENDING);
+        assertThat(auctionCaptor.getValue().getStartsAt()).isEqualTo(futureStart);
+    }
+
+    @Test
+    void createAuction_startsAt와_endsAt가_역전이면_BadRequestException() {
+        LocalDateTime end = LocalDateTime.now().plusDays(1);
+        CreateAuctionRequest request = new CreateAuctionRequest(
+                "잘못된 일정", null, 1_000L, end.plusHours(1), end);
+
+        assertThatThrownBy(() -> auctionService.createAuction(request, UUID.randomUUID()))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(auctionRepository, never()).save(any());
+    }
+
+    // ─────────────────────────── activateDueAuctions ───────────────────────────
+
+    @Test
+    void activateDueAuctions_조회된_id마다_헬퍼_activateOne을_호출한다() {
+        UUID id = UUID.randomUUID();
+        when(auctionRepository.findIdsDuePendingAuctions(eq(AuctionStatus.PENDING), any(LocalDateTime.class),
+                any(Pageable.class))).thenReturn(List.of(id));
+
+        auctionService.activateDueAuctions();
+
+        verify(auctionLifecycleTxHelper).activateOne(eq(id), any(LocalDateTime.class));
+    }
+
+    // ─────────────────────────── closeOverdueAuctions ───────────────────────────
+
+    @Test
+    void closeOverdueAuctions_조회된_id마다_헬퍼_closeOne을_호출한다() {
+        UUID id = UUID.randomUUID();
+        when(auctionRepository.findIdsOngoingPastEnd(eq(AuctionStatus.ONGOING), any(LocalDateTime.class),
+                any(Pageable.class))).thenReturn(List.of(id));
+
+        auctionService.closeOverdueAuctions();
+
+        verify(auctionLifecycleTxHelper).closeOne(eq(id), any(LocalDateTime.class));
     }
 
     // ─────────────────────────── updateStatus ───────────────────────────
@@ -93,15 +159,15 @@ class AuctionServiceTest {
         when(auctionRepository.findById(auctionId)).thenReturn(Optional.of(auction));
 
         // when
-        AuctionResponse response = auctionService.updateStatus(auctionId, AuctionStatus.ACTIVE, sellerId);
+        AuctionResponse response = auctionService.updateStatus(auctionId, AuctionStatus.ONGOING, sellerId);
 
         // then
-        assertThat(response.status()).isEqualTo(AuctionStatus.ACTIVE);
+        assertThat(response.status()).isEqualTo(AuctionStatus.ONGOING);
         verify(outboxEventPublisher).publish(eq(auction), eq("AUCTION_STATUS_CHANGED"));
     }
 
     @Test
-    void updateStatus_PENDING에서_ACTIVE로_전이된다() {
+    void updateStatus_PENDING에서_ONGOING으로_전이된다() {
         // given
         UUID auctionId = UUID.randomUUID();
         UUID sellerId = UUID.randomUUID();
@@ -109,19 +175,19 @@ class AuctionServiceTest {
         when(auctionRepository.findById(auctionId)).thenReturn(Optional.of(auction));
 
         // when
-        auctionService.updateStatus(auctionId, AuctionStatus.ACTIVE, sellerId);
+        auctionService.updateStatus(auctionId, AuctionStatus.ONGOING, sellerId);
 
         // then
-        assertThat(auction.getStatus()).isEqualTo(AuctionStatus.ACTIVE);
+        assertThat(auction.getStatus()).isEqualTo(AuctionStatus.ONGOING);
     }
 
     @Test
-    void updateStatus_ACTIVE에서_CLOSED로_전이된다() {
+    void updateStatus_ONGOING에서_CLOSED로_전이된다() {
         // given
         UUID auctionId = UUID.randomUUID();
         UUID sellerId = UUID.randomUUID();
         Auction auction = buildAuction(sellerId);
-        auction.changeStatus(AuctionStatus.ACTIVE); // 사전 상태 설정
+        auction.changeStatus(AuctionStatus.ONGOING); // 사전 상태 설정
 
         when(auctionRepository.findById(auctionId)).thenReturn(Optional.of(auction));
 
@@ -144,7 +210,7 @@ class AuctionServiceTest {
         when(auctionRepository.findById(auctionId)).thenReturn(Optional.of(auction));
 
         // when & then
-        assertThatThrownBy(() -> auctionService.updateStatus(auctionId, AuctionStatus.ACTIVE, otherId))
+        assertThatThrownBy(() -> auctionService.updateStatus(auctionId, AuctionStatus.ONGOING, otherId))
                 .isInstanceOf(ForbiddenException.class);
 
         // 권한 오류 시 아웃박스 이벤트가 발행되지 않아야 함
@@ -153,11 +219,11 @@ class AuctionServiceTest {
 
     @Test
     void updateStatus_requesterId가_null이면_권한_검증을_생략한다() {
-        // given — 시스템 내부 호출 케이스 (requesterId = null), 전이는 ACTIVE → CLOSED 만 허용
+        // given — 시스템 내부 호출 케이스 (requesterId = null), 전이는 ONGOING → CLOSED 만 허용
         UUID auctionId = UUID.randomUUID();
         UUID sellerId = UUID.randomUUID();
         Auction auction = buildAuction(sellerId);
-        auction.changeStatus(AuctionStatus.ACTIVE);
+        auction.changeStatus(AuctionStatus.ONGOING);
 
         when(auctionRepository.findById(auctionId)).thenReturn(Optional.of(auction));
 
@@ -173,7 +239,7 @@ class AuctionServiceTest {
         when(auctionRepository.findById(missingId)).thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> auctionService.updateStatus(missingId, AuctionStatus.ACTIVE, UUID.randomUUID()))
+        assertThatThrownBy(() -> auctionService.updateStatus(missingId, AuctionStatus.ONGOING, UUID.randomUUID()))
                 .isInstanceOf(AuctionNotFoundException.class);
     }
 
@@ -251,6 +317,7 @@ class AuctionServiceTest {
                 .sellerId(sellerId)
                 .title("테스트 경매")
                 .startPrice(1_000L)
+                .startsAt(LocalDateTime.now().plusHours(1))
                 .endsAt(LocalDateTime.now().plusDays(1))
                 .status(AuctionStatus.PENDING)
                 .build();

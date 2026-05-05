@@ -8,7 +8,7 @@ Kafka Streams 기반 실시간 경매 처리 앱. 이 프로젝트의 핵심 컴
 
 - `bid-events` 소비 → State Store에 경매별 최고가 실시간 갱신
 - Windowed Aggregation으로 단위 시간 내 입찰 급증 탐지
-- Punctuator로 경매 마감 시각 감지 → `AUCTION_CLOSED` 이벤트 발행
+- Punctuator로 경매 마감 시각 감지 → `AUCTION_CLOSED` 이벤트 발행(역할 분담: `services/CLAUDE.md` 「경매 마감·상태 책임」)
 - 처리 불가 이벤트를 Dead Letter Queue(DLQ) 토픽으로 라우팅
 - Interactive Queries API 제공 (bid-service, auction-service가 State Store 조회 시 사용)
 

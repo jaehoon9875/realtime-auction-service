@@ -45,6 +45,9 @@ public class Auction {
     @Column(nullable = false, length = 20)
     private AuctionStatus status;
 
+    @Column(name = "starts_at", nullable = false)
+    private LocalDateTime startsAt;
+
     @Column(name = "ends_at", nullable = false)
     private LocalDateTime endsAt;
 
@@ -58,17 +61,18 @@ public class Auction {
      * 신규 경매 생성용. id·타임스탬프·기본 status는 {@link #prePersist()}에서 채운다.
      */
     @Builder
-    public Auction(UUID sellerId, String title, String description, Long startPrice, LocalDateTime endsAt,
-            AuctionStatus status) {
+    public Auction(UUID sellerId, String title, String description, Long startPrice, LocalDateTime startsAt,
+            LocalDateTime endsAt, AuctionStatus status) {
         this.sellerId = sellerId;
         this.title = title;
         this.description = description;
         this.startPrice = startPrice;
+        this.startsAt = startsAt;
         this.endsAt = endsAt;
         this.status = status;
     }
 
-    // 최초 저장 시 타임스탬프 및 DB 기본값과 동일하게 status=PENDING
+    // 최초 저장 시 타임스탬프. status 는 서비스에서 startsAt·현재 시각에 맞게 설정 (미설정 시 PENDING)
     @PrePersist
     private void prePersist() {
         LocalDateTime now = LocalDateTime.now();
@@ -87,7 +91,7 @@ public class Auction {
 
     /**
      * 경매 상태 전이. 허용되지 않는 전이는 즉시 예외를 던진다.
-     * 유효한 전이: PENDING → ACTIVE → CLOSED
+     * 유효한 전이: PENDING → ONGOING → CLOSED
      */
     public void changeStatus(AuctionStatus newStatus) {
         if (!this.status.canTransitionTo(newStatus)) {

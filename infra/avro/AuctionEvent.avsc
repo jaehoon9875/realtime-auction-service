@@ -8,10 +8,11 @@
     { "name": "eventType", "type": "string" },
     { "name": "auctionId", "type": "string" },
     { "name": "sellerId", "type": "string" },
-    { "name": "status", "type": ["null", "string"], "default": null, "doc": "이벤트 시점 경매 상태 (PENDING, ACTIVE, CLOSED). 구 스키마 메시지는 null." },
+    { "name": "status", "type": ["null", "string"], "default": null, "doc": "이벤트 시점 경매 상태 (PENDING, ONGOING, CLOSED). 구 스키마 메시지는 null." },
     { "name": "title", "type": "string" },
     { "name": "startPrice", "type": "long" },
     { "name": "currentPrice", "type": ["null", "long"], "default": null },
+    { "name": "startsAt", "type": ["null", "long"], "default": null, "doc": "경매 시작 시각(Unix epoch 초). 구 메시지는 null." },
     { "name": "endsAt", "type": "long" },
     { "name": "occurredAt", "type": "long" }
   ]

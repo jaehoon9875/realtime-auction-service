@@ -3,6 +3,7 @@ package com.jaehoon.auction.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -18,6 +20,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.jaehoon.auction.dto.AuctionResponse;
 import com.jaehoon.auction.dto.CreateAuctionRequest;
+import com.jaehoon.auction.entity.Auction;
 import com.jaehoon.auction.entity.AuctionStatus;
 import com.jaehoon.auction.entity.OutboxEvent;
 import com.jaehoon.auction.exception.AuctionNotFoundException;
@@ -59,6 +62,9 @@ class AuctionIntegrationTest {
     @Autowired
     OutboxEventRepository outboxEventRepository;
 
+    @Autowired
+    JdbcTemplate jdbcTemplate;
+
     @BeforeEach
     void cleanDatabase() {
         // 클래스 레벨 @Transactional 없이도 테스트 간 격리를 보장하기 위해 매 테스트 시작 전 정리
@@ -70,10 +76,10 @@ class AuctionIntegrationTest {
 
     @Test
     void createAuction_auctions_테이블에_레코드가_생성된다() {
-        // given
+        // given — 예약 시작(미래 startsAt)이면 PENDING
         UUID sellerId = UUID.randomUUID();
         CreateAuctionRequest request = new CreateAuctionRequest(
-                "통합테스트 경매", "설명", 5_000L, LocalDateTime.now().plusDays(1));
+                "통합테스트 경매", "설명", 5_000L, LocalDateTime.now().plusHours(1), LocalDateTime.now().plusDays(1));
 
         // when
         AuctionResponse response = auctionService.createAuction(request, sellerId);
@@ -89,7 +95,7 @@ class AuctionIntegrationTest {
         // given
         UUID sellerId = UUID.randomUUID();
         CreateAuctionRequest request = new CreateAuctionRequest(
-                "아웃박스 검증", null, 1_000L, LocalDateTime.now().plusDays(1));
+                "아웃박스 검증", null, 1_000L, null, LocalDateTime.now().plusDays(1));
 
         // when
         AuctionResponse response = auctionService.createAuction(request, sellerId);
@@ -105,6 +111,7 @@ class AuctionIntegrationTest {
         assertThat(event.getPayload()).containsKey("auctionId");
         assertThat(event.getPayload()).containsKey("sellerId");
         assertThat(event.getPayload()).containsKey("status");
+        assertThat(event.getPayload()).containsKey("startsAt");
         assertThat(event.getCreatedAt()).isNotNull();
     }
 
@@ -113,7 +120,7 @@ class AuctionIntegrationTest {
         // given — 원자성 검증: auction INSERT + outbox INSERT가 항상 쌍으로 존재해야 함
         UUID sellerId = UUID.randomUUID();
         CreateAuctionRequest request = new CreateAuctionRequest(
-                "원자성 검증", null, 2_000L, LocalDateTime.now().plusDays(1));
+                "원자성 검증", null, 2_000L, null, LocalDateTime.now().plusDays(1));
 
         // when
         AuctionResponse response = auctionService.createAuction(request, sellerId);
@@ -125,6 +132,60 @@ class AuctionIntegrationTest {
                 .containsExactly(response.id());
     }
 
+    @Test
+    void activateDueAuctions_시작시각_도래_후_PENDING이_ONGOING으로_바뀐다() {
+        UUID sellerId = UUID.randomUUID();
+        LocalDateTime end = LocalDateTime.now().plusDays(1);
+        LocalDateTime start = LocalDateTime.now().plusHours(1);
+        AuctionResponse created = auctionService.createAuction(
+                new CreateAuctionRequest("스케줄 검증", null, 1_000L, start, end),
+                sellerId);
+        assertThat(created.status()).isEqualTo(AuctionStatus.PENDING);
+
+        int updatedStart = jdbcTemplate.update(
+                "UPDATE auctions SET starts_at = ? WHERE id = ?",
+                Timestamp.valueOf(LocalDateTime.now().minusMinutes(1)),
+                created.id());
+        assertThat(updatedStart).isEqualTo(1);
+
+        auctionService.activateDueAuctions();
+
+        assertThat(auctionRepository.findById(created.id()))
+                .isPresent()
+                .get()
+                .extracting(Auction::getStatus)
+                .isEqualTo(AuctionStatus.ONGOING);
+        assertThat(outboxEventRepository.findAll())
+                .extracting(OutboxEvent::getEventType)
+                .containsExactlyInAnyOrder("AUCTION_CREATED", "AUCTION_STATUS_CHANGED");
+    }
+
+    @Test
+    void closeOverdueAuctions_endsAt_경과_후_ONGOING이_CLOSED로_바뀐다() {
+        UUID sellerId = UUID.randomUUID();
+        AuctionResponse created = auctionService.createAuction(
+                new CreateAuctionRequest("마감 스케줄", null, 1_000L, null, LocalDateTime.now().plusDays(1)),
+                sellerId);
+        assertThat(created.status()).isEqualTo(AuctionStatus.ONGOING);
+
+        int updatedEnd = jdbcTemplate.update(
+                "UPDATE auctions SET ends_at = ? WHERE id = ?",
+                Timestamp.valueOf(LocalDateTime.now().minusMinutes(1)),
+                created.id());
+        assertThat(updatedEnd).isEqualTo(1);
+
+        auctionService.closeOverdueAuctions();
+
+        assertThat(auctionRepository.findById(created.id()))
+                .isPresent()
+                .get()
+                .extracting(Auction::getStatus)
+                .isEqualTo(AuctionStatus.CLOSED);
+        assertThat(outboxEventRepository.findAll())
+                .extracting(OutboxEvent::getEventType)
+                .containsExactlyInAnyOrder("AUCTION_CREATED", "AUCTION_STATUS_CHANGED");
+    }
+
     // ─────────────────────────── updateStatus ───────────────────────────
 
     @Test
@@ -132,11 +193,12 @@ class AuctionIntegrationTest {
         // given
         UUID sellerId = UUID.randomUUID();
         AuctionResponse created = auctionService.createAuction(
-                new CreateAuctionRequest("상태변경 경매", null, 1_000L, LocalDateTime.now().plusDays(1)),
+                new CreateAuctionRequest("상태변경 경매", null, 1_000L, LocalDateTime.now().plusHours(1),
+                        LocalDateTime.now().plusDays(1)),
                 sellerId);
 
         // when
-        auctionService.updateStatus(created.id(), AuctionStatus.ACTIVE, sellerId);
+        auctionService.updateStatus(created.id(), AuctionStatus.ONGOING, sellerId);
 
         // then — AUCTION_CREATED + AUCTION_STATUS_CHANGED 두 건
         List<OutboxEvent> events = outboxEventRepository.findAll();
@@ -151,18 +213,19 @@ class AuctionIntegrationTest {
         // given
         UUID sellerId = UUID.randomUUID();
         AuctionResponse created = auctionService.createAuction(
-                new CreateAuctionRequest("ACTIVE 전환 테스트", null, 1_000L, LocalDateTime.now().plusDays(1)),
+                new CreateAuctionRequest("ONGOING 전환 테스트", null, 1_000L, LocalDateTime.now().plusHours(1),
+                        LocalDateTime.now().plusDays(1)),
                 sellerId);
 
         // when
-        auctionService.updateStatus(created.id(), AuctionStatus.ACTIVE, sellerId);
+        auctionService.updateStatus(created.id(), AuctionStatus.ONGOING, sellerId);
 
         // then — DB에서 직접 조회하여 상태 변경 확인
         assertThat(auctionRepository.findById(created.id()))
                 .isPresent()
                 .get()
                 .extracting(a -> a.getStatus())
-                .isEqualTo(AuctionStatus.ACTIVE);
+                .isEqualTo(AuctionStatus.ONGOING);
     }
 
     @Test
@@ -171,13 +234,14 @@ class AuctionIntegrationTest {
         UUID sellerId = UUID.randomUUID();
         UUID otherId = UUID.randomUUID();
         AuctionResponse created = auctionService.createAuction(
-                new CreateAuctionRequest("권한 검증", null, 1_000L, LocalDateTime.now().plusDays(1)),
+                new CreateAuctionRequest("권한 검증", null, 1_000L, LocalDateTime.now().plusHours(1),
+                        LocalDateTime.now().plusDays(1)),
                 sellerId);
 
         long outboxCountBefore = outboxEventRepository.count();
 
         // when & then
-        assertThatThrownBy(() -> auctionService.updateStatus(created.id(), AuctionStatus.ACTIVE, otherId))
+        assertThatThrownBy(() -> auctionService.updateStatus(created.id(), AuctionStatus.ONGOING, otherId))
                 .isInstanceOf(ForbiddenException.class);
 
         // 예외 발생 후 아웃박스 이벤트 수가 증가하지 않아야 함
@@ -197,7 +261,7 @@ class AuctionIntegrationTest {
     void 각_테스트는_독립적으로_빈_DB에서_시작한다_검증_B() {
         // 위 테스트(_A) 실행 여부와 무관하게, cleanDatabase() 이후 이 테스트는 비어 있어야 함
         auctionService.createAuction(
-                new CreateAuctionRequest("격리 검증용", null, 1_000L, LocalDateTime.now().plusDays(1)),
+                new CreateAuctionRequest("격리 검증용", null, 1_000L, null, LocalDateTime.now().plusDays(1)),
                 UUID.randomUUID());
 
         assertThat(auctionRepository.count()).isEqualTo(1);
