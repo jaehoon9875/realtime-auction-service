@@ -85,7 +85,7 @@ class BidIntegrationTest {
     }
 
     @Test
-    void 트랜잭션_중_예외발생시_bids와_outbox모두_롤백된다() {
+    void 검증_실패_시_저장이_일어나지_않는다() {
         UUID auctionId = UUID.randomUUID();
         doAnswer(invocation -> new AuctionSnapshot(
                 auctionId,

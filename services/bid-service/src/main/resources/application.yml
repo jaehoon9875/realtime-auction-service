@@ -63,9 +63,17 @@ resilience4j:
         minimum-number-of-calls: 5
         failure-rate-threshold: 50
         wait-duration-in-open-state: 10s
+        # 4xx는 서버가 정상적으로 응답한 것이므로 CB 실패로 집계하지 않는다.
+        # 비즈니스 오류(404 경매 없음, 422 검증 실패 등)가 쌓여 CB가 열리는 오동작 방지.
+        ignore-exceptions:
+          - org.springframework.web.client.HttpClientErrorException
       auction-streams:
         sliding-window-type: COUNT_BASED
         sliding-window-size: 10
         minimum-number-of-calls: 5
         failure-rate-threshold: 50
         wait-duration-in-open-state: 10s
+        # 4xx는 서버가 정상적으로 응답한 것이므로 CB 실패로 집계하지 않는다.
+        # 비즈니스 오류(404 경매 없음, 422 검증 실패 등)가 쌓여 CB가 열리는 오동작 방지.
+        ignore-exceptions:
+          - org.springframework.web.client.HttpClientErrorException
