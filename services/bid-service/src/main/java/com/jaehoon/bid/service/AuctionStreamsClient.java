@@ -3,7 +3,6 @@ package com.jaehoon.bid.service;
 import java.util.UUID;
 
 import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -27,8 +26,7 @@ public class AuctionStreamsClient {
     private static final String CIRCUIT_BREAKER_NAME = "auction-streams";
     private static final String RETRY_NAME = "auction-streams";
 
-    @Qualifier("bidStreamsRestClient")
-    private final RestClient auctionStreamsRestClient;
+    private final RestClient bidStreamsRestClient;
     private final CircuitBreakerFactory<?, ?> circuitBreakerFactory;
     private final RetryRegistry retryRegistry;
 
@@ -46,7 +44,7 @@ public class AuctionStreamsClient {
 
     private Long fetchCurrentPrice(UUID auctionId) {
         try {
-            return auctionStreamsRestClient.get()
+            return bidStreamsRestClient.get()
                     .uri("/state/auctions/{id}/current-price", auctionId)
                     .retrieve()
                     .body(Long.class);

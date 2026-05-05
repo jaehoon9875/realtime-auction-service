@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -28,8 +27,7 @@ public class AuctionServiceClient {
     private static final String CIRCUIT_BREAKER_NAME = "auction-service";
     private static final String RETRY_NAME = "auction-service";
 
-    @Qualifier("bidServiceRestClient")
-    private final RestClient auctionServiceRestClient;
+    private final RestClient bidServiceRestClient;
     private final CircuitBreakerFactory<?, ?> circuitBreakerFactory;
     private final RetryRegistry retryRegistry;
 
@@ -47,7 +45,7 @@ public class AuctionServiceClient {
 
     private AuctionSnapshot fetchAuction(UUID auctionId) {
         try {
-            return auctionServiceRestClient.get()
+            return bidServiceRestClient.get()
                     .uri("/auctions/{id}", auctionId)
                     .retrieve()
                     .body(AuctionSnapshot.class);
