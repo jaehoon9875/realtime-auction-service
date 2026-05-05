@@ -35,6 +35,7 @@ public class AuctionService {
     private final AuctionRepository auctionRepository;
     private final OutboxEventPublisher outboxEventPublisher;
     private final AuctionStreamsClient auctionStreamsClient;
+    private final AuctionLifecycleTxHelper auctionLifecycleTxHelper;
 
     /**
      * 경매 생성.
@@ -71,9 +72,8 @@ public class AuctionService {
 
     /**
      * 예약 경매: 시작 시각이 지난 PENDING 건을 ONGOING 으로 바꾼다 (스케줄러 전용).
-     * 행 단위로 배타 락을 걸어 멀티 인스턴스에서 중복 전환을 줄인다.
+     * 행별 독립 트랜잭션(REQUIRES_NEW)으로 처리해 실패 시 해당 건만 롤백된다.
      */
-    @Transactional
     public void activateDueAuctions() {
         LocalDateTime now = LocalDateTime.now();
         var ids = auctionRepository.findIdsDuePendingAuctions(
@@ -81,28 +81,14 @@ public class AuctionService {
                 now,
                 PageRequest.of(0, PENDING_ACTIVATION_BATCH_SIZE));
         for (UUID id : ids) {
-            activatePendingAuctionIfDue(id, now);
+            auctionLifecycleTxHelper.activateOne(id, now);
         }
-    }
-
-    private void activatePendingAuctionIfDue(UUID id, LocalDateTime now) {
-        auctionRepository.findByIdForUpdate(id).ifPresent(auction -> {
-            if (auction.getStatus() != AuctionStatus.PENDING) {
-                return;
-            }
-            if (auction.getStartsAt().isAfter(now)) {
-                return;
-            }
-            auction.changeStatus(AuctionStatus.ONGOING);
-            outboxEventPublisher.publish(auction, "AUCTION_STATUS_CHANGED");
-        });
     }
 
     /**
      * 시간 마감: `endsAt`이 지난 `ONGOING` 경매를 `CLOSED`로 바꾼다 (스케줄러 전용).
-     * 행 단위 배타 락으로 멀티 인스턴스에서 중복 전환을 줄인다.
+     * 행별 독립 트랜잭션(REQUIRES_NEW)으로 처리해 실패 시 해당 건만 롤백된다.
      */
-    @Transactional
     public void closeOverdueAuctions() {
         LocalDateTime now = LocalDateTime.now();
         var ids = auctionRepository.findIdsOngoingPastEnd(
@@ -110,21 +96,8 @@ public class AuctionService {
                 now,
                 PageRequest.of(0, CLOSE_OVERDUE_BATCH_SIZE));
         for (UUID id : ids) {
-            closeOngoingAuctionIfOverdue(id, now);
+            auctionLifecycleTxHelper.closeOne(id, now);
         }
-    }
-
-    private void closeOngoingAuctionIfOverdue(UUID id, LocalDateTime now) {
-        auctionRepository.findByIdForUpdate(id).ifPresent(auction -> {
-            if (auction.getStatus() != AuctionStatus.ONGOING) {
-                return;
-            }
-            if (auction.getEndsAt().isAfter(now)) {
-                return;
-            }
-            auction.changeStatus(AuctionStatus.CLOSED);
-            outboxEventPublisher.publish(auction, "AUCTION_STATUS_CHANGED");
-        });
     }
 
     /**
