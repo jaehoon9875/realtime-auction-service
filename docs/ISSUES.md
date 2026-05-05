@@ -35,7 +35,7 @@
 
 | # | 심각도 | 마일스톤 | 제목 | 해결일 | 해결 방법 |
 |---|--------|---------|------|--------|-----------|
-| 2 | 🟡 중간 | docs | 마감 후 `auctions.status` 동기화 (정책 확정) | 2026-05-05 | **역할 분리 확정**: Auction Service DB의 **`CLOSED`는 Auction Service가 책임**(`endsAt` 경과 시 스케줄러로 반영·명시적 전이). Kafka Streams **`AUCTION_CLOSED`/notification** 은 **알림·실시간 파이프라인용**, DB 진실 원본 아님. 입찰은 **`endsAt` + 상태** 검증(문서화). 정본: `docs/architecture.md`「경매 생명주기와 마감 정책」, `docs/kafka.md` 주석. **코드(마감 스케줄러 구현)** 는 별도 작업. |
+| 2 | 🟡 중간 | docs · auction-service | 마감 후 `auctions.status` 동기화 | 2026-05-05 | **역할 분리**: DB **`CLOSED`는 Auction Service** (`endsAt` 경과 시 스케줄러·명시적 전이). Streams **`AUCTION_CLOSED`/notification** 은 알림·실시간용. 입찰 **`endsAt` + 상태** 검증. 문서: `docs/architecture.md`, `docs/kafka.md`, `services/CLAUDE.md`. **구현**: `AuctionEndScheduler`·`AuctionService.closeOverdueAuctions()`, `findIdsOngoingPastEnd`, 설정 `app.auction.schedule.ongoing-to-closed-ms`(기본 60초), Outbox `AUCTION_STATUS_CHANGED`. |
 | 1 | 🟡 중간 | auction-service | 경매 상태 정합 + `startsAt`·PENDING→ONGOING (구 보류 이슈 1) | 2026-05-05 | **용어·종료**: 코드·DB 진행 중 상태 **`ONGOING`** 통일, 종료는 **`CLOSED`** 만 (`CANCELLED`/`AUCTION_CANCELLED` 문서·설명 정리). Flyway **`V4`** CHECK·`ACTIVE`→`ONGOING` 마이그레이션. **시작·전환**: **`starts_at`** 컬럼·API **`startsAt`** (생략 시 생성 시각), 생성 시 `startsAt > now` → **`PENDING`**, 그 외 **`ONGOING`**. **`AuctionStartScheduler`**·`activateDueAuctions()` 로 예약 경매 시작 시 **`AUCTION_STATUS_CHANGED`** Outbox. Outbox/Avro에 **`startsAt`** epoch, `docs/schema.md`·`api.md`·`kafka.md`·`CLAUDE.md` 동기화. 입찰 시점 검증(Bid Service)은 후속. |
 
 ---
