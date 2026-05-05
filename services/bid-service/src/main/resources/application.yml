@@ -26,7 +26,9 @@ app:
   # Gateway가 붙여 보내는 내부 요청 토큰 검증용 설정.
   security:
     internal-request-header-name: ${INTERNAL_REQUEST_HEADER_NAME:X-Internal-Request-Token}
-    internal-request-secret: ${INTERNAL_REQUEST_SECRET}
+    # 빈 문자열 기본값 의도적 사용: 로컬/테스트 환경에서 Gateway 없이 단독 기동 시 시크릿 미설정 허용.
+    # 운영 환경 fail-fast는 InternalRequestTokenFilter@PostConstruct가 프로파일 기반으로 처리.
+    internal-request-secret: ${INTERNAL_REQUEST_SECRET:}
   auction-service:
     base-url: ${AUCTION_SERVICE_BASE_URL:http://localhost:8081}
     connect-timeout-ms: ${AUCTION_SERVICE_CONNECT_TIMEOUT:2000}
