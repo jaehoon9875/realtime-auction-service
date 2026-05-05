@@ -27,6 +27,8 @@ app:
       # 예약 경매 PENDING→ONGOING 스케줄 태스크 (통합 테스트에서는 integration 프로파일로 비활성화)
       enabled: ${AUCTION_SCHEDULE_ENABLED:true}
       pending-to-ongoing-ms: ${AUCTION_PENDING_TO_ONGOING_MS:20000}
+      # endsAt 경과 ONGOING→CLOSED (기본 60초 주기, docs/architecture.md 와 정합)
+      ongoing-to-closed-ms: ${AUCTION_ONGOING_TO_CLOSED_MS:60000}
   # Gateway가 붙여 보내는 내부 요청 토큰 검증용 설정.
   security:
     internal-request-header-name: ${INTERNAL_REQUEST_HEADER_NAME:X-Internal-Request-Token}

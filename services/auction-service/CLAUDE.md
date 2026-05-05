@@ -8,7 +8,8 @@
 
 - 경매 생성, 조회, 수정, 삭제 (CRUD)
 - `startsAt`(생략 시 생성 시각)과 `endsAt`로 입찰 가능 구간을 정의. 생성 시 `startsAt`이 아직 오지 않았으면 `PENDING`, 이미 도래했으면 `ONGOING`
-- 스케줄러(`app.auction.schedule.*`)로 `PENDING` 중 시작 시각이 지난 경매를 `ONGOING` + `AUCTION_STATUS_CHANGED` Outbox로 전환
+- 스케줄러(`app.auction.schedule.*`): `AuctionStartScheduler` — `PENDING` 중 시작 시각이 지난 경매를 `ONGOING` + `AUCTION_STATUS_CHANGED` Outbox로 전환 (`pending-to-ongoing-ms`). `AuctionEndScheduler` — `endsAt`이 지난 `ONGOING`을 `CLOSED` + Outbox (`ongoing-to-closed-ms`, 기본 60초)
+- 마감·DB 책임 요약: `services/CLAUDE.md` 「경매 마감·상태 책임」, 상세는 `docs/architecture.md`
 - 경매 상태 관리: `PENDING` → `ONGOING` → `CLOSED`
 - Outbox 테이블에 `auction-events` 이벤트 기록 (Debezium이 읽어 Kafka 발행)
 - `currentPrice` 조회는 DB가 아닌 **Kafka Streams State Store REST API**에서 조회

@@ -159,6 +159,31 @@ class AuctionIntegrationTest {
                 .containsExactlyInAnyOrder("AUCTION_CREATED", "AUCTION_STATUS_CHANGED");
     }
 
+    @Test
+    void closeOverdueAuctions_endsAt_경과_후_ONGOING이_CLOSED로_바뀐다() {
+        UUID sellerId = UUID.randomUUID();
+        AuctionResponse created = auctionService.createAuction(
+                new CreateAuctionRequest("마감 스케줄", null, 1_000L, null, LocalDateTime.now().plusDays(1)),
+                sellerId);
+        assertThat(created.status()).isEqualTo(AuctionStatus.ONGOING);
+
+        jdbcTemplate.update(
+                "UPDATE auctions SET ends_at = ? WHERE id = ?",
+                Timestamp.valueOf(LocalDateTime.now().minusMinutes(1)),
+                created.id());
+
+        auctionService.closeOverdueAuctions();
+
+        assertThat(auctionRepository.findById(created.id()))
+                .isPresent()
+                .get()
+                .extracting(Auction::getStatus)
+                .isEqualTo(AuctionStatus.CLOSED);
+        assertThat(outboxEventRepository.findAll())
+                .extracting(OutboxEvent::getEventType)
+                .containsExactlyInAnyOrder("AUCTION_CREATED", "AUCTION_STATUS_CHANGED");
+    }
+
     // ─────────────────────────── updateStatus ───────────────────────────
 
     @Test

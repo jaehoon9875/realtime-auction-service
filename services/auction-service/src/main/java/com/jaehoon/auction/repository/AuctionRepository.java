@@ -38,4 +38,11 @@ public interface AuctionRepository extends JpaRepository<Auction, UUID> {
             @Param("status") AuctionStatus status,
             @Param("now") LocalDateTime now,
             Pageable pageable);
+
+    /** 마감 시각이 지난 진행 중(ONGOING) 경매 후보 ID 목록 (소량 배치). */
+    @Query("SELECT a.id FROM Auction a WHERE a.status = :status AND a.endsAt <= :now ORDER BY a.endsAt ASC")
+    List<UUID> findIdsOngoingPastEnd(
+            @Param("status") AuctionStatus status,
+            @Param("now") LocalDateTime now,
+            Pageable pageable);
 }

@@ -1,6 +1,7 @@
 # services/CLAUDE.md
 
 4개 서비스(auction, bid, user, notification)에 공통으로 적용되는 Java/Spring Boot 개발 원칙.
+**경매 마감·`CLOSED`·입찰 시각 검증의 역할 분담**은 아래 「경매 마감·상태 책임」에만 둔다(서비스별 `CLAUDE.md`에 장문 복붙하지 않음).
 서비스별 도메인 상세는 각 서비스 하위 `CLAUDE.md` 참고.
 
 ---
@@ -75,6 +76,19 @@ auction-service와 bid-service에만 해당.
 - Kafka에 **직접 발행하지 않는다.** 반드시 Outbox 테이블 → Debezium 경로를 따른다.
 - 도메인 이벤트 저장과 Outbox 저장은 **같은 트랜잭션** 안에서 처리한다.
 - Outbox 레코드는 `aggregateType`, `aggregateId`, `eventType`, `payload`(Avro JSON) 필드를 포함한다.
+
+---
+
+## 경매 마감·상태 책임 (MSA · 이 파일이 정본)
+
+인간/AI가 서비스 경계를 헷갈리지 않도록 **한곳**에만 둔다. 도메인 전체·시간·스케줄 가이드는 `docs/architecture.md` 「경매 생명주기와 마감 정책」.
+
+| 구분 | 책임 |
+|------|------|
+| **Auction Service DB `auctions.status`** | **`CLOSED`를 비즈니스 상 “종료”로 쓸 때의 진실 원본.** 시간 마감은 `endsAt`(UTC) 지난 `ONGOING`을 **본 서비스 스케줄러**로 `CLOSED` 반영(+ Outbox). 조기 종료는 API로 명시 전이. Kafka Streams 토픽으로 DB를 맞추지 않는다. |
+| **Bid Service 입찰 검증** | **`endsAt`과 요청 시각 비교**로 마감 후 입찰 차단. 스케줄러가 아직 `CLOSED`로 안 바꿨어도 **`endsAt` 이후면 거절**해야 한다. |
+| **Kafka Streams (`auction-streams`)** | Punctuator 등으로 **`AUCTION_CLOSED`·낙찰 관련 이벤트** → **`notification-events` 등 실시간·알림 파이프라인**. Auction DB의 `CLOSED`를 대체하지 않는다. |
+| **Notification Service** | `notification-events` 소비·WebSocket 푸시. **`AUCTION_CLOSED` 수신은 클라이언트 알림용**이며 Auction DB 상태와 별개. |
 
 ---
 

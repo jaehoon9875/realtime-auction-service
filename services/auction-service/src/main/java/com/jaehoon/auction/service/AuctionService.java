@@ -29,6 +29,9 @@ public class AuctionService {
     /** 스케줄러 한 번에 처리할 예약 경매 후보 최대 건수 */
     private static final int PENDING_ACTIVATION_BATCH_SIZE = 100;
 
+    /** 스케줄러 한 번에 처리할 마감 대기(ONGOING·endsAt 경과) 최대 건수 */
+    private static final int CLOSE_OVERDUE_BATCH_SIZE = 100;
+
     private final AuctionRepository auctionRepository;
     private final OutboxEventPublisher outboxEventPublisher;
     private final AuctionStreamsClient auctionStreamsClient;
@@ -91,6 +94,35 @@ public class AuctionService {
                 return;
             }
             auction.changeStatus(AuctionStatus.ONGOING);
+            outboxEventPublisher.publish(auction, "AUCTION_STATUS_CHANGED");
+        });
+    }
+
+    /**
+     * 시간 마감: `endsAt`이 지난 `ONGOING` 경매를 `CLOSED`로 바꾼다 (스케줄러 전용).
+     * 행 단위 배타 락으로 멀티 인스턴스에서 중복 전환을 줄인다.
+     */
+    @Transactional
+    public void closeOverdueAuctions() {
+        LocalDateTime now = LocalDateTime.now();
+        var ids = auctionRepository.findIdsOngoingPastEnd(
+                AuctionStatus.ONGOING,
+                now,
+                PageRequest.of(0, CLOSE_OVERDUE_BATCH_SIZE));
+        for (UUID id : ids) {
+            closeOngoingAuctionIfOverdue(id, now);
+        }
+    }
+
+    private void closeOngoingAuctionIfOverdue(UUID id, LocalDateTime now) {
+        auctionRepository.findByIdForUpdate(id).ifPresent(auction -> {
+            if (auction.getStatus() != AuctionStatus.ONGOING) {
+                return;
+            }
+            if (auction.getEndsAt().isAfter(now)) {
+                return;
+            }
+            auction.changeStatus(AuctionStatus.CLOSED);
             outboxEventPublisher.publish(auction, "AUCTION_STATUS_CHANGED");
         });
     }

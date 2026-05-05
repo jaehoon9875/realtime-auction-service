@@ -141,6 +141,51 @@ class AuctionServiceTest {
         verify(outboxEventPublisher).publish(auction, "AUCTION_STATUS_CHANGED");
     }
 
+    // ─────────────────────────── closeOverdueAuctions ───────────────────────────
+
+    @Test
+    void closeOverdueAuctions_endsAt가_지난_ONGOING만_CLOSED로_바꾼다() {
+        UUID id = UUID.randomUUID();
+        UUID sellerId = UUID.randomUUID();
+        when(auctionRepository.findIdsOngoingPastEnd(eq(AuctionStatus.ONGOING), any(LocalDateTime.class),
+                any(Pageable.class))).thenReturn(List.of(id));
+        Auction auction = Auction.builder()
+                .sellerId(sellerId)
+                .title("진행중")
+                .startPrice(1_000L)
+                .startsAt(LocalDateTime.now().minusHours(2))
+                .endsAt(LocalDateTime.now().minusMinutes(1))
+                .status(AuctionStatus.ONGOING)
+                .build();
+        when(auctionRepository.findByIdForUpdate(id)).thenReturn(Optional.of(auction));
+
+        auctionService.closeOverdueAuctions();
+
+        assertThat(auction.getStatus()).isEqualTo(AuctionStatus.CLOSED);
+        verify(outboxEventPublisher).publish(auction, "AUCTION_STATUS_CHANGED");
+    }
+
+    @Test
+    void closeOverdueAuctions_endsAt가_아직_안_지났으면_그대로_ONGOING이다() {
+        UUID id = UUID.randomUUID();
+        when(auctionRepository.findIdsOngoingPastEnd(eq(AuctionStatus.ONGOING), any(LocalDateTime.class),
+                any(Pageable.class))).thenReturn(List.of(id));
+        Auction auction = Auction.builder()
+                .sellerId(UUID.randomUUID())
+                .title("진행중")
+                .startPrice(1_000L)
+                .startsAt(LocalDateTime.now().minusHours(2))
+                .endsAt(LocalDateTime.now().plusHours(1))
+                .status(AuctionStatus.ONGOING)
+                .build();
+        when(auctionRepository.findByIdForUpdate(id)).thenReturn(Optional.of(auction));
+
+        auctionService.closeOverdueAuctions();
+
+        assertThat(auction.getStatus()).isEqualTo(AuctionStatus.ONGOING);
+        verify(outboxEventPublisher, never()).publish(any(), any());
+    }
+
     // ─────────────────────────── updateStatus ───────────────────────────
 
     @Test
