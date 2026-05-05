@@ -9,6 +9,7 @@ set -euo pipefail
 # 스크립트 위치를 기준으로 커넥터 JSON 경로를 계산한다.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONNECTOR_JSON="${SCRIPT_DIR}/connectors/auction-outbox-connector.json"
+CONNECTOR_JSON_BID="${SCRIPT_DIR}/connectors/bid-outbox-connector.json"
 
 # infra/.env가 있으면 자동 로드해서 환경변수를 세팅한다.
 if [[ -f "${SCRIPT_DIR}/../.env" ]]; then
@@ -28,12 +29,19 @@ if [[ -z "${DEBEZIUM_PASSWORD:-}" ]]; then
 fi
 
 # connector 템플릿 JSON에 database.password를 동적으로 주입해 최종 요청 본문을 만든다.
-BODY="$(jq --arg pwd "${DEBEZIUM_PASSWORD}" '.config["database.password"] = $pwd' "${CONNECTOR_JSON}")"
+BODY_AUCTION="$(jq --arg pwd "${DEBEZIUM_PASSWORD}" '.config["database.password"] = $pwd' "${CONNECTOR_JSON}")"
+BODY_BID="$(jq --arg pwd "${DEBEZIUM_PASSWORD}" '.config["database.password"] = $pwd' "${CONNECTOR_JSON_BID}")"
 
 # 신규 커넥터 생성 요청(이미 동일 이름이 존재하면 409 발생 가능)
 echo "POST ${CONNECT_URL}/connectors"
 curl -fsS -X POST "${CONNECT_URL}/connectors" \
   -H "Content-Type: application/json" \
-  -d "${BODY}"
+  -d "${BODY_AUCTION}"
+
+echo
+echo "POST ${CONNECT_URL}/connectors"
+curl -fsS -X POST "${CONNECT_URL}/connectors" \
+  -H "Content-Type: application/json" \
+  -d "${BODY_BID}"
 
 echo

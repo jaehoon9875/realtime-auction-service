@@ -1,0 +1,14 @@
+{
+  "type": "record",
+  "namespace": "com.jaehoon.auction.avro",
+  "name": "BidEvent",
+  "fields": [
+    { "name": "eventId", "type": "string" },
+    { "name": "eventType", "type": "string" },
+    { "name": "bidId", "type": "string" },
+    { "name": "auctionId", "type": "string" },
+    { "name": "bidderId", "type": "string" },
+    { "name": "amount", "type": "long" },
+    { "name": "occurredAt", "type": "long" }
+  ]
+}

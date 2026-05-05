@@ -35,6 +35,7 @@ spring:
             - Path=/api/bids/**
           filters:
             - StripPrefix=1
+            - SetRequestHeader=X-Internal-Request-Token, ${INTERNAL_REQUEST_SECRET}
 
         # Notification Service — M6 이후 구현 시 확인
         - id: notification-service
