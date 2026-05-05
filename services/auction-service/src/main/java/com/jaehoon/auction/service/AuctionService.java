@@ -3,6 +3,8 @@ package com.jaehoon.auction.service;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,6 +27,8 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class AuctionService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuctionService.class);
 
     /** 스케줄러 한 번에 처리할 예약 경매 후보 최대 건수 */
     private static final int PENDING_ACTIVATION_BATCH_SIZE = 100;
@@ -81,7 +85,11 @@ public class AuctionService {
                 now,
                 PageRequest.of(0, PENDING_ACTIVATION_BATCH_SIZE));
         for (UUID id : ids) {
-            auctionLifecycleTxHelper.activateOne(id, now);
+            try {
+                auctionLifecycleTxHelper.activateOne(id, now);
+            } catch (Exception e) {
+                log.error("경매 활성화 실패: id={}", id, e);
+            }
         }
     }
 
@@ -96,7 +104,11 @@ public class AuctionService {
                 now,
                 PageRequest.of(0, CLOSE_OVERDUE_BATCH_SIZE));
         for (UUID id : ids) {
-            auctionLifecycleTxHelper.closeOne(id, now);
+            try {
+                auctionLifecycleTxHelper.closeOne(id, now);
+            } catch (Exception e) {
+                log.error("경매 마감 실패: id={}", id, e);
+            }
         }
     }
 
