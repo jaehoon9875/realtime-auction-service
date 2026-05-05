@@ -142,10 +142,11 @@ class AuctionIntegrationTest {
                 sellerId);
         assertThat(created.status()).isEqualTo(AuctionStatus.PENDING);
 
-        jdbcTemplate.update(
+        int updatedStart = jdbcTemplate.update(
                 "UPDATE auctions SET starts_at = ? WHERE id = ?",
                 Timestamp.valueOf(LocalDateTime.now().minusMinutes(1)),
                 created.id());
+        assertThat(updatedStart).isEqualTo(1);
 
         auctionService.activateDueAuctions();
 
@@ -167,10 +168,11 @@ class AuctionIntegrationTest {
                 sellerId);
         assertThat(created.status()).isEqualTo(AuctionStatus.ONGOING);
 
-        jdbcTemplate.update(
+        int updatedEnd = jdbcTemplate.update(
                 "UPDATE auctions SET ends_at = ? WHERE id = ?",
                 Timestamp.valueOf(LocalDateTime.now().minusMinutes(1)),
                 created.id());
+        assertThat(updatedEnd).isEqualTo(1);
 
         auctionService.closeOverdueAuctions();
 
