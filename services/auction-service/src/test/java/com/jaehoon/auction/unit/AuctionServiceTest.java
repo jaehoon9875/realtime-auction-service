@@ -34,6 +34,7 @@ import com.jaehoon.auction.exception.BadRequestException;
 import com.jaehoon.auction.exception.ForbiddenException;
 import com.jaehoon.auction.outbox.OutboxEventPublisher;
 import com.jaehoon.auction.repository.AuctionRepository;
+import com.jaehoon.auction.service.AuctionLifecycleTxHelper;
 import com.jaehoon.auction.service.AuctionService;
 import com.jaehoon.auction.service.AuctionStreamsClient;
 
@@ -48,6 +49,9 @@ class AuctionServiceTest {
 
     @Mock
     AuctionStreamsClient auctionStreamsClient;
+
+    @Mock
+    AuctionLifecycleTxHelper auctionLifecycleTxHelper;
 
     @InjectMocks
     AuctionService auctionService;
@@ -120,70 +124,27 @@ class AuctionServiceTest {
     // ─────────────────────────── activateDueAuctions ───────────────────────────
 
     @Test
-    void activateDueAuctions_시작시각이_지난_PENDING만_ONGOING으로_바꾼다() {
+    void activateDueAuctions_조회된_id마다_헬퍼_activateOne을_호출한다() {
         UUID id = UUID.randomUUID();
-        UUID sellerId = UUID.randomUUID();
         when(auctionRepository.findIdsDuePendingAuctions(eq(AuctionStatus.PENDING), any(LocalDateTime.class),
                 any(Pageable.class))).thenReturn(List.of(id));
-        Auction auction = Auction.builder()
-                .sellerId(sellerId)
-                .title("예약")
-                .startPrice(1_000L)
-                .startsAt(LocalDateTime.now().minusMinutes(1))
-                .endsAt(LocalDateTime.now().plusDays(1))
-                .status(AuctionStatus.PENDING)
-                .build();
-        when(auctionRepository.findByIdForUpdate(id)).thenReturn(Optional.of(auction));
 
         auctionService.activateDueAuctions();
 
-        assertThat(auction.getStatus()).isEqualTo(AuctionStatus.ONGOING);
-        verify(outboxEventPublisher).publish(auction, "AUCTION_STATUS_CHANGED");
+        verify(auctionLifecycleTxHelper).activateOne(eq(id), any(LocalDateTime.class));
     }
 
     // ─────────────────────────── closeOverdueAuctions ───────────────────────────
 
     @Test
-    void closeOverdueAuctions_endsAt가_지난_ONGOING만_CLOSED로_바꾼다() {
-        UUID id = UUID.randomUUID();
-        UUID sellerId = UUID.randomUUID();
-        when(auctionRepository.findIdsOngoingPastEnd(eq(AuctionStatus.ONGOING), any(LocalDateTime.class),
-                any(Pageable.class))).thenReturn(List.of(id));
-        Auction auction = Auction.builder()
-                .sellerId(sellerId)
-                .title("진행중")
-                .startPrice(1_000L)
-                .startsAt(LocalDateTime.now().minusHours(2))
-                .endsAt(LocalDateTime.now().minusMinutes(1))
-                .status(AuctionStatus.ONGOING)
-                .build();
-        when(auctionRepository.findByIdForUpdate(id)).thenReturn(Optional.of(auction));
-
-        auctionService.closeOverdueAuctions();
-
-        assertThat(auction.getStatus()).isEqualTo(AuctionStatus.CLOSED);
-        verify(outboxEventPublisher).publish(auction, "AUCTION_STATUS_CHANGED");
-    }
-
-    @Test
-    void closeOverdueAuctions_endsAt가_아직_안_지났으면_그대로_ONGOING이다() {
+    void closeOverdueAuctions_조회된_id마다_헬퍼_closeOne을_호출한다() {
         UUID id = UUID.randomUUID();
         when(auctionRepository.findIdsOngoingPastEnd(eq(AuctionStatus.ONGOING), any(LocalDateTime.class),
                 any(Pageable.class))).thenReturn(List.of(id));
-        Auction auction = Auction.builder()
-                .sellerId(UUID.randomUUID())
-                .title("진행중")
-                .startPrice(1_000L)
-                .startsAt(LocalDateTime.now().minusHours(2))
-                .endsAt(LocalDateTime.now().plusHours(1))
-                .status(AuctionStatus.ONGOING)
-                .build();
-        when(auctionRepository.findByIdForUpdate(id)).thenReturn(Optional.of(auction));
 
         auctionService.closeOverdueAuctions();
 
-        assertThat(auction.getStatus()).isEqualTo(AuctionStatus.ONGOING);
-        verify(outboxEventPublisher, never()).publish(any(), any());
+        verify(auctionLifecycleTxHelper).closeOne(eq(id), any(LocalDateTime.class));
     }
 
     // ─────────────────────────── updateStatus ───────────────────────────
