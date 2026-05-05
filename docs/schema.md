@@ -15,7 +15,8 @@ CREATE TABLE auctions (
     description TEXT,
     start_price BIGINT NOT NULL,
     status      VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-    -- PENDING: 시작 전 | ONGOING: 진행 중 | CLOSED: 마감 | CANCELLED: 취소
+    -- PENDING: 시작 전 | ONGOING: 진행 중 | CLOSED: 마감 (취소·정상 종료 구분 없음)
+    starts_at   TIMESTAMP NOT NULL,
     ends_at     TIMESTAMP NOT NULL,
     created_at  TIMESTAMP NOT NULL DEFAULT now(),
     updated_at  TIMESTAMP NOT NULL DEFAULT now()
@@ -26,7 +27,7 @@ CREATE TABLE outbox_events (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     aggregate_type  VARCHAR(50) NOT NULL,   -- 'AUCTION'
     aggregate_id    UUID NOT NULL,
-    event_type      VARCHAR(50) NOT NULL,   -- 'AUCTION_CREATED' | 'AUCTION_CLOSED' | 'AUCTION_CANCELLED'
+    event_type      VARCHAR(50) NOT NULL,   -- 'AUCTION_CREATED' | 'AUCTION_STATUS_CHANGED'
     payload         JSONB NOT NULL,
     created_at      TIMESTAMP NOT NULL DEFAULT now()
 );

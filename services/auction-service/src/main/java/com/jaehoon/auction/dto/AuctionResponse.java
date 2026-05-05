@@ -18,6 +18,7 @@ public record AuctionResponse(
         Long startPrice,
         Long currentPrice,
         AuctionStatus status,
+        LocalDateTime startsAt,
         LocalDateTime endsAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
@@ -32,6 +33,7 @@ public record AuctionResponse(
                 auction.getStartPrice(),
                 currentPrice,
                 auction.getStatus(),
+                auction.getStartsAt(),
                 auction.getEndsAt(),
                 auction.getCreatedAt(),
                 auction.getUpdatedAt()

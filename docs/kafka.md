@@ -33,6 +33,7 @@ Schema Registry에 등록하여 버전 관리합니다.
     { "name": "title",        "type": "string" },
     { "name": "startPrice",   "type": "long" },
     { "name": "currentPrice", "type": ["null", "long"], "default": null },
+    { "name": "startsAt",     "type": ["null", "long"], "default": null },
     { "name": "endsAt",       "type": "long" },
     { "name": "occurredAt",   "type": "long" }
   ]
@@ -45,7 +46,8 @@ Schema Registry에 등록하여 버전 관리합니다.
 |-----------|----------|
 | AUCTION_CREATED | 경매 생성 |
 | AUCTION_CLOSED | 경매 마감 (Punctuator) |
-| AUCTION_CANCELLED | 경매 취소 |
+
+> 경매 취소도 DB `status`는 `CLOSED`로 통일한다. 별도 `AUCTION_CANCELLED` 이벤트 타입은 사용하지 않는다.
 
 ---
 

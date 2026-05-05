@@ -174,9 +174,12 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
   "title": "맥북 프로 14인치",
   "description": "2023년형, 상태 양호",
   "startPrice": 1000000,
+  "startsAt": "2024-04-30T10:00:00Z",
   "endsAt": "2024-05-01T18:00:00Z"
 }
 ```
+
+`startsAt` 은 생략 가능하다. 생략 시 서버가 요청 시각을 시작 시각으로 사용하며, 그 시각이 `endsAt` 이전이면 곧바로 `ONGOING` 이 될 수 있다. 미래 시각이면 `PENDING` 이었다가 스케줄러가 `ONGOING` 으로 전환한다.
 
 **Response** `201 Created`
 ```json
@@ -187,6 +190,7 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
   "startPrice": 1000000,
   "currentPrice": 1000000,
   "status": "PENDING",
+  "startsAt": "2024-04-30T10:00:00Z",
   "endsAt": "2024-05-01T18:00:00Z",
   "createdAt": "2024-04-28T10:00:00Z"
 }
@@ -202,7 +206,7 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
 |---------|------|--------|------|
 | page | int | 0 | 페이지 번호 |
 | size | int | 20 | 페이지 크기 |
-| status | string | - | PENDING, ONGOING, CLOSED, CANCELLED |
+| status | string | - | PENDING, ONGOING, CLOSED |
 
 **Response** `200 OK`
 ```json
@@ -214,6 +218,7 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
       "currentPrice": 1350000,
       "bidCount": 7,
       "status": "ONGOING",
+      "startsAt": "2024-04-30T10:00:00Z",
       "endsAt": "2024-05-01T18:00:00Z"
     }
   ],
@@ -241,6 +246,7 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
   "currentWinnerId": "uuid",
   "bidCount": 7,
   "status": "ONGOING",
+  "startsAt": "2024-04-30T10:00:00Z",
   "endsAt": "2024-05-01T18:00:00Z",
   "createdAt": "2024-04-28T10:00:00Z"
 }
@@ -268,6 +274,8 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
 
 ### DELETE /api/auctions/{id}
 경매 취소. 입찰이 없을 때만 가능.
+
+취소 완료 시 `status`는 **`CLOSED`** 로 저장한다. 별도 `CANCELLED` 값은 두지 않는다.
 
 **Headers**: `Authorization: Bearer {token}` (필수)
 

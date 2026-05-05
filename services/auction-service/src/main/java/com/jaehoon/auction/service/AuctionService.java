@@ -1,8 +1,10 @@
 package com.jaehoon.auction.service;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,6 +14,7 @@ import com.jaehoon.auction.dto.CreateAuctionRequest;
 import com.jaehoon.auction.entity.Auction;
 import com.jaehoon.auction.entity.AuctionStatus;
 import com.jaehoon.auction.exception.AuctionNotFoundException;
+import com.jaehoon.auction.exception.BadRequestException;
 import com.jaehoon.auction.exception.ForbiddenException;
 import com.jaehoon.auction.outbox.OutboxEventPublisher;
 import com.jaehoon.auction.repository.AuctionRepository;
@@ -22,6 +25,9 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class AuctionService {
+
+    /** 스케줄러 한 번에 처리할 예약 경매 후보 최대 건수 */
+    private static final int PENDING_ACTIVATION_BATCH_SIZE = 100;
 
     private final AuctionRepository auctionRepository;
     private final OutboxEventPublisher outboxEventPublisher;
@@ -34,21 +40,59 @@ public class AuctionService {
      */
     @Transactional
     public AuctionResponse createAuction(CreateAuctionRequest request, UUID sellerId) {
-        // 1. 경매 저장
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime resolvedStartsAt = request.startsAt() != null ? request.startsAt() : now;
+        if (!resolvedStartsAt.isBefore(request.endsAt())) {
+            throw new BadRequestException("마감 시각은 시작 시각보다 이후여야 합니다.");
+        }
+        // 시작 시각이 아직 안 왔으면 PENDING, 이미 도래(또는 생략으로 즉시 시작)면 ONGOING
+        AuctionStatus initialStatus = resolvedStartsAt.isAfter(now)
+                ? AuctionStatus.PENDING
+                : AuctionStatus.ONGOING;
+
         Auction auction = Auction.builder()
                 .sellerId(sellerId)
                 .title(request.title())
                 .description(request.description())
                 .startPrice(request.startPrice())
+                .startsAt(resolvedStartsAt)
                 .endsAt(request.endsAt())
+                .status(initialStatus)
                 .build();
         auctionRepository.save(auction);
 
-        // 2. 아웃박스 이벤트 저장 — 같은 트랜잭션 (직접 Kafka 발행 금지)
         outboxEventPublisher.publish(auction, "AUCTION_CREATED");
 
-        // currentPrice 는 DB 에 없음. 생성 시점은 State Store 조회 불필요이므로 null 반환
         return AuctionResponse.from(auction, null);
+    }
+
+    /**
+     * 예약 경매: 시작 시각이 지난 PENDING 건을 ONGOING 으로 바꾼다 (스케줄러 전용).
+     * 행 단위로 배타 락을 걸어 멀티 인스턴스에서 중복 전환을 줄인다.
+     */
+    @Transactional
+    public void activateDueAuctions() {
+        LocalDateTime now = LocalDateTime.now();
+        var ids = auctionRepository.findIdsDuePendingAuctions(
+                AuctionStatus.PENDING,
+                now,
+                PageRequest.of(0, PENDING_ACTIVATION_BATCH_SIZE));
+        for (UUID id : ids) {
+            activatePendingAuctionIfDue(id, now);
+        }
+    }
+
+    private void activatePendingAuctionIfDue(UUID id, LocalDateTime now) {
+        auctionRepository.findByIdForUpdate(id).ifPresent(auction -> {
+            if (auction.getStatus() != AuctionStatus.PENDING) {
+                return;
+            }
+            if (auction.getStartsAt().isAfter(now)) {
+                return;
+            }
+            auction.changeStatus(AuctionStatus.ONGOING);
+            outboxEventPublisher.publish(auction, "AUCTION_STATUS_CHANGED");
+        });
     }
 
     /**
@@ -81,7 +125,7 @@ public class AuctionService {
      * 트랜잭션 경계: auctions UPDATE + outbox_events INSERT 를 하나의 커밋으로 묶는다.
      *
      * @param auctionId   변경 대상 경매 ID
-     * @param newStatus   변경할 상태 (ACTIVE | CLOSED)
+     * @param newStatus   변경할 상태 (ONGOING | CLOSED)
      * @param requesterId 요청자 ID. null 이면 권한 검증 생략 (시스템 내부 호출)
      */
     @Transactional

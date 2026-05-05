@@ -7,12 +7,14 @@ Kafka 메시지 값의 **계약(필드·타입)** 을 Avro로 정의하고, Conf
 
 ## 이 프로젝트에서의 위치
 
-| 항목 | 설명 |
-|------|------|
-| 스키마 원본 | `infra/avro/*.avsc` (Git으로 버전 관리) |
-| 도메인 문서와의 관계 | 필드 정의는 [docs/kafka.md](./kafka.md)와 **반드시 동기화** |
-| 등록 스크립트 | `infra/avro/register-schemas.sh` |
+
+| 항목               | 설명                                                                     |
+| ---------------- | ---------------------------------------------------------------------- |
+| 스키마 원본           | `infra/avro/*.avsc` (Git으로 버전 관리)                                      |
+| 도메인 문서와의 관계      | 필드 정의는 [docs/kafka.md](./kafka.md)와 **반드시 동기화**                        |
+| 등록 스크립트          | `infra/avro/register-schemas.sh`                                       |
 | Registry 주소 (로컬) | `http://localhost:${SCHEMA_REGISTRY_PORT}` (기본 **8085**, `infra/.env`) |
+
 
 > **M3 현재:** Debezium `auction-outbox-connector`는 토픽 값을 **JsonConverter**로 발행하도록 설정되어 있습니다.
 > Registry에 Avro를 올려 두는 것은 **계약 확정 + M5 이후 AvroConverter 전환**을 위한 준비 단계입니다.
@@ -52,7 +54,7 @@ curl -sS "${SCHEMA_REGISTRY_URL:-http://localhost:8085}/subjects/auction-events-
 
 ## Subject 명명 규칙
 
-Confluent 관례: 토픽 `auction-events`의 **값** 스키마 → subject 이름 **`auction-events-value`**.
+Confluent 관례: 토픽 `auction-events`의 **값** 스키마 → subject 이름 `**auction-events-value`**.
 
 ---
 

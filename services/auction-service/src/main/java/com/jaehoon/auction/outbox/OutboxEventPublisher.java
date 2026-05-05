@@ -57,6 +57,7 @@ public class OutboxEventPublisher {
         // auction-service 는 입찰 정보를 모름. currentPrice 의 진짜 주인은 Kafka Streams State Store.
         // AUCTION_CLOSED 는 Punctuator 가 발행하며 그때 실제 최고가가 채워진다.
         payload.put("currentPrice", null);
+        payload.put("startsAt", auction.getStartsAt().toEpochSecond(java.time.ZoneOffset.UTC));
         // endsAt을 Unix epoch(초) 로 변환 — Debezium/Kafka 소비자 호환
         payload.put("endsAt", auction.getEndsAt().toEpochSecond(java.time.ZoneOffset.UTC));
         payload.put("occurredAt", Instant.now().getEpochSecond());
