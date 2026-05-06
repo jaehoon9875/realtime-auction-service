@@ -33,11 +33,11 @@ app:
     # 운영 환경 fail-fast는 InternalRequestTokenFilter@PostConstruct가 프로파일 기반으로 처리.
     internal-request-secret: ${INTERNAL_REQUEST_SECRET:}
   auction-service:
-    base-url: ${AUCTION_SERVICE_BASE_URL:http://localhost:8081}
+    base-url: ${AUCTION_SERVICE_BASE_URL}
     connect-timeout-ms: ${AUCTION_SERVICE_CONNECT_TIMEOUT:2000}
     read-timeout-ms: ${AUCTION_SERVICE_READ_TIMEOUT:3000}
   auction-streams:
-    base-url: ${AUCTION_STREAMS_BASE_URL:http://localhost:8085}
+    base-url: ${AUCTION_STREAMS_BASE_URL}
     connect-timeout-ms: ${AUCTION_STREAMS_CONNECT_TIMEOUT:2000}
     read-timeout-ms: ${AUCTION_STREAMS_READ_TIMEOUT:3000}
 

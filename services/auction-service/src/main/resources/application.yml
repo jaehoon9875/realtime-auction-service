@@ -40,7 +40,7 @@ app:
     internal-request-secret: ${INTERNAL_REQUEST_SECRET:}
   auction-streams:
     # auction-streams 서비스 URL
-    base-url: ${AUCTION_STREAMS_BASE_URL:http://localhost:8085}
+    base-url: ${AUCTION_STREAMS_BASE_URL}
     # auction-streams 서비스 연결 시간 제한
     connect-timeout-ms: ${AUCTION_STREAMS_CONNECT_TIMEOUT:2000}
     read-timeout-ms: ${AUCTION_STREAMS_READ_TIMEOUT:3000}
