@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.jaehoon.auction.dto.AuctionResponse;
@@ -116,7 +117,9 @@ public class AuctionService {
      * 경매 단건 조회.
      * currentPrice 는 Kafka Streams State Store 에서 조회한다.
      * auction-streams 장애 시 Circuit Breaker 가 동작하여 null 을 반환한다.
+     * DB 조회 후 HTTP 호출이 있어 트랜잭션 없이 실행한다 (커넥션 불필요한 구간에서 점유 방지).
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public AuctionResponse getAuction(UUID auctionId) {
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new AuctionNotFoundException(auctionId));

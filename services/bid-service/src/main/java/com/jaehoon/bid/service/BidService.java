@@ -1,8 +1,6 @@
 package com.jaehoon.bid.service;
 
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -11,13 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.jaehoon.bid.dto.BidResponse;
-import com.jaehoon.bid.entity.Bid;
-import com.jaehoon.bid.entity.BidStatus;
-import com.jaehoon.bid.entity.OutboxEvent;
 import com.jaehoon.bid.exception.AuctionNotFoundException;
 import com.jaehoon.bid.exception.BadRequestException;
 import com.jaehoon.bid.repository.BidRepository;
-import com.jaehoon.bid.repository.OutboxEventRepository;
 import com.jaehoon.bid.service.AuctionServiceClient.AuctionSnapshot;
 
 import lombok.RequiredArgsConstructor;
@@ -27,19 +21,14 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class BidService {
 
-    private static final String OUTBOX_AGGREGATE_TYPE = "BID";
-    private static final String OUTBOX_EVENT_TYPE_BID_PLACED = "BID_PLACED";
     private static final String AUCTION_STATUS_ONGOING = "ONGOING";
 
     private final BidRepository bidRepository;
-    private final OutboxEventRepository outboxEventRepository;
     private final AuctionServiceClient auctionServiceClient;
     private final AuctionStreamsClient auctionStreamsClient;
+    private final BidTransactionService bidTransactionService;
 
-    /**
-     * 입찰 검증 후 저장 + Outbox 이벤트 기록을 하나의 트랜잭션으로 처리한다.
-     */
-    @Transactional
+    // 검증은 트랜잭션 밖에서 수행하고, DB 저장만 BidTransactionService에 위임한다.
     public BidResponse placeBid(UUID bidderId, UUID auctionId, Long amount) {
         AuctionSnapshot auction = auctionServiceClient.getAuction(auctionId);
         if (auction == null) {
@@ -49,22 +38,7 @@ public class BidService {
         validateAuctionOpen(auction);
         validateBidAmount(auction, amount, auctionStreamsClient.getCurrentPrice(auctionId));
 
-        // 도메인 데이터와 Outbox 이벤트를 같은 커밋에 묶어 유실 없이 Debezium으로 전달한다.
-        Bid bid = bidRepository.save(Bid.builder()
-                .auctionId(auctionId)
-                .bidderId(bidderId)
-                .amount(amount)
-                .status(BidStatus.ACCEPTED)
-                .build());
-
-        outboxEventRepository.save(OutboxEvent.builder()
-                .aggregateType(OUTBOX_AGGREGATE_TYPE)
-                .aggregateId(bid.getId())
-                .eventType(OUTBOX_EVENT_TYPE_BID_PLACED)
-                .payload(buildBidPlacedPayload(bid))
-                .build());
-
-        return BidResponse.from(bid);
+        return bidTransactionService.saveBidWithOutbox(bidderId, auctionId, amount);
     }
 
     public Page<BidResponse> getMyBids(UUID bidderId, Pageable pageable) {
@@ -92,17 +66,5 @@ public class BidService {
         if (amount <= currentPrice) {
             throw new BadRequestException("현재 최고가보다 높아야 합니다.");
         }
-    }
-
-    private Map<String, Object> buildBidPlacedPayload(Bid bid) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("eventId", UUID.randomUUID().toString());
-        payload.put("eventType", OUTBOX_EVENT_TYPE_BID_PLACED);
-        payload.put("bidId", bid.getId().toString());
-        payload.put("auctionId", bid.getAuctionId().toString());
-        payload.put("bidderId", bid.getBidderId().toString());
-        payload.put("amount", bid.getAmount());
-        payload.put("occurredAt", bid.getPlacedAt().toEpochMilli());
-        return payload;
     }
 }

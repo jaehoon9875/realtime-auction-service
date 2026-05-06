@@ -2,37 +2,31 @@ package com.jaehoon.bid.unit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import java.lang.reflect.Field;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.jaehoon.bid.dto.BidResponse;
-import com.jaehoon.bid.entity.Bid;
-import com.jaehoon.bid.entity.OutboxEvent;
+import com.jaehoon.bid.entity.BidStatus;
 import com.jaehoon.bid.exception.AuctionNotFoundException;
 import com.jaehoon.bid.exception.BadRequestException;
 import com.jaehoon.bid.exception.ExternalServiceException;
 import com.jaehoon.bid.repository.BidRepository;
-import com.jaehoon.bid.repository.OutboxEventRepository;
 import com.jaehoon.bid.service.AuctionServiceClient;
 import com.jaehoon.bid.service.AuctionServiceClient.AuctionSnapshot;
 import com.jaehoon.bid.service.AuctionStreamsClient;
 import com.jaehoon.bid.service.BidService;
+import com.jaehoon.bid.service.BidTransactionService;
 
 @ExtendWith(MockitoExtension.class)
 class BidServiceTest {
@@ -41,60 +35,33 @@ class BidServiceTest {
     BidRepository bidRepository;
 
     @Mock
-    OutboxEventRepository outboxEventRepository;
-
-    @Mock
     AuctionServiceClient auctionServiceClient;
 
     @Mock
     AuctionStreamsClient auctionStreamsClient;
 
+    @Mock
+    BidTransactionService bidTransactionService;
+
     @InjectMocks
     BidService bidService;
 
-    @Captor
-    ArgumentCaptor<Bid> bidCaptor;
-
-    @Captor
-    ArgumentCaptor<OutboxEvent> outboxCaptor;
-
     @Test
-    void placeBid_정상_입찰이면_bid와_outbox가_저장된다() {
+    void placeBid_정상_입찰이면_bidTransactionService에_위임한다() {
         UUID bidderId = UUID.randomUUID();
         UUID auctionId = UUID.randomUUID();
         Instant nowUtc = Instant.now();
+        BidResponse expected = new BidResponse(UUID.randomUUID(), auctionId, bidderId, 12_000L, BidStatus.ACCEPTED, nowUtc);
 
         when(auctionServiceClient.getAuction(auctionId))
                 .thenReturn(new AuctionSnapshot(auctionId, "ONGOING", 10_000L, nowUtc.plus(10, ChronoUnit.MINUTES)));
         when(auctionStreamsClient.getCurrentPrice(auctionId)).thenReturn(11_000L);
-        when(bidRepository.save(any(Bid.class))).thenAnswer(invocation -> {
-            Bid input = invocation.getArgument(0);
-            Bid saved = Bid.builder()
-                    .auctionId(input.getAuctionId())
-                    .bidderId(input.getBidderId())
-                    .amount(input.getAmount())
-                    .status(input.getStatus())
-                    .build();
-            // 단위 테스트에서는 JPA lifecycle이 동작하지 않으므로 save 결과 엔티티를 수동 보정한다.
-            setField(saved, "id", UUID.randomUUID());
-            setField(saved, "placedAt", nowUtc);
-            return saved;
-        });
+        when(bidTransactionService.saveBidWithOutbox(bidderId, auctionId, 12_000L)).thenReturn(expected);
 
         BidResponse response = bidService.placeBid(bidderId, auctionId, 12_000L);
 
-        verify(bidRepository).save(bidCaptor.capture());
-        verify(outboxEventRepository).save(outboxCaptor.capture());
-
-        assertThat(response.auctionId()).isEqualTo(auctionId);
-        assertThat(response.bidderId()).isEqualTo(bidderId);
-        assertThat(bidCaptor.getValue().getAmount()).isEqualTo(12_000L);
-
-        OutboxEvent outbox = outboxCaptor.getValue();
-        assertThat(outbox.getAggregateType()).isEqualTo("BID");
-        assertThat(outbox.getEventType()).isEqualTo("BID_PLACED");
-        Map<String, Object> payload = outbox.getPayload();
-        assertThat(payload).containsKeys("eventId", "eventType", "bidId", "auctionId", "bidderId", "amount", "occurredAt");
+        verify(bidTransactionService).saveBidWithOutbox(bidderId, auctionId, 12_000L);
+        assertThat(response).isEqualTo(expected);
     }
 
     @Test
@@ -105,8 +72,7 @@ class BidServiceTest {
         assertThatThrownBy(() -> bidService.placeBid(UUID.randomUUID(), auctionId, 10_000L))
                 .isInstanceOf(AuctionNotFoundException.class);
 
-        verify(bidRepository, never()).save(any());
-        verify(outboxEventRepository, never()).save(any());
+        verifyNoInteractions(bidTransactionService);
     }
 
     @Test
@@ -175,15 +141,5 @@ class BidServiceTest {
 
         assertThatThrownBy(() -> bidService.placeBid(UUID.randomUUID(), auctionId, 11_000L))
                 .isInstanceOf(ExternalServiceException.class);
-    }
-
-    private static void setField(Object target, String fieldName, Object value) {
-        try {
-            Field field = target.getClass().getDeclaredField(fieldName);
-            field.setAccessible(true);
-            field.set(target, value);
-        } catch (ReflectiveOperationException e) {
-            throw new AssertionError(fieldName + " 필드 설정에 실패했습니다.", e);
-        }
     }
 }
