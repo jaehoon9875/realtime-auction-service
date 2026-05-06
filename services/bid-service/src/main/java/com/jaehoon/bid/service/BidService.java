@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.jaehoon.bid.dto.BidResponse;
@@ -29,6 +30,7 @@ public class BidService {
     private final BidTransactionService bidTransactionService;
 
     // 검증은 트랜잭션 밖에서 수행하고, DB 저장만 BidTransactionService에 위임한다.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public BidResponse placeBid(UUID bidderId, UUID auctionId, Long amount) {
         AuctionSnapshot auction = auctionServiceClient.getAuction(auctionId);
         if (auction == null) {
