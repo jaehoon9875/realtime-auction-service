@@ -1,5 +1,8 @@
 # 통합 테스트(Testcontainers)에서는 스케줄러가 DB를 주기적으로 건드리지 않도록 비활성화
+# AuctionStreamsClient 는 @MockitoBean 으로 대체되므로 실제 연결 없음. 바인딩 검증용 더미 값 사용.
 app:
   auction:
     schedule:
       enabled: false
+  auction-streams:
+    base-url: http://dummy-auction-streams

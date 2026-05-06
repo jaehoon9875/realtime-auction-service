@@ -1,0 +1,8 @@
+# 통합 테스트 전용 프로파일
+# AuctionServiceClient / AuctionStreamsClient 는 @MockitoBean 으로 대체되므로 실제 연결 없음.
+# base-url 은 Properties 빈 바인딩 검증만 통과하면 되므로 더미 값 사용.
+app:
+  auction-service:
+    base-url: http://dummy-auction-service
+  auction-streams:
+    base-url: http://dummy-auction-streams
