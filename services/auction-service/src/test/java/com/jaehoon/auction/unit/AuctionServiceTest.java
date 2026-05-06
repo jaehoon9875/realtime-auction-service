@@ -11,7 +11,8 @@ import static org.mockito.Mockito.when;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -66,7 +67,7 @@ class AuctionServiceTest {
         // given
         UUID sellerId = UUID.randomUUID();
         CreateAuctionRequest request = new CreateAuctionRequest(
-                "테스트 경매", "설명", 10_000L, null, LocalDateTime.now().plusDays(1));
+                "테스트 경매", "설명", 10_000L, null, Instant.now().plus(1, ChronoUnit.DAYS));
 
         // when
         AuctionResponse response = auctionService.createAuction(request, sellerId);
@@ -84,7 +85,7 @@ class AuctionServiceTest {
         // given
         UUID sellerId = UUID.randomUUID();
         CreateAuctionRequest request = new CreateAuctionRequest(
-                "부분 저장 방지 검증", null, 1_000L, null, LocalDateTime.now().plusDays(1));
+                "부분 저장 방지 검증", null, 1_000L, null, Instant.now().plus(1, ChronoUnit.DAYS));
 
         // when
         auctionService.createAuction(request, sellerId);
@@ -97,8 +98,8 @@ class AuctionServiceTest {
     @Test
     void createAuction_startsAt가_미래면_PENDING이다() {
         UUID sellerId = UUID.randomUUID();
-        LocalDateTime futureStart = LocalDateTime.now().plusDays(1);
-        LocalDateTime futureEnd = LocalDateTime.now().plusDays(2);
+        Instant futureStart = Instant.now().plus(1, ChronoUnit.DAYS);
+        Instant futureEnd = Instant.now().plus(2, ChronoUnit.DAYS);
         CreateAuctionRequest request = new CreateAuctionRequest(
                 "예약 경매", null, 1_000L, futureStart, futureEnd);
 
@@ -111,9 +112,9 @@ class AuctionServiceTest {
 
     @Test
     void createAuction_startsAt와_endsAt가_역전이면_BadRequestException() {
-        LocalDateTime end = LocalDateTime.now().plusDays(1);
+        Instant end = Instant.now().plus(1, ChronoUnit.DAYS);
         CreateAuctionRequest request = new CreateAuctionRequest(
-                "잘못된 일정", null, 1_000L, end.plusHours(1), end);
+                "잘못된 일정", null, 1_000L, end.plus(1, ChronoUnit.HOURS), end);
 
         assertThatThrownBy(() -> auctionService.createAuction(request, UUID.randomUUID()))
                 .isInstanceOf(BadRequestException.class);
@@ -126,12 +127,12 @@ class AuctionServiceTest {
     @Test
     void activateDueAuctions_조회된_id마다_헬퍼_activateOne을_호출한다() {
         UUID id = UUID.randomUUID();
-        when(auctionRepository.findIdsDuePendingAuctions(eq(AuctionStatus.PENDING), any(LocalDateTime.class),
+        when(auctionRepository.findIdsDuePendingAuctions(eq(AuctionStatus.PENDING), any(Instant.class),
                 any(Pageable.class))).thenReturn(List.of(id));
 
         auctionService.activateDueAuctions();
 
-        verify(auctionLifecycleTxHelper).activateOne(eq(id), any(LocalDateTime.class));
+        verify(auctionLifecycleTxHelper).activateOne(eq(id), any(Instant.class));
     }
 
     // ─────────────────────────── closeOverdueAuctions ───────────────────────────
@@ -139,12 +140,12 @@ class AuctionServiceTest {
     @Test
     void closeOverdueAuctions_조회된_id마다_헬퍼_closeOne을_호출한다() {
         UUID id = UUID.randomUUID();
-        when(auctionRepository.findIdsOngoingPastEnd(eq(AuctionStatus.ONGOING), any(LocalDateTime.class),
+        when(auctionRepository.findIdsOngoingPastEnd(eq(AuctionStatus.ONGOING), any(Instant.class),
                 any(Pageable.class))).thenReturn(List.of(id));
 
         auctionService.closeOverdueAuctions();
 
-        verify(auctionLifecycleTxHelper).closeOne(eq(id), any(LocalDateTime.class));
+        verify(auctionLifecycleTxHelper).closeOne(eq(id), any(Instant.class));
     }
 
     // ─────────────────────────── updateStatus ───────────────────────────
@@ -310,15 +311,16 @@ class AuctionServiceTest {
 
     // ─────────────────────────── 헬퍼 ───────────────────────────
 
-    /** @PrePersist 없이 sellerId만 세팅한 최소 Auction 객체 */
+    /** 영속화되지 않은 최소 Auction 객체 (Auditing 미실행 → 타임스탬프는 null일 수 있음) */
     private Auction buildAuction(UUID sellerId) {
-        // 단위 테스트에서는 영속화되지 않아 @PrePersist 가 실행되지 않으므로 초기 status 명시
+        // 단위 테스트에서는 DB에 저장하지 않으므로 초기 status를 명시한다.
+        Instant now = Instant.now();
         return Auction.builder()
                 .sellerId(sellerId)
                 .title("테스트 경매")
                 .startPrice(1_000L)
-                .startsAt(LocalDateTime.now().plusHours(1))
-                .endsAt(LocalDateTime.now().plusDays(1))
+                .startsAt(now.plus(1, ChronoUnit.HOURS))
+                .endsAt(now.plus(1, ChronoUnit.DAYS))
                 .status(AuctionStatus.PENDING)
                 .build();
     }

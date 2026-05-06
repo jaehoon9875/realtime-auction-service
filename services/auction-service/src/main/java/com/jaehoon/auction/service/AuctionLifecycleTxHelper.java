@@ -1,6 +1,6 @@
 package com.jaehoon.auction.service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
@@ -26,7 +26,7 @@ public class AuctionLifecycleTxHelper {
 
     /** PENDING → ONGOING: 실패 시 해당 건만 롤백, 나머지 건에 영향 없음 */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void activateOne(UUID id, LocalDateTime now) {
+    public void activateOne(UUID id, Instant now) {
         auctionRepository.findByIdForUpdate(id).ifPresent(auction -> {
             if (auction.getStatus() != AuctionStatus.PENDING) return;
             if (auction.getStartsAt().isAfter(now)) return;
@@ -37,7 +37,7 @@ public class AuctionLifecycleTxHelper {
 
     /** ONGOING → CLOSED: 실패 시 해당 건만 롤백, 나머지 건에 영향 없음 */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void closeOne(UUID id, LocalDateTime now) {
+    public void closeOne(UUID id, Instant now) {
         auctionRepository.findByIdForUpdate(id).ifPresent(auction -> {
             if (auction.getStatus() != AuctionStatus.ONGOING) return;
             if (auction.getEndsAt().isAfter(now)) return;

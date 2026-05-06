@@ -1,0 +1,5 @@
+ALTER TABLE bids
+    ALTER COLUMN placed_at TYPE TIMESTAMPTZ USING placed_at AT TIME ZONE 'UTC';
+
+ALTER TABLE outbox_events
+    ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC';

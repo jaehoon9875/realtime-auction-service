@@ -29,3 +29,4 @@ register_subject() {
 }
 
 register_subject "auction-events-value" "${SCRIPT_DIR}/AuctionEvent.avsc"
+register_subject "bid-events-value" "${SCRIPT_DIR}/BidEvent.avsc"

@@ -24,9 +24,9 @@ jobs:
           - service: auction-service
             path: services/auction-service
             gradle_task: :services:auction-service
-          # - service: bid-service
-          #   path: services/bid-service
-          #   gradle_task: :services:bid-service
+          - service: bid-service
+            path: services/bid-service
+            gradle_task: :services:bid-service
           # - service: notification-service
           #   path: services/notification-service
           #   gradle_task: :services:notification-service

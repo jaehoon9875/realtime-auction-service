@@ -7,7 +7,7 @@ spring:
         # User Service (README 포트: 8083)
         # 외부: /api/users/** → 내부: /users/** (첫 세그먼트 api 제거)
         - id: user-service
-          uri: ${USER_SERVICE_URI:http://localhost:8083}
+          uri: ${USER_SERVICE_URI}
           predicates:
             - Path=/api/users/**
           filters:
@@ -20,7 +20,7 @@ spring:
         # auction-service의 app.security.internal-request-secret 값과 반드시 일치해야 함.
         # 참고: docs/internal-service-auth.md
         - id: auction-service
-          uri: ${AUCTION_SERVICE_URI:http://localhost:8081}
+          uri: ${AUCTION_SERVICE_URI}
           predicates:
             - Path=/api/auctions/**
           filters:
@@ -30,15 +30,16 @@ spring:
         # Bid Service — M4 이후 구현 시 확인
         # 외부: /api/bids/** → 내부: /bids/** 가정
         - id: bid-service
-          uri: ${BID_SERVICE_URI:http://localhost:8082}
+          uri: ${BID_SERVICE_URI}
           predicates:
             - Path=/api/bids/**
           filters:
             - StripPrefix=1
+            - SetRequestHeader=X-Internal-Request-Token, ${INTERNAL_REQUEST_SECRET}
 
         # Notification Service — M6 이후 구현 시 확인
         - id: notification-service
-          uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8084}
+          uri: ${NOTIFICATION_SERVICE_URI}
           predicates:
             - Path=/ws/**
 server:
