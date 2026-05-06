@@ -27,7 +27,7 @@ public class AuctionServiceClient {
     private static final String CIRCUIT_BREAKER_NAME = "auction-service";
     private static final String RETRY_NAME = "auction-service";
 
-    private final RestClient bidServiceRestClient;
+    private final RestClient auctionServiceRestClient;
     private final CircuitBreakerFactory<?, ?> circuitBreakerFactory;
     private final RetryRegistry retryRegistry;
 
@@ -45,7 +45,7 @@ public class AuctionServiceClient {
 
     private AuctionSnapshot fetchAuction(UUID auctionId) {
         try {
-            return bidServiceRestClient.get()
+            return auctionServiceRestClient.get()
                     .uri("/auctions/{id}", auctionId)
                     .retrieve()
                     .body(AuctionSnapshot.class);

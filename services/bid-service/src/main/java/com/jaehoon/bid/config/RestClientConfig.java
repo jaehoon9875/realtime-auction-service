@@ -9,11 +9,11 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @Configuration
-@EnableConfigurationProperties({ BidServiceProperties.class, BidStreamsProperties.class })
+@EnableConfigurationProperties({ AuctionServiceProperties.class, BidStreamsProperties.class })
 public class RestClientConfig {
 
     @Bean
-    RestClient bidServiceRestClient(BidServiceProperties props) {
+    RestClient auctionServiceRestClient(AuctionServiceProperties props) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofMillis(props.connectTimeoutMs()));
         factory.setReadTimeout(Duration.ofMillis(props.readTimeoutMs()));
