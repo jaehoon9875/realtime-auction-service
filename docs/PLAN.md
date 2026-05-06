@@ -7,7 +7,7 @@
 | M1 | 로컬 인프라 + 프로젝트 뼈대 | ✅ 완료 |
 | M2 | User Service | ✅ 완료 |
 | M3 | Auction Service + Outbox + Debezium | ✅ 완료 |
-| M4 | Bid Service | 🟡 진행 중 |
+| M4 | Bid Service | ✅ 완료 |
 | M5 | Kafka Streams App | ⬜ 진행 전 |
 | M6 | Notification Service + WebSocket | ⬜ 진행 전 |
 | M7 | 통합 테스트 + 문서화 | ⬜ 진행 전 |
