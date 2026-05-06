@@ -1,6 +1,9 @@
 spring:
   application:
     name: auction-service
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
   threads:
     virtual:
       enabled: true

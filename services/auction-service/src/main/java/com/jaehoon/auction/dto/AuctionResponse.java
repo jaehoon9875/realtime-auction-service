@@ -1,6 +1,6 @@
 package com.jaehoon.auction.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import com.jaehoon.auction.entity.Auction;
@@ -18,10 +18,10 @@ public record AuctionResponse(
         Long startPrice,
         Long currentPrice,
         AuctionStatus status,
-        LocalDateTime startsAt,
-        LocalDateTime endsAt,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        Instant startsAt,
+        Instant endsAt,
+        Instant createdAt,
+        Instant updatedAt
 ) {
     /** Auction 엔티티와 currentPrice 로부터 응답 DTO 를 생성한다. */
     public static AuctionResponse from(Auction auction, Long currentPrice) {

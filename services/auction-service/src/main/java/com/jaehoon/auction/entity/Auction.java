@@ -1,6 +1,6 @@
 package com.jaehoon.auction.entity;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -46,23 +46,23 @@ public class Auction {
     private AuctionStatus status;
 
     @Column(name = "starts_at", nullable = false)
-    private LocalDateTime startsAt;
+    private Instant startsAt;
 
     @Column(name = "ends_at", nullable = false)
-    private LocalDateTime endsAt;
+    private Instant endsAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     /**
      * 신규 경매 생성용. id·타임스탬프·기본 status는 {@link #prePersist()}에서 채운다.
      */
     @Builder
-    public Auction(UUID sellerId, String title, String description, Long startPrice, LocalDateTime startsAt,
-            LocalDateTime endsAt, AuctionStatus status) {
+    public Auction(UUID sellerId, String title, String description, Long startPrice, Instant startsAt,
+            Instant endsAt, AuctionStatus status) {
         this.sellerId = sellerId;
         this.title = title;
         this.description = description;
@@ -75,7 +75,7 @@ public class Auction {
     // 최초 저장 시 타임스탬프. status 는 서비스에서 startsAt·현재 시각에 맞게 설정 (미설정 시 PENDING)
     @PrePersist
     private void prePersist() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
         if (this.status == null) {
@@ -86,7 +86,7 @@ public class Auction {
     // 엔티티 수정 시 갱신 시각 반영
     @PreUpdate
     private void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = Instant.now();
     }
 
     /**

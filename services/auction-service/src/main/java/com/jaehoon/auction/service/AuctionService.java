@@ -1,6 +1,6 @@
 package com.jaehoon.auction.service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -48,8 +48,8 @@ public class AuctionService {
      */
     @Transactional
     public AuctionResponse createAuction(CreateAuctionRequest request, UUID sellerId) {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime resolvedStartsAt = request.startsAt() != null ? request.startsAt() : now;
+        Instant now = Instant.now();
+        Instant resolvedStartsAt = request.startsAt() != null ? request.startsAt() : now;
         if (!resolvedStartsAt.isBefore(request.endsAt())) {
             throw new BadRequestException("마감 시각은 시작 시각보다 이후여야 합니다.");
         }
@@ -79,7 +79,7 @@ public class AuctionService {
      * 행별 독립 트랜잭션(REQUIRES_NEW)으로 처리해 실패 시 해당 건만 롤백된다.
      */
     public void activateDueAuctions() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         var ids = auctionRepository.findIdsDuePendingAuctions(
                 AuctionStatus.PENDING,
                 now,
@@ -98,7 +98,7 @@ public class AuctionService {
      * 행별 독립 트랜잭션(REQUIRES_NEW)으로 처리해 실패 시 해당 건만 롤백된다.
      */
     public void closeOverdueAuctions() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         var ids = auctionRepository.findIdsOngoingPastEnd(
                 AuctionStatus.ONGOING,
                 now,

@@ -8,8 +8,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 
@@ -62,10 +62,10 @@ class BidServiceTest {
     void placeBid_정상_입찰이면_bid와_outbox가_저장된다() {
         UUID bidderId = UUID.randomUUID();
         UUID auctionId = UUID.randomUUID();
-        LocalDateTime nowUtc = LocalDateTime.now(ZoneOffset.UTC);
+        Instant nowUtc = Instant.now();
 
         when(auctionServiceClient.getAuction(auctionId))
-                .thenReturn(new AuctionSnapshot(auctionId, "ONGOING", 10_000L, nowUtc.plusMinutes(10)));
+                .thenReturn(new AuctionSnapshot(auctionId, "ONGOING", 10_000L, nowUtc.plus(10, ChronoUnit.MINUTES)));
         when(auctionStreamsClient.getCurrentPrice(auctionId)).thenReturn(11_000L);
         when(bidRepository.save(any(Bid.class))).thenAnswer(invocation -> {
             Bid input = invocation.getArgument(0);
@@ -113,7 +113,7 @@ class BidServiceTest {
     void placeBid_경매상태가_ONGOING이_아니면_400예외를_던진다() {
         UUID auctionId = UUID.randomUUID();
         when(auctionServiceClient.getAuction(auctionId))
-                .thenReturn(new AuctionSnapshot(auctionId, "CLOSED", 10_000L, LocalDateTime.now(ZoneOffset.UTC).plusMinutes(1)));
+                .thenReturn(new AuctionSnapshot(auctionId, "CLOSED", 10_000L, Instant.now().plus(1, ChronoUnit.MINUTES)));
 
         assertThatThrownBy(() -> bidService.placeBid(UUID.randomUUID(), auctionId, 11_000L))
                 .isInstanceOf(BadRequestException.class)
@@ -124,7 +124,7 @@ class BidServiceTest {
     void placeBid_마감시각이_지났으면_400예외를_던진다() {
         UUID auctionId = UUID.randomUUID();
         when(auctionServiceClient.getAuction(auctionId))
-                .thenReturn(new AuctionSnapshot(auctionId, "ONGOING", 10_000L, LocalDateTime.now(ZoneOffset.UTC).minusSeconds(1)));
+                .thenReturn(new AuctionSnapshot(auctionId, "ONGOING", 10_000L, Instant.now().minusSeconds(1)));
 
         assertThatThrownBy(() -> bidService.placeBid(UUID.randomUUID(), auctionId, 11_000L))
                 .isInstanceOf(BadRequestException.class)
@@ -135,7 +135,7 @@ class BidServiceTest {
     void placeBid_첫입찰에서_시작가_이하면_400예외를_던진다() {
         UUID auctionId = UUID.randomUUID();
         when(auctionServiceClient.getAuction(auctionId))
-                .thenReturn(new AuctionSnapshot(auctionId, "ONGOING", 10_000L, LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5)));
+                .thenReturn(new AuctionSnapshot(auctionId, "ONGOING", 10_000L, Instant.now().plus(5, ChronoUnit.MINUTES)));
         when(auctionStreamsClient.getCurrentPrice(auctionId)).thenReturn(null);
 
         assertThatThrownBy(() -> bidService.placeBid(UUID.randomUUID(), auctionId, 10_000L))
@@ -147,7 +147,7 @@ class BidServiceTest {
     void placeBid_현재최고가_이하면_400예외를_던진다() {
         UUID auctionId = UUID.randomUUID();
         when(auctionServiceClient.getAuction(auctionId))
-                .thenReturn(new AuctionSnapshot(auctionId, "ONGOING", 10_000L, LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5)));
+                .thenReturn(new AuctionSnapshot(auctionId, "ONGOING", 10_000L, Instant.now().plus(5, ChronoUnit.MINUTES)));
         when(auctionStreamsClient.getCurrentPrice(auctionId)).thenReturn(13_000L);
 
         assertThatThrownBy(() -> bidService.placeBid(UUID.randomUUID(), auctionId, 13_000L))
@@ -169,7 +169,7 @@ class BidServiceTest {
     void placeBid_auctionStreams_CB_open이면_503예외를_던진다() {
         UUID auctionId = UUID.randomUUID();
         when(auctionServiceClient.getAuction(auctionId))
-                .thenReturn(new AuctionSnapshot(auctionId, "ONGOING", 10_000L, LocalDateTime.now(ZoneOffset.UTC).plusMinutes(5)));
+                .thenReturn(new AuctionSnapshot(auctionId, "ONGOING", 10_000L, Instant.now().plus(5, ChronoUnit.MINUTES)));
         when(auctionStreamsClient.getCurrentPrice(auctionId))
                 .thenThrow(new ExternalServiceException("auction-streams 조회에 실패했습니다."));
 

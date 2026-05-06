@@ -1,6 +1,6 @@
 package com.jaehoon.bid.entity;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -42,7 +42,7 @@ public class Bid {
     private BidStatus status;
 
     @Column(name = "placed_at", nullable = false, updatable = false)
-    private LocalDateTime placedAt;
+    private Instant placedAt;
 
     @Builder
     public Bid(UUID auctionId, UUID bidderId, Long amount, BidStatus status) {
@@ -55,7 +55,7 @@ public class Bid {
     // DB 기본값(now, ACCEPTED)과 동일한 규칙을 애플리케이션 레벨에서도 명시적으로 보장한다.
     @PrePersist
     private void prePersist() {
-        this.placedAt = LocalDateTime.now();
+        this.placedAt = Instant.now();
         if (this.status == null) {
             this.status = BidStatus.ACCEPTED;
         }

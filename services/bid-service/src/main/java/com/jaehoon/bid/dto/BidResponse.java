@@ -1,6 +1,6 @@
 package com.jaehoon.bid.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import com.jaehoon.bid.entity.Bid;
@@ -12,7 +12,7 @@ public record BidResponse(
         UUID bidderId,
         Long amount,
         BidStatus status,
-        LocalDateTime placedAt) {
+        Instant placedAt) {
 
     public static BidResponse from(Bid bid) {
         return new BidResponse(

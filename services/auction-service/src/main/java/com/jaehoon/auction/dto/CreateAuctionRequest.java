@@ -1,6 +1,6 @@
 package com.jaehoon.auction.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.Future;
@@ -30,10 +30,10 @@ public record CreateAuctionRequest(
          * 경매 시작 시각. null 이면 서버에서 요청 처리 시각을 사용한다.
          */
         @Nullable
-        LocalDateTime startsAt,
+        Instant startsAt,
 
         @NotNull(message = "마감 시각은 필수입니다")
         @Future(message = "마감 시각은 현재 시각 이후여야 합니다")
-        LocalDateTime endsAt
+        Instant endsAt
 ) {
 }

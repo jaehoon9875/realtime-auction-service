@@ -1,0 +1,17 @@
+-- 애플리케이션 전역 Instant(UTC) 저장과 정합: TIMESTAMP → TIMESTAMPTZ
+-- 기존 TIMESTAMP 값은 UTC 로 해석하여 변환한다.
+
+ALTER TABLE auctions
+    ALTER COLUMN starts_at TYPE TIMESTAMPTZ USING starts_at AT TIME ZONE 'UTC';
+
+ALTER TABLE auctions
+    ALTER COLUMN ends_at TYPE TIMESTAMPTZ USING ends_at AT TIME ZONE 'UTC';
+
+ALTER TABLE auctions
+    ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC';
+
+ALTER TABLE auctions
+    ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at AT TIME ZONE 'UTC';
+
+ALTER TABLE outbox_events
+    ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC';

@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doAnswer;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -68,7 +68,7 @@ class BidIntegrationTest {
                 auctionId,
                 "ONGOING",
                 10_000L,
-                LocalDateTime.now(ZoneOffset.UTC).plusMinutes(10)))
+                Instant.now().plus(10, ChronoUnit.MINUTES)))
                 .when(auctionServiceClient).getAuction(auctionId);
         doAnswer(invocation -> 11_000L).when(auctionStreamsClient).getCurrentPrice(auctionId);
 
@@ -91,7 +91,7 @@ class BidIntegrationTest {
                 auctionId,
                 "ONGOING",
                 10_000L,
-                LocalDateTime.now(ZoneOffset.UTC).plusMinutes(10)))
+                Instant.now().plus(10, ChronoUnit.MINUTES)))
                 .when(auctionServiceClient).getAuction(auctionId);
         doAnswer(invocation -> null).when(auctionStreamsClient).getCurrentPrice(auctionId);
 

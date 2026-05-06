@@ -1,7 +1,6 @@
 package com.jaehoon.bid.service;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -77,8 +76,8 @@ public class BidService {
         if (!AUCTION_STATUS_ONGOING.equals(auction.status())) {
             throw new BadRequestException("진행 중인 경매가 아닙니다.");
         }
-        // 마감 시각 비교는 UTC 기준 현재 시각으로 판단한다.
-        if (!auction.endsAt().isAfter(LocalDateTime.now(ZoneOffset.UTC))) {
+        // 마감 시각 비교는 절대 시각(Instant) 기준으로 판단한다.
+        if (!auction.endsAt().isAfter(Instant.now())) {
             throw new BadRequestException("마감된 경매입니다.");
         }
     }
@@ -103,7 +102,7 @@ public class BidService {
         payload.put("auctionId", bid.getAuctionId().toString());
         payload.put("bidderId", bid.getBidderId().toString());
         payload.put("amount", bid.getAmount());
-        payload.put("occurredAt", bid.getPlacedAt().toInstant(ZoneOffset.UTC).toEpochMilli());
+        payload.put("occurredAt", bid.getPlacedAt().toEpochMilli());
         return payload;
     }
 }

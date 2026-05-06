@@ -1,6 +1,6 @@
 package com.jaehoon.bid.entity;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -49,7 +49,7 @@ public class OutboxEvent {
     private Map<String, Object> payload;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Builder
     public OutboxEvent(String aggregateType, UUID aggregateId, String eventType, Map<String, Object> payload) {
@@ -61,6 +61,6 @@ public class OutboxEvent {
 
     @PrePersist
     private void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = Instant.now();
     }
 }

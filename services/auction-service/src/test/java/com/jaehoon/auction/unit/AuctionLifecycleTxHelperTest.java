@@ -6,7 +6,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -39,13 +40,13 @@ class AuctionLifecycleTxHelperTest {
     @Test
     void activateOne_PENDING이고_시작시각_지났으면_ONGOING으로_전환한다() {
         UUID id = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         Auction auction = Auction.builder()
                 .sellerId(UUID.randomUUID())
                 .title("예약")
                 .startPrice(1_000L)
-                .startsAt(now.minusMinutes(1))
-                .endsAt(now.plusDays(1))
+                .startsAt(now.minus(1, ChronoUnit.MINUTES))
+                .endsAt(now.plus(1, ChronoUnit.DAYS))
                 .status(AuctionStatus.PENDING)
                 .build();
         when(auctionRepository.findByIdForUpdate(id)).thenReturn(Optional.of(auction));
@@ -59,13 +60,13 @@ class AuctionLifecycleTxHelperTest {
     @Test
     void activateOne_시작시각이_아직_안_지났으면_상태_변경_없음() {
         UUID id = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         Auction auction = Auction.builder()
                 .sellerId(UUID.randomUUID())
                 .title("예약")
                 .startPrice(1_000L)
-                .startsAt(now.plusHours(1))
-                .endsAt(now.plusDays(1))
+                .startsAt(now.plus(1, ChronoUnit.HOURS))
+                .endsAt(now.plus(1, ChronoUnit.DAYS))
                 .status(AuctionStatus.PENDING)
                 .build();
         when(auctionRepository.findByIdForUpdate(id)).thenReturn(Optional.of(auction));
@@ -81,13 +82,13 @@ class AuctionLifecycleTxHelperTest {
     @Test
     void closeOne_ONGOING이고_endsAt_지났으면_CLOSED로_전환한다() {
         UUID id = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         Auction auction = Auction.builder()
                 .sellerId(UUID.randomUUID())
                 .title("진행중")
                 .startPrice(1_000L)
-                .startsAt(now.minusHours(2))
-                .endsAt(now.minusMinutes(1))
+                .startsAt(now.minus(2, ChronoUnit.HOURS))
+                .endsAt(now.minus(1, ChronoUnit.MINUTES))
                 .status(AuctionStatus.ONGOING)
                 .build();
         when(auctionRepository.findByIdForUpdate(id)).thenReturn(Optional.of(auction));
@@ -101,13 +102,13 @@ class AuctionLifecycleTxHelperTest {
     @Test
     void closeOne_endsAt가_아직_안_지났으면_그대로_ONGOING이다() {
         UUID id = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         Auction auction = Auction.builder()
                 .sellerId(UUID.randomUUID())
                 .title("진행중")
                 .startPrice(1_000L)
-                .startsAt(now.minusHours(2))
-                .endsAt(now.plusHours(1))
+                .startsAt(now.minus(2, ChronoUnit.HOURS))
+                .endsAt(now.plus(1, ChronoUnit.HOURS))
                 .status(AuctionStatus.ONGOING)
                 .build();
         when(auctionRepository.findByIdForUpdate(id)).thenReturn(Optional.of(auction));

@@ -1,6 +1,6 @@
 package com.jaehoon.auction.repository;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,13 +39,13 @@ public interface AuctionRepository extends JpaRepository<Auction, UUID> {
     @Query("SELECT a.id FROM Auction a WHERE a.status = :status AND a.startsAt <= :now ORDER BY a.startsAt ASC")
     List<UUID> findIdsDuePendingAuctions(
             @Param("status") AuctionStatus status,
-            @Param("now") LocalDateTime now,
+            @Param("now") Instant now,
             Pageable pageable);
 
     /** 마감 시각이 지난 진행 중(ONGOING) 경매 후보 ID 목록 (소량 배치). */
     @Query("SELECT a.id FROM Auction a WHERE a.status = :status AND a.endsAt <= :now ORDER BY a.endsAt ASC")
     List<UUID> findIdsOngoingPastEnd(
             @Param("status") AuctionStatus status,
-            @Param("now") LocalDateTime now,
+            @Param("now") Instant now,
             Pageable pageable);
 }

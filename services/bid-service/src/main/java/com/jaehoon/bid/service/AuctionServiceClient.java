@@ -1,6 +1,6 @@
 package com.jaehoon.bid.service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
@@ -66,6 +66,6 @@ public class AuctionServiceClient {
             UUID id,
             String status,
             Long startPrice,
-            LocalDateTime endsAt) {
+            Instant endsAt) {
     }
 }
