@@ -10,7 +10,6 @@
 
 ## 배포 규칙
 
-- kubectl apply / helm upgrade 직접 실행 금지. 파일 수정 → Git push → ArgoCD sync만 허용
 - 롤백: Git revert → ArgoCD sync
 - deployment.yaml에 resources.requests/limits 반드시 명시
 - 모든 서비스에 Liveness/Readiness probe 설정
