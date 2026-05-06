@@ -75,7 +75,6 @@ controller에서 repository를 직접 호출하지 않는다.
 
 auction-service와 bid-service에만 해당.
 
-- Kafka에 **직접 발행하지 않는다.** 반드시 Outbox 테이블 → Debezium 경로를 따른다.
 - 도메인 이벤트 저장과 Outbox 저장은 **같은 트랜잭션** 안에서 처리한다.
 - Outbox 레코드는 `aggregateType`, `aggregateId`, `eventType`, `payload`(Avro JSON) 필드를 포함한다.
 
@@ -107,8 +106,6 @@ auction-service와 bid-service에만 해당.
 ## 환경변수 및 설정
 
 - 환경변수는 `application.yml`에서 `${ENV_VAR}` 형태로만 참조한다.
-- 민감 정보(DB 비밀번호, JWT secret 등)는 코드에 하드코딩하지 않는다.
-- 로컬 개발용 값은 `.env` 파일로 관리하며 `.gitignore`에 반드시 포함한다.
 
 ---
 
