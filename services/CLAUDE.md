@@ -40,7 +40,9 @@ controller → service → repository → entity
 - `controller`: HTTP 요청/응답, 입력 유효성 검증(Bean Validation). 비즈니스 로직 없음.
 - `service`: 비즈니스 로직, 트랜잭션 경계, 외부 서비스 호출.
 - `repository`: Spring Data JPA 인터페이스 또는 JPQL 쿼리. DB 접근만.
-- `entity`: JPA 엔티티. 비즈니스 로직 없음. `@Getter`만 허용, setter 금지.
+- `entity`: JPA 엔티티. **`@Getter` 중심**, 무분별 setter·직접 필드 변경용 메서드는 두지 않는다.
+  - **생성·수정 시각**: `@EnableJpaAuditing`은 메인 클래스가 아니라 **`config/JpaAuditingConfig`** 같은 전용 `@Configuration`에 둔다(슬라이스 테스트 시 부작용 감소). JPA를 끄는 경량 `test` 스모크용 프로파일에서는 Auditing을 켜지 않도록 **`@Profile("!test")`**를 붙인다(통합 테스트는 `integration` 등 별도 프로파일). 엔티티에는 `@EntityListeners(AuditingEntityListener.class)`와 `@CreatedDate` / `@LastModifiedDate`(필요 시)를 사용한다. 타임스탬프를 `@PrePersist`로 수동 세팅하지 않는다.
+  - **도메인 불변식 보호**용 동작은 엔티티에 둘 수 있다. 예: `Auction.changeStatus(AuctionStatus)`는 `AuctionStatus.canTransitionTo`로 `PENDING → ONGOING → CLOSED`만 허용하고 잘못된 전이는 예외로 막는다. 반면 트랜잭션 경계·외부 서비스 호출·유스케이스 조합은 `service`에 둔다.
 
 controller에서 repository를 직접 호출하지 않는다.
 

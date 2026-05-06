@@ -3,15 +3,18 @@ package com.jaehoon.auction.entity;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -20,6 +23,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "auctions")
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Auction {
@@ -51,14 +55,16 @@ public class Auction {
     @Column(name = "ends_at", nullable = false)
     private Instant endsAt;
 
+    @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @LastModifiedDate
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
     /**
-     * 신규 경매 생성용. id·타임스탬프·기본 status는 {@link #prePersist()}에서 채운다.
+     * 신규 경매 생성용. id는 생성 후 할당, 타임스탬프는 JPA Auditing으로 채운다.
      */
     @Builder
     public Auction(UUID sellerId, String title, String description, Long startPrice, Instant startsAt,
@@ -70,23 +76,6 @@ public class Auction {
         this.startsAt = startsAt;
         this.endsAt = endsAt;
         this.status = status;
-    }
-
-    // 최초 저장 시 타임스탬프. status 는 서비스에서 startsAt·현재 시각에 맞게 설정 (미설정 시 PENDING)
-    @PrePersist
-    private void prePersist() {
-        Instant now = Instant.now();
-        this.createdAt = now;
-        this.updatedAt = now;
-        if (this.status == null) {
-            this.status = AuctionStatus.PENDING;
-        }
-    }
-
-    // 엔티티 수정 시 갱신 시각 반영
-    @PreUpdate
-    private void preUpdate() {
-        this.updatedAt = Instant.now();
     }
 
     /**

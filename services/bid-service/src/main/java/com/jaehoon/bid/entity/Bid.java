@@ -3,14 +3,17 @@ package com.jaehoon.bid.entity;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -19,6 +22,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "bids")
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Bid {
@@ -41,6 +45,7 @@ public class Bid {
     @Column(nullable = false, length = 20)
     private BidStatus status;
 
+    @CreatedDate
     @Column(name = "placed_at", nullable = false, updatable = false)
     private Instant placedAt;
 
@@ -50,14 +55,5 @@ public class Bid {
         this.bidderId = bidderId;
         this.amount = amount;
         this.status = status;
-    }
-
-    // DB 기본값(now, ACCEPTED)과 동일한 규칙을 애플리케이션 레벨에서도 명시적으로 보장한다.
-    @PrePersist
-    private void prePersist() {
-        this.placedAt = Instant.now();
-        if (this.status == null) {
-            this.status = BidStatus.ACCEPTED;
-        }
     }
 }

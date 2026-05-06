@@ -1,6 +1,15 @@
 package com.jaehoon.user.entity;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,6 +20,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
@@ -28,6 +38,7 @@ public class User {
     @Column(nullable = false)
     private String nickname;
 
+    @CreatedDate
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -36,11 +47,5 @@ public class User {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
-    }
-
-    // 영속화 직전 createdAt 자동 세팅
-    @PrePersist
-    private void prePersist() {
-        this.createdAt = Instant.now();
     }
 }

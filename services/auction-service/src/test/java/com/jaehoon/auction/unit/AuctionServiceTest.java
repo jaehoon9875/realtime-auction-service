@@ -311,9 +311,9 @@ class AuctionServiceTest {
 
     // ─────────────────────────── 헬퍼 ───────────────────────────
 
-    /** @PrePersist 없이 sellerId만 세팅한 최소 Auction 객체 */
+    /** 영속화되지 않은 최소 Auction 객체 (Auditing 미실행 → 타임스탬프는 null일 수 있음) */
     private Auction buildAuction(UUID sellerId) {
-        // 단위 테스트에서는 영속화되지 않아 @PrePersist 가 실행되지 않으므로 초기 status 명시
+        // 단위 테스트에서는 DB에 저장하지 않으므로 초기 status를 명시한다.
         Instant now = Instant.now();
         return Auction.builder()
                 .sellerId(sellerId)
