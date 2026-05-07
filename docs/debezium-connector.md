@@ -31,14 +31,15 @@ PostgreSQL WAL (wal_level=logical)
 
 | 파일 | 역할 |
 |------|------|
-| `infra/debezium/connectors/auction-outbox-connector.json` | Connector 설정 템플릿 (비밀번호 제외, Git 커밋 가능) |
-| `infra/debezium/register-connectors.sh` | 비밀번호를 주입 후 Kafka Connect REST API에 등록하는 스크립트 |
+| `infra/debezium/connectors/auction-outbox-connector.json` | Connector 설정 템플릿 (환경별 값은 스크립트에서 주입) |
+| `infra/debezium/connectors/bid-outbox-connector.json` | Bid용 Connector 설정 템플릿 (환경별 값은 스크립트에서 주입) |
+| `infra/debezium/register-connectors.sh` | 비밀번호·Schema Registry URL을 주입하고 등록/삭제를 수행하는 스크립트 |
 
 ---
 
 ## 사전 조건
 
-1. `infra/.env`에 `DEBEZIUM_PASSWORD` 설정
+1. `infra/.env`에 `DEBEZIUM_PASSWORD`, `SCHEMA_REGISTRY_URL` 설정
 2. `docker-compose up -d` 로 인프라 전체 기동 (debezium 컨테이너가 healthy 상태인지 확인)
 3. `jq` 설치 (`brew install jq` 또는 `apt install jq`)
 
@@ -53,16 +54,26 @@ curl http://localhost:8083/connectors
 # 2. 스크립트 실행 (infra/debezium 디렉토리에서)
 cd infra/debezium
 ./register-connectors.sh
+
+# 3. 기존 커넥터를 먼저 지우고 재등록하려면
+./register-connectors.sh --recreate
 ```
 
-스크립트는 `infra/.env`를 읽어 `DEBEZIUM_PASSWORD`를 자동으로 JSON에 주입한 뒤 POST합니다.
-비밀번호는 JSON 파일에 저장되지 않으므로 저장소에 노출되지 않습니다.
+스크립트는 `infra/.env`를 읽어 `DEBEZIUM_PASSWORD`, `SCHEMA_REGISTRY_URL`을 JSON 요청 본문에 동적으로 주입합니다.
+템플릿 JSON에는 환경별 URL/비밀번호를 저장하지 않으므로 저장소 노출 위험과 환경별 파일 분기를 줄일 수 있습니다.
 
 ---
 
 ## Connector 관리 명령
 
 ```bash
+# 삭제 후 재등록
+cd infra/debezium
+./register-connectors.sh --recreate
+
+# 삭제만 수행
+./register-connectors.sh --delete-only
+
 # 등록된 Connector 목록
 curl http://localhost:8083/connectors
 
@@ -90,7 +101,10 @@ curl -X DELETE http://localhost:8083/connectors/auction-outbox-connector
 | `transforms.outbox.type` | `EventRouter` | Outbox 패턴 전용 SMT. payload 를 꺼내 토픽으로 라우팅 |
 | `transforms.outbox.table.field.event.key` | `aggregate_id` | Kafka 메시지 키로 쓸 컬럼 (`outbox_events.aggregate_id`) |
 | `transforms.outbox.route.topic.replacement` | `auction-events` | 최종 Kafka 토픽 이름 |
-| `value.converter` | `JsonConverter` | 워커 기본값(Avro)을 이 Connector에서만 JSON으로 오버라이드 (M5에서 Avro로 전환 예정) |
+| `key.converter` | `StringConverter` | `aggregate_id`를 문자열 키로 발행 |
+| `value.converter` | `AvroConverter` | Outbox payload를 Avro로 직렬화하여 발행 |
+| `value.converter.schema.registry.url` | `${SCHEMA_REGISTRY_URL}` | 스크립트가 요청 시점에 주입 |
+| `transforms.outbox.table.expand.json.payload` | `true` | JSON 문자열 payload를 필드 구조로 펼쳐 Avro 직렬화 가능하게 처리 |
 
 ---
 
@@ -102,3 +116,4 @@ curl -X DELETE http://localhost:8083/connectors/auction-outbox-connector
 | `publication does not exist` | `debezium_publication` 이 DB에 없음 | DB를 초기화(`docker-compose down -v`) 후 재시작 |
 | `replication slot already exists` | `debezium_auction_outbox` slot이 남아 있음 | `SELECT pg_drop_replication_slot('debezium_auction_outbox');` 실행 후 재등록 |
 | `DEBEZIUM_PASSWORD is required` | `.env` 에 비밀번호 미설정 | `infra/.env` 에 `DEBEZIUM_PASSWORD` 값 확인 |
+| `schema.registry.url ...` 직렬화 오류 | Registry URL 오설정/미설정 | `infra/.env`의 `SCHEMA_REGISTRY_URL` 확인 후 `--recreate` |

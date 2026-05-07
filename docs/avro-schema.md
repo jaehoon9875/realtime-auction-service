@@ -16,8 +16,8 @@ Kafka 메시지 값의 **계약(필드·타입)** 을 Avro로 정의하고, Conf
 | Registry 주소 (로컬) | `http://localhost:${SCHEMA_REGISTRY_PORT}` (기본 **8085**, `infra/.env`) |
 
 
-> **M3 현재:** Debezium `auction-outbox-connector`는 토픽 값을 **JsonConverter**로 발행하도록 설정되어 있습니다.
-> Registry에 Avro를 올려 두는 것은 **계약 확정 + M5 이후 AvroConverter 전환**을 위한 준비 단계입니다.
+> **M5 현재:** Debezium `auction-outbox-connector`, `bid-outbox-connector`는 토픽 값을 **AvroConverter**로 발행하도록 전환되었습니다.
+> Connector 템플릿 JSON에는 `value.converter.schema.registry.url`를 하드코딩하지 않고, `register-connectors.sh`가 `SCHEMA_REGISTRY_URL` 환경변수로 주입합니다.
 
 ---
 

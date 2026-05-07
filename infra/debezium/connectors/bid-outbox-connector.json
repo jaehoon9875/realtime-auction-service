@@ -24,9 +24,8 @@
     "transforms.outbox.table.field.event.key": "aggregate_id",
     "transforms.outbox.route.topic.replacement": "bid-events",
 
-    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
-    "key.converter.schemas.enable": "false",
-    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
-    "value.converter.schemas.enable": "false"
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "transforms.outbox.table.expand.json.payload": "true"
   }
 }
