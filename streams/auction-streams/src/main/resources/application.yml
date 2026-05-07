@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: auction-streams
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    streams:
+      application-id: ${KAFKA_STREAMS_APPLICATION_ID:auction-streams}
+      properties:
+        processing.guarantee: exactly_once_v2
+        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        state.dir: ${KAFKA_STREAMS_STATE_DIR:/tmp/kafka-streams/auction-streams}
