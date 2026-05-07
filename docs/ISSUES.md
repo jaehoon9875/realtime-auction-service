@@ -26,7 +26,6 @@
 
 | # | 심각도 | 항목 | 내용 | 등록일 |
 |---|--------|------|------|--------|
-| 3 | 🟡 중간 | State Store 초기 `currentPrice` | 입찰 0건일 때 `GET /api/auctions/{id}`의 `currentPrice`를 State Store에서 어떻게 **시작가와 일치**시킬지(예: `auction-events` 시드, 기본값 규칙) 문서에 없음. | 2026-05-05 |
 | 4 | 🟢 낮음 | `BID_REJECTED` 클라이언트 알림 | `docs/kafka.md`에 `BID_REJECTED` 이벤트는 있으나 `docs/api.md` WebSocket 메시지에 **입찰 거부** 타입 없음. 실시간 거부 UX 미정. | 2026-05-05 |
 
 ---
@@ -35,6 +34,7 @@
 
 | # | 심각도 | 마일스톤 | 제목 | 해결일 | 해결 방법 |
 |---|--------|---------|------|--------|-----------|
+| 7 | 🟡 중간 | M5 · streams/docs | State Store 초기 `currentPrice` 정책 부재 | 2026-05-07 | M5 구현 정책을 확정해 `docs/kafka.md`에 반영. `AUCTION_CREATED.startPrice`를 State Store 초기 `currentPrice` 시드로 사용하고, 입찰 0건 경매도 조회값이 시작가와 일치하도록 명시. 마감 Punctuator 기준은 `WALL_CLOCK_TIME`으로 확정. |
 | 6 | 🟡 중간 | M5 · infra/docs | Avro/Json 컨버터 불일치 | 2026-05-07 | `auction-outbox-connector.json`, `bid-outbox-connector.json`를 Avro 기준으로 통일(`key.converter=StringConverter`, `value.converter=AvroConverter`, `transforms.outbox.table.expand.json.payload=true`). `value.converter.schema.registry.url`는 템플릿 하드코딩을 제거하고 `register-connectors.sh`에서 `SCHEMA_REGISTRY_URL` 환경변수로 주입하도록 변경. `--recreate`, `--delete-only` 옵션 추가 및 `infra/.env.example`/문서 동기화. |
 | 2 | 🟡 중간 | docs · auction-service | 마감 후 `auctions.status` 동기화 | 2026-05-05 | **역할 분리**: DB **`CLOSED`는 Auction Service** (`endsAt` 경과 시 스케줄러·명시적 전이). Streams **`AUCTION_CLOSED`/notification** 은 알림·실시간용. 입찰 **`endsAt` + 상태** 검증. 문서: `docs/architecture.md`, `docs/kafka.md`, `services/CLAUDE.md`. **구현**: `AuctionEndScheduler`·`AuctionService.closeOverdueAuctions()`, `findIdsOngoingPastEnd`, 설정 `app.auction.schedule.ongoing-to-closed-ms`(기본 60초), Outbox `AUCTION_STATUS_CHANGED`. |
 | 5 | 🟢 낮음 | infra | CI 트리거 중복 | 2026-05-05 | `push: branches`에서 `feature/**`, `fix/**` 제거. PR 브랜치는 `pull_request` 트리거만으로 커버. |

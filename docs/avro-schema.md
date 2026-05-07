@@ -13,11 +13,12 @@ Kafka 메시지 값의 **계약(필드·타입)** 을 Avro로 정의하고, Conf
 | 스키마 원본           | `infra/avro/*.avsc` (Git으로 버전 관리)                                      |
 | 도메인 문서와의 관계      | 필드 정의는 [docs/kafka.md](./kafka.md)와 **반드시 동기화**                        |
 | 등록 스크립트          | `infra/avro/register-schemas.sh`                                       |
-| Registry 주소 (로컬) | `http://localhost:${SCHEMA_REGISTRY_PORT}` (기본 **8085**, `infra/.env`) |
+| Registry 주소 (로컬) | `SCHEMA_REGISTRY_PUBLIC_URL` 또는 `http://localhost:${SCHEMA_REGISTRY_PORT}` (기본 **8085**, `infra/.env`) |
 
 
 > **M5 현재:** Debezium `auction-outbox-connector`, `bid-outbox-connector`는 토픽 값을 **AvroConverter**로 발행하도록 전환되었습니다.
 > Connector 템플릿 JSON에는 `value.converter.schema.registry.url`를 하드코딩하지 않고, `register-connectors.sh`가 `SCHEMA_REGISTRY_URL` 환경변수로 주입합니다.
+> `register-schemas.sh`는 호스트에서 실행하므로 Registry URL 우선순위를 `SCHEMA_REGISTRY_PUBLIC_URL` → `SCHEMA_REGISTRY_URL` → `http://localhost:${SCHEMA_REGISTRY_PORT}`로 처리합니다.
 
 ---
 
@@ -33,6 +34,8 @@ Kafka 메시지 값의 **계약(필드·타입)** 을 Avro로 정의하고, Conf
 
 ```bash
 cd infra/avro
+# (선택) 호스트 접근 URL을 명시적으로 지정
+# export SCHEMA_REGISTRY_PUBLIC_URL=http://localhost:8085
 ./register-schemas.sh
 ```
 
@@ -44,10 +47,13 @@ cd infra/avro
 
 ```bash
 # 등록된 subject 목록
-curl -sS "${SCHEMA_REGISTRY_URL:-http://localhost:8085}/subjects"
+curl -sS "${SCHEMA_REGISTRY_PUBLIC_URL:-http://localhost:8085}/subjects"
 
 # auction-events 최신 스키마
-curl -sS "${SCHEMA_REGISTRY_URL:-http://localhost:8085}/subjects/auction-events-value/versions/latest"
+curl -sS "${SCHEMA_REGISTRY_PUBLIC_URL:-http://localhost:8085}/subjects/auction-events-value/versions/latest"
+
+# notification-events 최신 스키마
+curl -sS "${SCHEMA_REGISTRY_PUBLIC_URL:-http://localhost:8085}/subjects/notification-events-value/versions/latest"
 ```
 
 ---
