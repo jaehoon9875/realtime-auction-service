@@ -10,3 +10,9 @@ spring:
         schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
         default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
         state.dir: ${KAFKA_STREAMS_STATE_DIR:/tmp/kafka-streams/auction-streams}
+        default.deserialization.exception.handler: com.jaehoon.streams.auction.exception.DlqExceptionHandler
+
+auction:
+  streams:
+    punctuator-interval-seconds: ${PUNCTUATOR_INTERVAL_SECONDS:30}
+    max-failures: ${STREAMS_MAX_FAILURES:5}
