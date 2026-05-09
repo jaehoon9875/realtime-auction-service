@@ -1,3 +1,7 @@
+server:
+  # API Gateway(8080)·타 서비스(8081~8084)와 겹치지 않도록 기본 8086. 로컬에서만 덮어쓸 때 AUCTION_STREAMS_PORT 사용.
+  port: ${AUCTION_STREAMS_PORT:8086}
+
 spring:
   application:
     name: auction-streams
@@ -10,6 +14,8 @@ spring:
         schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
         default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
         state.dir: ${KAFKA_STREAMS_STATE_DIR:/tmp/kafka-streams/auction-streams}
+        # 멀티 인스턴스 Interactive Query 라우팅: peers가 이 host:port로 위임한다.
+        application.server: ${KAFKA_STREAMS_APPLICATION_SERVER:localhost:${server.port}}
         default.deserialization.exception.handler: com.jaehoon.streams.auction.exception.DlqExceptionHandler
 
 auction:
