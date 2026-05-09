@@ -1,0 +1,81 @@
+package com.jaehoon.streams.auction.config;
+
+import java.time.Duration;
+
+import org.apache.kafka.streams.KafkaStreams;
+import org.springframework.context.SmartLifecycle;
+import org.springframework.kafka.config.StreamsBuilderFactoryBean;
+import org.springframework.stereotype.Component;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class KafkaStreamsLifecycleManager implements SmartLifecycle {
+
+    private static final Duration CLOSE_TIMEOUT = Duration.ofSeconds(30);
+
+    private final StreamsBuilderFactoryBean streamsBuilderFactoryBean;
+
+    private volatile boolean running;
+
+    @Override
+    public void start() {
+        running = true;
+    }
+
+    @Override
+    public void stop() {
+        shutdownKafkaStreams();
+        running = false;
+    }
+
+    @Override
+    public void stop(Runnable callback) {
+        try {
+            stop();
+        } finally {
+            callback.run();
+        }
+    }
+
+    @Override
+    public boolean isRunning() {
+        return running;
+    }
+
+    @Override
+    public boolean isAutoStartup() {
+        return true;
+    }
+
+    @Override
+    public int getPhase() {
+        // Spring 종료 단계에서 늦게 호출되어 다른 빈 종료 전에 Streams를 안전하게 close 하도록 한다.
+        return Integer.MAX_VALUE;
+    }
+
+    private void shutdownKafkaStreams() {
+        KafkaStreams kafkaStreams = streamsBuilderFactoryBean.getKafkaStreams();
+        if (kafkaStreams == null) {
+            log.debug("KafkaStreams instance is not initialized; skip shutdown");
+            return;
+        }
+
+        KafkaStreams.State currentState = kafkaStreams.state();
+        if (currentState == KafkaStreams.State.NOT_RUNNING) {
+            log.debug("KafkaStreams is already stopped; skip shutdown");
+            return;
+        }
+
+        try {
+            log.info("KafkaStreams shutdown started (state={}, timeout={})", currentState, CLOSE_TIMEOUT);
+            kafkaStreams.close(CLOSE_TIMEOUT);
+            log.info("KafkaStreams shutdown completed with timeout={}", CLOSE_TIMEOUT);
+        } catch (Exception e) {
+            log.warn("KafkaStreams graceful shutdown failed", e);
+        }
+    }
+}
