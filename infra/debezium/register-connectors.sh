@@ -21,8 +21,9 @@ fi
 
 # Kafka Connect 주소를 환경변수 또는 기본값(localhost:DEBEZIUM_PORT)으로 결정한다.
 CONNECT_URL="${KAFKA_CONNECT_URL:-http://localhost:${DEBEZIUM_PORT:-8083}}"
-# 호스트에서 스크립트를 실행하는 기본 사용 경로를 기준으로 localhost:${SCHEMA_REGISTRY_PORT}를 기본값으로 사용한다.
-SCHEMA_REGISTRY_URL_VALUE="${SCHEMA_REGISTRY_URL:-http://localhost:${SCHEMA_REGISTRY_PORT:-8085}}"
+# 커넥터 태스크는 Connect 컨테이너 내부에서 동작하므로 기본값은 컨테이너 DNS를 사용한다.
+# 필요 시 SCHEMA_REGISTRY_URL 환경변수로 localhost:${SCHEMA_REGISTRY_PORT} 같은 값으로 오버라이드할 수 있다.
+SCHEMA_REGISTRY_URL_VALUE="${SCHEMA_REGISTRY_URL:-http://schema-registry:8081}"
 
 ACTION="create"
 
@@ -38,7 +39,7 @@ Options:
 Environment variables:
   DEBEZIUM_PASSWORD  (required for create/recreate)
   KAFKA_CONNECT_URL  (default: http://localhost:${DEBEZIUM_PORT:-8083})
-  SCHEMA_REGISTRY_URL (default: http://localhost:${SCHEMA_REGISTRY_PORT:-8085})
+  SCHEMA_REGISTRY_URL (default: http://schema-registry:8081)
 EOF
 }
 
