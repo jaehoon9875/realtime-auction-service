@@ -1,5 +1,8 @@
 import com.github.davidmc24.gradle.plugin.avro.GenerateAvroJavaTask
 
+// Avro: .avsc→Java는 davidmc24 avro-base 1.9.1(Avro 1.11.3 기준). Java 21·Gradle 9.4.1에서 검증, Apache 공식 플러그인 없음·유사 대안도 비공식이라 유지.
+// 런타임은 아래 org.apache.avro 1.12.0.
+
 plugins {
     id("org.springframework.boot")
     id("io.spring.dependency-management")
