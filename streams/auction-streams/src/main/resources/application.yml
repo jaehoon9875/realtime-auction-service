@@ -21,8 +21,9 @@ spring:
 
 auction:
   streams:
-    punctuator-interval-seconds: ${PUNCTUATOR_INTERVAL_SECONDS:30}
-    max-failures: ${STREAMS_MAX_FAILURES:5}
+    # 우선순위: AUCTION_STREAMS_* (Spring 표준) → 구 env 예시(PUNCTUATOR_INTERVAL_SECONDS 등)
+    punctuator-interval-seconds: ${AUCTION_STREAMS_PUNCTUATOR_INTERVAL_SECONDS:${PUNCTUATOR_INTERVAL_SECONDS:30}}
+    max-failures: ${AUCTION_STREAMS_MAX_FAILURES:${STREAMS_MAX_FAILURES:5}}
     # 멀티 인스턴스 IQ 시 다른 인스턴스(peer)로 위임할 RestClient 타임아웃 — auction/bid 서비스의 auction-streams 호출 기본값과 동일(2s/3s).
     iq-peer-connect-timeout-ms: ${AUCTION_STREAMS_IQ_PEER_CONNECT_TIMEOUT_MS:2000}
     iq-peer-read-timeout-ms: ${AUCTION_STREAMS_IQ_PEER_READ_TIMEOUT_MS:3000}

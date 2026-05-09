@@ -63,12 +63,12 @@ public class DlqExceptionHandler implements DeserializationExceptionHandler {
         return DeserializationHandlerResponse.CONTINUE;
     }
 
-    // 소스 토픽 이름 접두어로 대응하는 DLQ 토픽을 결정한다.
+    // 소스 토픽명과 정확히 일치할 때만 DLQ를 매핑한다(접두어 매칭은 토픽 확장 시 오매핑 위험).
     private String resolveDlqTopic(String sourceTopic) {
-        if (sourceTopic.startsWith("bid")) {
+        if (TOPIC_BID_EVENTS.equals(sourceTopic)) {
             return TOPIC_BID_DEAD_LETTER;
         }
-        if (sourceTopic.startsWith("auction")) {
+        if (TOPIC_AUCTION_EVENTS.equals(sourceTopic)) {
             return TOPIC_AUCTION_DEAD_LETTER;
         }
         return TOPIC_DEAD_LETTER;

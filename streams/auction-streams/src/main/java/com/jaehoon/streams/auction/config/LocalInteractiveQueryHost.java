@@ -31,7 +31,16 @@ public class LocalInteractiveQueryHost {
                             + applicationServer);
         }
         String host = applicationServer.substring(0, lastColon);
-        int port = Integer.parseInt(applicationServer.substring(lastColon + 1));
+        String portPart = applicationServer.substring(lastColon + 1);
+        final int port;
+        try {
+            port = Integer.parseInt(portPart);
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException(
+                    "spring.kafka.streams.properties.application.server 의 port는 숫자여야 합니다. 값="
+                            + applicationServer,
+                    e);
+        }
         return new HostInfo(host, port);
     }
 

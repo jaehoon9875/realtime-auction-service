@@ -41,6 +41,18 @@
 - **파일**: `docs/kafka.md`
 - **조치**: markdownlint MD028 대응(인용 블록 정리). 이미 반영됨.
 
+### 13. 환경변수 예시 키 오류
+- **파일**: `AuctionStreamsProperties.java`, `application.yml`, `infra/.env.example`
+- **조치**: 클래스 주석에 relaxed binding 키 명시. YAML은 `AUCTION_STREAMS_*` 우선·구 `PUNCTUATOR_INTERVAL_SECONDS` 등 fallback.
+
+### 14. 포트 파싱 예외 미래핑
+- **파일**: `LocalInteractiveQueryHost.java`
+- **조치**: port `Integer.parseInt` 실패 시 `IllegalStateException`으로 래핑.
+
+### 15. DLQ 토픽 분기에 startsWith 사용
+- **파일**: `DlqExceptionHandler.java`
+- **조치**: `TOPIC_BID_EVENTS` / `TOPIC_AUCTION_EVENTS`와 `equals` 비교.
+
 ---
 
 ## 미처리 (Major / Minor)
@@ -75,21 +87,6 @@
 - **문제**: 클래스가 비어 있음 → `bid-events` → 최고가 스토어 갱신 토폴로지 부재
 - **수정**: 토폴로지 구현 또는 로직이 다른 클래스에만 있으면 파일 정리
 
-### 13. 환경변수 예시 키 오류
-- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/config/AuctionStreamsProperties.java`
-- **문제**: 주석 예시가 `PUNCTUATOR_INTERVAL_SECONDS` — 실제 relaxed binding은 `AUCTION_STREAMS_PUNCTUATOR_INTERVAL_SECONDS`
-- **수정**: 주석을 실제 키에 맞게 수정
-
-### 14. 포트 파싱 예외 미래핑
-- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/config/LocalInteractiveQueryHost.java`
-- **문제**: `Integer.parseInt` 실패 시 `NumberFormatException` 노출
-- **수정**: `IllegalStateException`으로 래핑·메시지 통일
-
-### 15. DLQ 토픽 분기에 startsWith 사용
-- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/exception/DlqExceptionHandler.java`
-- **문제**: `startsWith("bid")` 등 → 토픽명 확장 시 오매핑
-- **수정**: `TOPIC_BID_EVENTS` 등 상수와 `equals` 비교
-
 ---
 
 ## 우선순위 요약 (미처리 기준)
@@ -101,4 +98,4 @@
 | 1순위 | #8 targetUserId 스키마 위반 | downstream 알림 라우팅 |
 | 2순위 | #7 DLQ fire-and-forget | 유실 탐지 |
 | 2순위 | #9 peer HTTP 상태 보존 | 멀티 인스턴스 IQ |
-| 3순위 | #11, #13–#15 | null 가드·주석·DLQ 분기 등 |
+| 3순위 | #11 | 토폴로지 null 가드 등 |
