@@ -98,6 +98,41 @@ redis          (독립 기동)
 
 ---
 
+## Auction Streams Interactive Query 설정
+
+`application.server`는 인스턴스 간 Interactive Query 위임 시 사용하는 "내 주소"입니다.
+멀티 인스턴스에서는 반드시 다른 인스턴스가 접근 가능한 주소를 넣어야 합니다.
+
+### 로컬 단일 실행 (권장: `local` 프로필)
+
+- `local` 프로필에서는 `KAFKA_STREAMS_APPLICATION_SERVER`를 생략해도 `localhost:${AUCTION_STREAMS_PORT}`가 기본 적용됩니다.
+- 예시:
+
+```bash
+cd streams/auction-streams
+SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+```
+
+### 로컬 멀티 인스턴스 실행
+
+- 각 인스턴스마다 서로 다른 HTTP 포트 + `KAFKA_STREAMS_APPLICATION_SERVER`를 지정해야 합니다.
+- 예시:
+
+```bash
+# instance-1
+SPRING_PROFILES_ACTIVE=local AUCTION_STREAMS_PORT=8086 KAFKA_STREAMS_APPLICATION_SERVER=localhost:8086 ./gradlew bootRun
+
+# instance-2
+SPRING_PROFILES_ACTIVE=local AUCTION_STREAMS_PORT=8087 KAFKA_STREAMS_APPLICATION_SERVER=localhost:8087 ./gradlew bootRun
+```
+
+### 주의사항 (local 외 프로필)
+
+- `local`이 아닌 프로필에서는 `KAFKA_STREAMS_APPLICATION_SERVER`를 반드시 설정해야 합니다.
+- `localhost`를 사용하면 인스턴스 간 위임이 깨질 수 있어 앱이 시작 단계에서 차단됩니다.
+
+---
+
 ## Debezium Connector 등록
 
 Debezium 컨테이너가 기동된 후 Connector를 **별도로 한 번 등록**해야 CDC 파이프라인이 시작됩니다.

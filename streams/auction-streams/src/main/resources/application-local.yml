@@ -1,0 +1,6 @@
+spring:
+  kafka:
+    streams:
+      properties:
+        # 로컬 단일 실행 편의: 별도 지정이 없으면 localhost:${server.port}를 사용한다.
+        application.server: ${KAFKA_STREAMS_APPLICATION_SERVER:localhost:${server.port}}

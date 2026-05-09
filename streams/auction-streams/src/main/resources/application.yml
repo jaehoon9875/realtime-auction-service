@@ -11,11 +11,12 @@ spring:
       application-id: ${KAFKA_STREAMS_APPLICATION_ID:auction-streams}
       properties:
         processing.guarantee: exactly_once_v2
-        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:${SCHEMA_REGISTRY_PORT:8085}}
         default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
         state.dir: ${KAFKA_STREAMS_STATE_DIR:/tmp/kafka-streams/auction-streams}
         # 멀티 인스턴스 Interactive Query 라우팅: peers가 이 host:port로 위임한다.
-        application.server: ${KAFKA_STREAMS_APPLICATION_SERVER:localhost:${server.port}}
+        # 운영/멀티 인스턴스 환경에서는 반드시 접근 가능한 주소를 명시해야 한다.
+        application.server: ${KAFKA_STREAMS_APPLICATION_SERVER}
         default.deserialization.exception.handler: com.jaehoon.streams.auction.exception.DlqExceptionHandler
 
 auction:

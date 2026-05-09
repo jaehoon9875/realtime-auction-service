@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 public class StreamsSerdeConfig {
 
     // Schema Registry 주소는 application.yml의 SCHEMA_REGISTRY_URL 환경변수 설정을 따른다.
-    @Value("${spring.kafka.streams.properties.schema.registry.url:http://localhost:8081}")
+    @Value("${spring.kafka.streams.properties.schema.registry.url:http://localhost:${SCHEMA_REGISTRY_PORT:8085}}")
     private String schemaRegistryUrl;
 
     private final ObjectMapper objectMapper;
