@@ -6,7 +6,6 @@ package com.jaehoon.streams.auction.store;
 public record AuctionMetadata(
         long endsAt,
         long startPrice,
-        String sellerId,
         String title
 ) {
 }

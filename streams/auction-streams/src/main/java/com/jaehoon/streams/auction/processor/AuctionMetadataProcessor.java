@@ -53,7 +53,6 @@ public class AuctionMetadataProcessor implements Processor<String, AuctionEvent,
         metadataStore.put(event.getAuctionId(), new AuctionMetadata(
                 event.getEndsAt(),
                 event.getStartPrice(),
-                event.getSellerId(),
                 event.getTitle()
         ));
     }

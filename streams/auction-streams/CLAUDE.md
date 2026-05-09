@@ -37,7 +37,7 @@ auction-events (KStream)
 | Store 이름 | Key | Value | 용도 |
 |-----------|-----|-------|------|
 | `auction-highest-bid` | auctionId | `{highestBid, highestBidderId, bidCount}` | 실시간 최고가 |
-| `auction-metadata` | auctionId | `{closedAt, status}` | 마감 타이머용 |
+| `auction-metadata` | auctionId | `{endsAt, startPrice, title}` | 마감 타이머용 (Punctuator가 endsAt 기준 만료 판정, title은 알림 payload) |
 
 - 상태는 RocksDB 기반 영속 State Store를 사용한다 (재시작 시 복구 가능).
 - State Store를 직접 DB로 사용하는 게 이 설계의 핵심. **Bid Service가 DB를 조회하지 않는다.**

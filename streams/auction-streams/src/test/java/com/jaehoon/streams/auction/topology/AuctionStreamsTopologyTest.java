@@ -104,7 +104,6 @@ class AuctionStreamsTopologyTest {
 
         assertThat(saved).isNotNull();
         assertThat(saved.startPrice()).isEqualTo(1000L);
-        assertThat(saved.sellerId()).isEqualTo("seller-1");
         assertThat(saved.title()).isEqualTo("테스트 경매");
         assertThat(saved.endsAt()).isEqualTo(FAR_FUTURE_ENDS_AT);
     }

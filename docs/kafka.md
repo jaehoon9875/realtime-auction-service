@@ -112,9 +112,9 @@ Schema Registry에 등록하여 버전 관리합니다.
 ```
 bid-events
     │
-    ├─▶ [KTable] State Store (RocksDB)
+    ├─▶ [KTable] State Store: auction-highest-bid (RocksDB)
     │     key: auctionId
-    │     value: { currentPrice, currentWinnerId, bidCount }
+    │     value: { highestBid, highestBidderId, bidCount }
     │     → GET /auctions/{id} 조회 시 여기서 읽음
     │
     ├─▶ [Windowed KStream] 입찰 급증 탐지
@@ -127,10 +127,15 @@ bid-events
 
 auction-events
     │
-    └─▶ [Punctuator]
-          30초 주기로 endsAt 경과 경매 체크 (WALL_CLOCK_TIME 기준)
+    └─▶ [AuctionMetadataProcessor]
+          AUCTION_CREATED → State Store: auction-metadata 저장
+          key: auctionId
+          value: { endsAt, startPrice, title }
+
+          [Punctuator] 30초 주기 (WALL_CLOCK_TIME 기준)
+          endsAt 경과 경매 체크 → auction-highest-bid 조회
           → AUCTION_CLOSED 이벤트 발행
-          → notification-events 발행 (AUCTION_CLOSED)
+          → notification-events 발행 (AUCTION_WON, AUCTION_CLOSED)
 ```
 
 > **M5 구현 결정(마감 기준):** Punctuator는 `PunctuationType.WALL_CLOCK_TIME`을 기본으로 사용한다. 이벤트 유입이 없더라도 `endsAt` 경과 경매를 주기적으로 마감 처리하기 위함이다.
