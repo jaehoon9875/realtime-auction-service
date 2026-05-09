@@ -44,13 +44,24 @@ public class AuctionStreamsClient {
 
     private Long fetchCurrentPrice(UUID auctionId) {
         try {
-            return bidStreamsRestClient.get()
-                    .uri("/state/auctions/{id}/current-price", auctionId)
+            HighestBidSnapshot snapshot = bidStreamsRestClient.get()
+                    .uri("/state/auctions/{id}/highest-bid", auctionId)
                     .retrieve()
-                    .body(Long.class);
+                    .body(HighestBidSnapshot.class);
+            return snapshot == null ? null : snapshot.highestBid();
         } catch (HttpClientErrorException.NotFound e) {
             // 첫 입찰 이전에는 현재 최고가가 없을 수 있으므로 404를 정상 케이스(null)로 취급한다.
             return null;
         }
+    }
+
+    /**
+     * auction-streams /state/auctions/{auctionId}/highest-bid 응답 매핑 DTO.
+     */
+    private record HighestBidSnapshot(
+            String auctionId,
+            long highestBid,
+            String highestBidderId,
+            int bidCount) {
     }
 }

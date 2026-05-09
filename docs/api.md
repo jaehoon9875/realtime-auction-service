@@ -309,6 +309,27 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
 
 Gateway 경로 prefix: `/api/bids/**` → bid-service `/bids/**`
 
+### 내부 연동 API (bid-service → auction-streams)
+
+입찰 검증 시 bid-service는 auction-streams Interactive Query API를 직접 호출해 현재 최고가를 확인한다.
+
+- 호출 경로: `GET /state/auctions/{auctionId}/highest-bid`
+- 목적: 현재 최고가(`highestBid`)를 기준으로 새 입찰가(`amount`) 유효성 검증
+- 호출 주체: bid-service `AuctionStreamsClient`
+- 실패 처리: Resilience4j Circuit Breaker + Retry 적용, 조회 실패 시 bid-service는 `503 Service Unavailable` 반환
+
+**Response 예시** `200 OK`
+```json
+{
+  "auctionId": "550e8400-e29b-41d4-a716-446655440000",
+  "highestBid": 1350000,
+  "highestBidderId": "7f5af560-5c94-4f1e-b94e-f3ca9f9fb53a",
+  "bidCount": 7
+}
+```
+
+`highestBid`가 bid-service의 "현재 최고가"로 사용된다.
+
 ---
 
 ### POST /api/bids

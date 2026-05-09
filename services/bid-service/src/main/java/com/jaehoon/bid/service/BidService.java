@@ -29,7 +29,7 @@ public class BidService {
     private final AuctionStreamsClient auctionStreamsClient;
     private final BidTransactionService bidTransactionService;
 
-    // 검증은 트랜잭션 밖에서 수행하고, DB 저장만 BidTransactionService에 위임한다.
+    // 경매/입찰 유효성 검증 후 입찰 저장+Outbox 저장을 위임한다 (검증은 트랜잭션 밖에서 수행).
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public BidResponse placeBid(UUID bidderId, UUID auctionId, Long amount) {
         AuctionSnapshot auction = auctionServiceClient.getAuction(auctionId);
@@ -43,11 +43,13 @@ public class BidService {
         return bidTransactionService.saveBidWithOutbox(bidderId, auctionId, amount);
     }
 
+    // 내 입찰 목록을 최신순(placedAt desc)으로 조회해 API 응답 DTO로 변환한다.
     public Page<BidResponse> getMyBids(UUID bidderId, Pageable pageable) {
         return bidRepository.findByBidderIdOrderByPlacedAtDesc(bidderId, pageable)
                 .map(BidResponse::from);
     }
 
+    // 경매가 진행 중인지와 마감 여부를 검사해, 입찰 가능 시간대인지 판단한다.
     private void validateAuctionOpen(AuctionSnapshot auction) {
         if (!AUCTION_STATUS_ONGOING.equals(auction.status())) {
             throw new BadRequestException("진행 중인 경매가 아닙니다.");
@@ -58,6 +60,7 @@ public class BidService {
         }
     }
 
+    // 첫 입찰(null currentPrice)은 시작가와 비교하고, 이후 입찰은 현재 최고가보다 큰지 검증한다.
     private void validateBidAmount(AuctionSnapshot auction, Long amount, Long currentPrice) {
         if (currentPrice == null) {
             if (amount <= auction.startPrice()) {
