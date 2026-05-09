@@ -197,7 +197,7 @@ public class StateQueryService {
             if (e.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 경매의 입찰 상태가 없습니다.", e);
             }
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "다른 인스턴스 IQ 조회 실패", e);
+            throw new ResponseStatusException(e.getStatusCode(), "다른 인스턴스 IQ 조회 실패", e);
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "다른 인스턴스 IQ 조회 실패", e);
         }
@@ -221,7 +221,7 @@ public class StateQueryService {
             if (e.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 경매 메타데이터가 없습니다.", e);
             }
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "다른 인스턴스 IQ 조회 실패", e);
+            throw new ResponseStatusException(e.getStatusCode(), "다른 인스턴스 IQ 조회 실패", e);
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "다른 인스턴스 IQ 조회 실패", e);
         }

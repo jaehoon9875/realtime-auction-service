@@ -49,6 +49,22 @@
 - **파일**: `LocalInteractiveQueryHost.java`
 - **조치**: port `Integer.parseInt` 실패 시 `IllegalStateException`으로 래핑.
 
+### 10. AuctionMetadata 필드가 설계 계약과 불일치
+- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/store/AuctionMetadata.java`
+- **조치**: `sellerId` 제거. 현재 필드는 `{endsAt, startPrice, title}` — Punctuator 마감 판정(`endsAt`)·시드 정책(`startPrice`)·알림 payload(`title`)에 필요한 필드만 유지.
+
+### 12. BidStreamsTopology 미구현
+- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/topology/BidStreamsTopology.java`
+- **조치**: 토폴로지 구현 완료. BidStateProcessor(별도 파일) 분리. `bid-events` → BID_PLACED 필터 → BidStateProcessor(auction-highest-bid 갱신·OUTBID 알림) → `notification-events`. 1분 tumbling window 급증 탐지(로깅) 브랜치 추가. BidStreamsTopologyTest 7개 케이스 통과.
+
+### 9. peer 에러 코드 일괄 502 변환
+- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/service/StateQueryService.java`
+- **조치**: `RestClientResponseException` 발생 시 `e.getStatusCode()`로 원본 상태 코드 전달. 404만 별도 처리, 나머지(429·503 등)는 peer 상태 그대로 반환.
+
+### 11. AuctionStreamsTopology event null 체크 누락
+- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/topology/AuctionStreamsTopology.java`
+- **조치**: `filter` 조건에 `event != null &&` null 가드 추가.
+
 ### 15. DLQ 토픽 분기에 startsWith 사용
 - **파일**: `DlqExceptionHandler.java`
 - **조치**: `TOPIC_BID_EVENTS` / `TOPIC_AUCTION_EVENTS`와 `equals` 비교.
@@ -67,25 +83,6 @@
 - **문제**: `setTargetUserId(auctionId)` — notification-service가 사용자 ID로 해석 시 오작동 가능
 - **수정**: 스키마에 라우팅 필드 추가, 또는 `targetUserId` 미설정·`auctionId`만 사용하는 계약 정리
 
-### 9. peer 에러 코드 일괄 502 변환
-- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/service/StateQueryService.java`
-- **문제**: 404 외 peer 에러를 502로 통일 → 429/503 등 원본 상태 손실
-- **수정**: `RestClientResponseException` 시 `e.getStatusCode()` 전달
-
-### 10. AuctionMetadata 필드가 설계 계약과 불일치
-- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/store/AuctionMetadata.java`
-- **문제**: `{endsAt, startPrice, sellerId, title}` vs 설계 `{closedAt, status}` 등 계약 불일치
-- **수정**: 메타데이터 모델·토폴로지·스토어 사용처 일괄 정리
-
-### 11. AuctionStreamsTopology event null 체크 누락
-- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/topology/AuctionStreamsTopology.java`
-- **문제**: `event.getEventType()` 전 null 가드 없음
-- **수정**: `event != null && EVENT_AUCTION_CREATED.equals(event.getEventType())` 등
-
-### 12. BidStreamsTopology 미구현
-- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/topology/BidStreamsTopology.java`
-- **문제**: 클래스가 비어 있음 → `bid-events` → 최고가 스토어 갱신 토폴로지 부재
-- **수정**: 토폴로지 구현 또는 로직이 다른 클래스에만 있으면 파일 정리
 
 ---
 
@@ -93,8 +90,6 @@
 
 | 우선순위 | 항목 | 이유 |
 |---------|------|------|
-| 1순위 | #10 AuctionMetadata 계약 불일치 | State Store·마감 로직 계약 |
-| 1순위 | #12 BidStreamsTopology 미구현 | 입찰 스트림 핵심 |
 | 1순위 | #8 targetUserId 스키마 위반 | downstream 알림 라우팅 |
 | 2순위 | #7 DLQ fire-and-forget | 유실 탐지 |
 | 2순위 | #9 peer HTTP 상태 보존 | 멀티 인스턴스 IQ |

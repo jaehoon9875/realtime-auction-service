@@ -47,7 +47,7 @@ public class AuctionStreamsTopology {
         ));
 
         builder.stream(TOPIC_AUCTION_EVENTS, Consumed.with(Serdes.String(), auctionEventSerde))
-                .filter((key, event) -> EVENT_AUCTION_CREATED.equals(event.getEventType()))
+                .filter((key, event) -> event != null && EVENT_AUCTION_CREATED.equals(event.getEventType()))
                 .process(
                         () -> new AuctionMetadataProcessor(properties.punctuatorIntervalSeconds()),
                         Named.as(PROCESSOR_AUCTION_METADATA),
