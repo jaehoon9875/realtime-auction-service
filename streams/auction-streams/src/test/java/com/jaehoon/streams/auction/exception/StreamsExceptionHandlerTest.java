@@ -13,7 +13,7 @@ class StreamsExceptionHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new StreamsExceptionHandler(new AuctionStreamsProperties(5, 3));
+        handler = new StreamsExceptionHandler(new AuctionStreamsProperties(5, 3, 2000, 3000));
     }
 
     @Test
@@ -47,7 +47,7 @@ class StreamsExceptionHandlerTest {
     @Test
     void maxFailures_1이면_첫_번째_실패에서_바로_SHUTDOWN_CLIENT를_반환한다() {
         StreamsExceptionHandler strictHandler = new StreamsExceptionHandler(
-                new AuctionStreamsProperties(5, 1)
+                new AuctionStreamsProperties(5, 1, 2000, 3000)
         );
 
         assertThat(strictHandler.handle(new RuntimeException("1차 실패")))

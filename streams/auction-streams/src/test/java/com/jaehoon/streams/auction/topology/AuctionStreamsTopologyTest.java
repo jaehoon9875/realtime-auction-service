@@ -59,7 +59,7 @@ class AuctionStreamsTopologyTest {
         Serde<AuctionBidState> bidStateSerde = jsonSerde(mapper, AuctionBidState.class);
 
         // punctuatorIntervalSeconds=1 로 짧게 설정해 테스트에서 빠르게 발화
-        AuctionStreamsProperties props = new AuctionStreamsProperties(1, 3);
+        AuctionStreamsProperties props = new AuctionStreamsProperties(1, 3, 2000, 3000);
         StreamsBuilder builder = new StreamsBuilder();
 
         AuctionStreamsTopology topology = new AuctionStreamsTopology(
