@@ -35,6 +35,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class AuctionStreamsTopologyTest {
 
+    /** 이벤트 occurredAt 등 고정 시각(플래키 방지). */
+    private static final Instant BASE_TIME = Instant.parse("2026-01-01T00:00:00Z");
+    /**
+     * 미마감 경매용 endsAt. TestDriver wall-clock이 호스트 시각부터라 2026-01 기준 미래 시각은
+     * 실행일이 지나면 만료로 오인될 수 있어, 원거 미래 epoch를 고정한다.
+     */
+    private static final long FAR_FUTURE_ENDS_AT = Instant.parse("2099-06-15T12:00:00Z").toEpochMilli();
+
     private TopologyTestDriver testDriver;
     private TestInputTopic<String, AuctionEvent> auctionInput;
     private TestOutputTopic<String, NotificationEvent> notificationOutput;
@@ -90,8 +98,7 @@ class AuctionStreamsTopologyTest {
 
     @Test
     void AUCTION_CREATED_이벤트는_메타데이터_스토어에_저장된다() {
-        long futureEndsAt = Instant.now().plusSeconds(3600).toEpochMilli();
-        auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, futureEndsAt));
+        auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, FAR_FUTURE_ENDS_AT));
 
         AuctionMetadata saved = metadataStore.get("auction-1");
 
@@ -99,13 +106,13 @@ class AuctionStreamsTopologyTest {
         assertThat(saved.startPrice()).isEqualTo(1000L);
         assertThat(saved.sellerId()).isEqualTo("seller-1");
         assertThat(saved.title()).isEqualTo("테스트 경매");
-        assertThat(saved.endsAt()).isEqualTo(futureEndsAt);
+        assertThat(saved.endsAt()).isEqualTo(FAR_FUTURE_ENDS_AT);
     }
 
     @Test
     void AUCTION_CREATED_아닌_이벤트는_스토어에_저장되지_않는다() {
         auctionInput.pipeInput("auction-1",
-                auctionEvent("auction-1", "AUCTION_UPDATED", Instant.now().plusSeconds(3600).toEpochMilli()));
+                auctionEvent("auction-1", "AUCTION_UPDATED", FAR_FUTURE_ENDS_AT));
 
         assertThat(metadataStore.get("auction-1")).isNull();
         assertThat(notificationOutput.isEmpty()).isTrue();
@@ -113,7 +120,7 @@ class AuctionStreamsTopologyTest {
 
     @Test
     void 마감된_경매는_AUCTION_CLOSED_알림이_발행된다() {
-        long pastEndsAt = Instant.now().minusSeconds(60).toEpochMilli();
+        long pastEndsAt = BASE_TIME.minusSeconds(60).toEpochMilli();
         auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, pastEndsAt));
 
         testDriver.advanceWallClockTime(Duration.ofSeconds(2));
@@ -125,7 +132,7 @@ class AuctionStreamsTopologyTest {
 
     @Test
     void 마감_후_메타데이터는_스토어에서_삭제된다() {
-        long pastEndsAt = Instant.now().minusSeconds(60).toEpochMilli();
+        long pastEndsAt = BASE_TIME.minusSeconds(60).toEpochMilli();
         auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, pastEndsAt));
 
         testDriver.advanceWallClockTime(Duration.ofSeconds(2));
@@ -136,7 +143,7 @@ class AuctionStreamsTopologyTest {
 
     @Test
     void 낙찰자가_있는_마감_경매는_AUCTION_WON과_AUCTION_CLOSED_모두_발행된다() {
-        long pastEndsAt = Instant.now().minusSeconds(60).toEpochMilli();
+        long pastEndsAt = BASE_TIME.minusSeconds(60).toEpochMilli();
         auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, pastEndsAt));
         // BidStreamsTopology 미구현 상태이므로 낙찰자 상태를 직접 주입
         bidStateStore.put("auction-1", new AuctionBidState(50000L, "bidder-99", 3));
@@ -151,7 +158,7 @@ class AuctionStreamsTopologyTest {
 
     @Test
     void AUCTION_WON_알림의_수신자는_낙찰자_ID다() {
-        long pastEndsAt = Instant.now().minusSeconds(60).toEpochMilli();
+        long pastEndsAt = BASE_TIME.minusSeconds(60).toEpochMilli();
         auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, pastEndsAt));
         bidStateStore.put("auction-1", new AuctionBidState(50000L, "bidder-99", 3));
 
@@ -168,7 +175,7 @@ class AuctionStreamsTopologyTest {
     @Test
     void AUCTION_CLOSED_알림의_수신자는_경매_ID다() {
         // notification-service가 auctionId를 기준으로 구독자에게 라우팅하는 구조
-        long pastEndsAt = Instant.now().minusSeconds(60).toEpochMilli();
+        long pastEndsAt = BASE_TIME.minusSeconds(60).toEpochMilli();
         auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, pastEndsAt));
 
         testDriver.advanceWallClockTime(Duration.ofSeconds(2));
@@ -182,7 +189,7 @@ class AuctionStreamsTopologyTest {
 
     @Test
     void 낙찰자가_없는_마감_경매는_AUCTION_CLOSED만_발행된다() {
-        long pastEndsAt = Instant.now().minusSeconds(60).toEpochMilli();
+        long pastEndsAt = BASE_TIME.minusSeconds(60).toEpochMilli();
         auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, pastEndsAt));
         // bidStateStore에 아무것도 넣지 않음 = 낙찰자 없음
 
@@ -195,8 +202,7 @@ class AuctionStreamsTopologyTest {
 
     @Test
     void 아직_마감되지_않은_경매는_Punctuator_발화_후에도_알림이_발행되지_않는다() {
-        long futureEndsAt = Instant.now().plusSeconds(3600).toEpochMilli();
-        auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, futureEndsAt));
+        auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, FAR_FUTURE_ENDS_AT));
 
         testDriver.advanceWallClockTime(Duration.ofSeconds(2));
 
@@ -213,7 +219,7 @@ class AuctionStreamsTopologyTest {
                 .setTitle("테스트 경매")
                 .setStartPrice(1000L)
                 .setEndsAt(endsAt)
-                .setOccurredAt(Instant.now().toEpochMilli())
+                .setOccurredAt(BASE_TIME.toEpochMilli())
                 .build();
     }
 

@@ -33,6 +33,14 @@
 - **파일**: `RestClientConfig.java`, `AuctionStreamsProperties`, `application.yml`, `infra/.env.example`
 - **조치**: `SimpleClientHttpRequestFactory`로 connect/read 타임아웃 적용. 기본값 2000ms/3000ms(`AUCTION_STREAMS_IQ_PEER_*`), auction-service·bid-service의 auction-streams 호출과 동일.
 
+### 16. 테스트에서 Instant.now() 사용
+- **파일**: `AuctionStreamsTopologyTest.java`
+- **조치**: `BASE_TIME`으로 `occurredAt`·과거 `endsAt` 고정. 미마감용 `endsAt`은 `TopologyTestDriver` wall-clock이 호스트 시각 기준이라 `2099-06-15` 고정(`FAR_FUTURE_ENDS_AT`)으로 오만료 방지.
+
+### 17. kafka.md 블록쿼트 내 빈 줄
+- **파일**: `docs/kafka.md`
+- **조치**: markdownlint MD028 대응(인용 블록 정리). 이미 반영됨.
+
 ---
 
 ## 미처리 (Major / Minor)
@@ -82,16 +90,6 @@
 - **문제**: `startsWith("bid")` 등 → 토픽명 확장 시 오매핑
 - **수정**: `TOPIC_BID_EVENTS` 등 상수와 `equals` 비교
 
-### 16. 테스트에서 Instant.now() 사용
-- **파일**: `streams/auction-streams/src/test/java/com/jaehoon/streams/auction/topology/AuctionStreamsTopologyTest.java`
-- **문제**: 플래키 위험
-- **수정**: 고정 `BASE_TIME` 기준 상대 시각
-
-### 17. kafka.md 블록쿼트 내 빈 줄
-- **파일**: `docs/kafka.md`
-- **문제**: 블록쿼트 내부 빈 줄(`>` 단독 줄 등) → markdownlint MD028
-- **수정**: 인용 블록 내 불필요한 빈 줄 제거
-
 ---
 
 ## 우선순위 요약 (미처리 기준)
@@ -103,4 +101,4 @@
 | 1순위 | #8 targetUserId 스키마 위반 | downstream 알림 라우팅 |
 | 2순위 | #7 DLQ fire-and-forget | 유실 탐지 |
 | 2순위 | #9 peer HTTP 상태 보존 | 멀티 인스턴스 IQ |
-| 3순위 | #11, #13–#17 | null 가드·문서·테스트 등 |
+| 3순위 | #11, #13–#15 | null 가드·주석·DLQ 분기 등 |
