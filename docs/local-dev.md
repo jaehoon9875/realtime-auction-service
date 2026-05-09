@@ -156,10 +156,10 @@ cd infra/avro && ./register-schemas.sh
 
 ```bash
 # Auction DB
-psql -h localhost -p 5432 -U appuser -d auction
+psql -h localhost -p 5432 -U appuser -d auction_db
 
 # Bid DB
-psql -h localhost -p 5433 -U appuser -d bid
+psql -h localhost -p 5433 -U appuser -d bid_db
 
 # User DB
 psql -h localhost -p 5434 -U appuser -d user_db

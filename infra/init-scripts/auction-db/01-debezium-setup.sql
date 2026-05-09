@@ -1,7 +1,7 @@
 -- Debezium 사용자 생성/암호 설정은 00-debezium-user.sh에서 환경변수로 처리
 
--- auction DB 접근 및 outbox_events 테이블 읽기 권한 부여
-GRANT CONNECT ON DATABASE auction TO debezium;
+-- auction_db 접근 및 outbox_events 테이블 읽기 권한 부여 (docker-compose POSTGRES_DB 와 동일)
+GRANT CONNECT ON DATABASE auction_db TO debezium;
 GRANT USAGE ON SCHEMA public TO debezium;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO debezium;
 

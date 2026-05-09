@@ -7,7 +7,7 @@
     "database.hostname": "postgres-bid",
     "database.port": "5432",
     "database.user": "debezium",
-    "database.dbname": "bid",
+    "database.dbname": "bid_db",
 
     "topic.prefix": "bid",
 

@@ -7,7 +7,7 @@
     "database.hostname": "postgres-auction",
     "database.port": "5432",
     "database.user": "debezium",
-    "database.dbname": "auction",
+    "database.dbname": "auction_db",
 
     "topic.prefix": "auction",
 
