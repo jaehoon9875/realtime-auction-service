@@ -69,6 +69,10 @@ public class KafkaStreamsLifecycleManager implements SmartLifecycle {
             log.debug("KafkaStreams is already stopped; skip shutdown");
             return;
         }
+        if (currentState == KafkaStreams.State.ERROR) {
+            // ERROR 상태에서도 close 는 안전하게 호출 가능하므로 종료는 진행하고, 운영 가시성을 위해 상태를 명시적으로 남긴다.
+            log.warn("KafkaStreams is in ERROR state; proceed with graceful shutdown");
+        }
 
         try {
             log.info("KafkaStreams shutdown started (state={}, timeout={})", currentState, CLOSE_TIMEOUT);
