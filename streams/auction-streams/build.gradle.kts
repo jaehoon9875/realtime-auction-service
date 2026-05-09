@@ -29,7 +29,9 @@ dependencies {
     implementation("io.confluent:kafka-schema-registry-client:$confluentVersion") // Schema Registry 연동에 사용
 
     // --- Test ---
+    testImplementation("org.springframework.boot:spring-boot-starter-test") // JUnit5 + Mockito + AssertJ
     testImplementation("org.springframework.kafka:spring-kafka-test") // Embedded Kafka 기반 테스트 유틸에 사용
+    testImplementation("org.apache.kafka:kafka-streams-test-utils") // TopologyTestDriver 제공
 }
 
 val generateAvro = tasks.register<GenerateAvroJavaTask>("generateAvro") {
