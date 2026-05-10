@@ -172,8 +172,7 @@ class AuctionStreamsTopologyTest {
     }
 
     @Test
-    void AUCTION_CLOSED_알림의_수신자는_경매_ID다() {
-        // notification-service가 auctionId를 기준으로 구독자에게 라우팅하는 구조
+    void AUCTION_CLOSED_알림은_targetAuctionId로_구독자_브로드캐스트한다() {
         long pastEndsAt = BASE_TIME.minusSeconds(60).toEpochMilli();
         auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, pastEndsAt));
 
@@ -183,7 +182,8 @@ class AuctionStreamsTopologyTest {
                 .filter(e -> NOTIFICATION_AUCTION_CLOSED.equals(e.getNotificationType()))
                 .findFirst().orElseThrow();
 
-        assertThat(closedEvent.getTargetUserId().toString()).isEqualTo("auction-1");
+        assertThat(closedEvent.getTargetUserId()).isNull();
+        assertThat(closedEvent.getTargetAuctionId()).isEqualTo("auction-1");
     }
 
     @Test

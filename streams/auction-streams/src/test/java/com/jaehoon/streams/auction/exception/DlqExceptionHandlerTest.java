@@ -15,6 +15,7 @@ import java.util.Map;
 
 import static com.jaehoon.streams.auction.constants.StreamsConstants.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -131,7 +132,7 @@ class DlqExceptionHandlerTest {
     private ProducerRecord<?, ?> captureRecord(MockedConstruction<KafkaProducer> mocked) {
         KafkaProducer<?, ?> mockProducer = mocked.constructed().get(0);
         ArgumentCaptor<ProducerRecord> captor = ArgumentCaptor.forClass(ProducerRecord.class);
-        verify(mockProducer).send(captor.capture());
+        verify(mockProducer).send(captor.capture(), any());
         return captor.getValue();
     }
 }

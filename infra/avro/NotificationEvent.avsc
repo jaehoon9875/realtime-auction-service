@@ -6,7 +6,8 @@
   "fields": [
     { "name": "eventId", "type": "string" },
     { "name": "notificationType", "type": "string" },
-    { "name": "targetUserId", "type": "string" },
+    { "name": "targetUserId",    "type": ["null", "string"], "default": null },
+    { "name": "targetAuctionId", "type": ["null", "string"], "default": null },
     { "name": "auctionId", "type": "string" },
     { "name": "payload", "type": { "type": "map", "values": "string" } },
     { "name": "occurredAt", "type": "long" }

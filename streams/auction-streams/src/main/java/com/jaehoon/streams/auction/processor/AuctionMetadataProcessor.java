@@ -96,6 +96,7 @@ public class AuctionMetadataProcessor implements Processor<String, AuctionEvent,
                 .setEventId(UUID.randomUUID().toString())
                 .setNotificationType(NOTIFICATION_AUCTION_WON)
                 .setTargetUserId(bidState.highestBidderId())
+                .setTargetAuctionId(null)
                 .setAuctionId(auctionId)
                 .setPayload(Map.of(
                         "highestBid", String.valueOf(bidState.highestBid()),
@@ -106,10 +107,12 @@ public class AuctionMetadataProcessor implements Processor<String, AuctionEvent,
     }
 
     private NotificationEvent buildAuctionClosedEvent(String auctionId, AuctionMetadata metadata, long timestamp) {
+        // 경매 구독자 전체 대상 브로드캐스트 — notification-service가 targetAuctionId로 구독자 라우팅
         return NotificationEvent.newBuilder()
                 .setEventId(UUID.randomUUID().toString())
                 .setNotificationType(NOTIFICATION_AUCTION_CLOSED)
-                .setTargetUserId(auctionId)  // 경매 구독자 전체 대상 — notification-service가 auctionId로 구독자 라우팅
+                .setTargetUserId(null)
+                .setTargetAuctionId(auctionId)
                 .setAuctionId(auctionId)
                 .setPayload(Map.of("title", metadata.title()))
                 .setOccurredAt(timestamp)

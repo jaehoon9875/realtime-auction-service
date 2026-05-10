@@ -59,6 +59,7 @@ public class BidStateProcessor implements Processor<String, BidEvent, String, No
                 .setEventId(UUID.randomUUID().toString())
                 .setNotificationType(NOTIFICATION_OUTBID)
                 .setTargetUserId(prev.highestBidderId())
+                .setTargetAuctionId(null)
                 .setAuctionId(auctionId)
                 .setPayload(Map.of(
                         "newHighestBid", String.valueOf(newBid.getAmount()),
