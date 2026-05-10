@@ -29,7 +29,7 @@ public record AuctionStreamsProperties(
         }
         if (iqPeerConnectTimeoutMs <= 0 || iqPeerReadTimeoutMs <= 0) {
             throw new IllegalStateException(
-                    "auction.streams iq-peer-connect-timeout-ms / iq-peer-read-timeout-ms 는 0보다 커야 합니다.");
+                    "auction.streams.iq-peer-connect-timeout-ms / auction.streams.iq-peer-read-timeout-ms 는 0보다 커야 합니다.");
         }
     }
 }
