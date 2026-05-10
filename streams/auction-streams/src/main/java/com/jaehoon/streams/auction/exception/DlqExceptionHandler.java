@@ -54,9 +54,13 @@ public class DlqExceptionHandler implements DeserializationExceptionHandler {
                     .add("source-offset", String.valueOf(record.offset()).getBytes(StandardCharsets.UTF_8))
                     .add("error-message", String.valueOf(exception).getBytes(StandardCharsets.UTF_8))
                     .add("failed-at", String.valueOf(System.currentTimeMillis()).getBytes(StandardCharsets.UTF_8));
-            producer.send(dlqRecord);
+            producer.send(dlqRecord, (metadata, ex) -> {
+                if (ex != null) {
+                    log.error("DLQ 발행 실패 — 이벤트 유실 가능성 있음. topic: {}", dlqTopic, ex);
+                }
+            });
         } catch (Exception e) {
-            log.error("DLQ 발행 실패 — 이벤트 유실 가능성 있음. topic: {}", dlqTopic, e);
+            log.error("DLQ 레코드 생성 실패 — 이벤트 유실 가능성 있음. topic: {}", dlqTopic, e);
         }
 
         // CONTINUE: 해당 레코드를 건너뛰고 다음 레코드 처리 재개
