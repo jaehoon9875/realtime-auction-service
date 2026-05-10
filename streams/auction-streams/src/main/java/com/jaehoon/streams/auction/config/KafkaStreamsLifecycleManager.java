@@ -76,8 +76,10 @@ public class KafkaStreamsLifecycleManager implements SmartLifecycle {
 
         try {
             log.info("KafkaStreams shutdown started (state={}, timeout={})", currentState, CLOSE_TIMEOUT);
-            kafkaStreams.close(CLOSE_TIMEOUT);
-            log.info("KafkaStreams shutdown completed with timeout={}", CLOSE_TIMEOUT);
+            // StreamsBuilderFactoryBean에 위임해 내부 상태(isRunning 등)도 일관되게 관리한다.
+            streamsBuilderFactoryBean.setCloseTimeout((int) CLOSE_TIMEOUT.toSeconds());
+            streamsBuilderFactoryBean.stop();
+            log.info("KafkaStreams shutdown completed (timeout={})", CLOSE_TIMEOUT);
         } catch (Exception e) {
             log.warn("KafkaStreams graceful shutdown failed", e);
         }
