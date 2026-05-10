@@ -12,7 +12,9 @@ if [[ -f "${SCRIPT_DIR}/../.env" ]]; then
   set +a
 fi
 
-REGISTRY_URL="${SCHEMA_REGISTRY_URL:-http://localhost:${SCHEMA_REGISTRY_PORT:-8085}}"
+# 호스트에서 스크립트를 실행하는 기본 사용 경로를 우선한다.
+# SCHEMA_REGISTRY_PUBLIC_URL > SCHEMA_REGISTRY_URL > localhost:${SCHEMA_REGISTRY_PORT}
+REGISTRY_URL="${SCHEMA_REGISTRY_PUBLIC_URL:-${SCHEMA_REGISTRY_URL:-http://localhost:${SCHEMA_REGISTRY_PORT:-8085}}}"
 
 register_subject() {
   local subject="$1"
@@ -30,3 +32,4 @@ register_subject() {
 
 register_subject "auction-events-value" "${SCRIPT_DIR}/AuctionEvent.avsc"
 register_subject "bid-events-value" "${SCRIPT_DIR}/BidEvent.avsc"
+register_subject "notification-events-value" "${SCRIPT_DIR}/NotificationEvent.avsc"

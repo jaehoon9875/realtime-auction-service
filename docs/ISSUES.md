@@ -26,9 +26,8 @@
 
 | # | 심각도 | 항목 | 내용 | 등록일 |
 |---|--------|------|------|--------|
-| 3 | 🟡 중간 | State Store 초기 `currentPrice` | 입찰 0건일 때 `GET /api/auctions/{id}`의 `currentPrice`를 State Store에서 어떻게 **시작가와 일치**시킬지(예: `auction-events` 시드, 기본값 규칙) 문서에 없음. | 2026-05-05 |
+| 8 | 🟡 중간 | Kafka/Confluent 버전 정책 | M5 구현·검증 기간에는 Confluent Platform 7.7 기준(브로커/Schema Registry/클라이언트 호환 조합)으로 고정 운영. M5 완료 후 최신 안정 버전 업그레이드를 별도 태스크로 수행하고 E2E/회귀 테스트로 검증한다. | 2026-05-07 |
 | 4 | 🟢 낮음 | `BID_REJECTED` 클라이언트 알림 | `docs/kafka.md`에 `BID_REJECTED` 이벤트는 있으나 `docs/api.md` WebSocket 메시지에 **입찰 거부** 타입 없음. 실시간 거부 UX 미정. | 2026-05-05 |
-| 5 | 🟡 중간 | Avro/Json 컨버터 불일치 | `docker-compose.yml` Kafka Connect 기본값은 `AvroConverter`이나 `auction-outbox-connector.json`, `bid-outbox-connector.json` 모두 `JsonConverter`로 명시 오버라이드. Avro 스키마(`infra/avro/`)는 등록 스크립트만 작성된 상태. **M5 Kafka Streams 구현 시점에 AvroConverter 전환 여부 결정** (전환 시 커넥터에 `schema.registry.url` + `table.expand.json.payload=true` 추가 필요). | 2026-05-05 |
 
 ---
 
@@ -36,6 +35,8 @@
 
 | # | 심각도 | 마일스톤 | 제목 | 해결일 | 해결 방법 |
 |---|--------|---------|------|--------|-----------|
+| 7 | 🟡 중간 | M5 · streams/docs | State Store 초기 `currentPrice` 정책 부재 | 2026-05-07 | M5 구현 정책을 확정해 `docs/kafka.md`에 반영. `AUCTION_CREATED.startPrice`를 State Store 초기 `currentPrice` 시드로 사용하고, 입찰 0건 경매도 조회값이 시작가와 일치하도록 명시. 마감 Punctuator 기준은 `WALL_CLOCK_TIME`으로 확정. |
+| 6 | 🟡 중간 | M5 · infra/docs | Avro/Json 컨버터 불일치 | 2026-05-07 | `auction-outbox-connector.json`, `bid-outbox-connector.json`를 Avro 기준으로 통일(`key.converter=StringConverter`, `value.converter=AvroConverter`, `transforms.outbox.table.expand.json.payload=true`). `value.converter.schema.registry.url`는 템플릿 하드코딩을 제거하고 `register-connectors.sh`에서 `SCHEMA_REGISTRY_URL` 환경변수로 주입하도록 변경. `--recreate`, `--delete-only` 옵션 추가 및 `infra/.env.example`/문서 동기화. |
 | 2 | 🟡 중간 | docs · auction-service | 마감 후 `auctions.status` 동기화 | 2026-05-05 | **역할 분리**: DB **`CLOSED`는 Auction Service** (`endsAt` 경과 시 스케줄러·명시적 전이). Streams **`AUCTION_CLOSED`/notification** 은 알림·실시간용. 입찰 **`endsAt` + 상태** 검증. 문서: `docs/architecture.md`, `docs/kafka.md`, `services/CLAUDE.md`. **구현**: `AuctionEndScheduler`·`AuctionService.closeOverdueAuctions()`, `findIdsOngoingPastEnd`, 설정 `app.auction.schedule.ongoing-to-closed-ms`(기본 60초), Outbox `AUCTION_STATUS_CHANGED`. |
 | 5 | 🟢 낮음 | infra | CI 트리거 중복 | 2026-05-05 | `push: branches`에서 `feature/**`, `fix/**` 제거. PR 브랜치는 `pull_request` 트리거만으로 커버. |
 | 1 | 🟡 중간 | auction-service | 경매 상태 정합 + `startsAt`·PENDING→ONGOING (구 보류 이슈 1) | 2026-05-05 | **용어·종료**: 코드·DB 진행 중 상태 **`ONGOING`** 통일, 종료는 **`CLOSED`** 만 (`CANCELLED`/`AUCTION_CANCELLED` 문서·설명 정리). Flyway **`V4`** CHECK·`ACTIVE`→`ONGOING` 마이그레이션. **시작·전환**: **`starts_at`** 컬럼·API **`startsAt`** (생략 시 생성 시각), 생성 시 `startsAt > now` → **`PENDING`**, 그 외 **`ONGOING`**. **`AuctionStartScheduler`**·`activateDueAuctions()` 로 예약 경매 시작 시 **`AUCTION_STATUS_CHANGED`** Outbox. Outbox/Avro에 **`startsAt`** epoch, `docs/schema.md`·`api.md`·`kafka.md`·`CLAUDE.md` 동기화. 입찰 시점 검증(Bid Service)은 후속. |

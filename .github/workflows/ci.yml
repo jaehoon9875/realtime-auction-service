@@ -30,9 +30,9 @@ jobs:
           # - service: notification-service
           #   path: services/notification-service
           #   gradle_task: :services:notification-service
-          # - service: auction-streams
-          #   path: streams/auction-streams
-          #   gradle_task: :streams:auction-streams
+          - service: auction-streams
+            path: streams/auction-streams
+            gradle_task: :streams:auction-streams
       fail-fast: false  # 한 서비스 실패해도 나머지는 계속 실행
 
     steps:

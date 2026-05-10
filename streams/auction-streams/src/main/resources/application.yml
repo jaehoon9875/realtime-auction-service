@@ -1,0 +1,29 @@
+server:
+  # API Gateway(8080)·타 서비스(8081~8084)와 겹치지 않도록 기본 8086. 로컬에서만 덮어쓸 때 AUCTION_STREAMS_PORT 사용.
+  port: ${AUCTION_STREAMS_PORT:8086}
+
+spring:
+  application:
+    name: auction-streams
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    streams:
+      application-id: ${KAFKA_STREAMS_APPLICATION_ID:auction-streams}
+      properties:
+        processing.guarantee: exactly_once_v2
+        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:${SCHEMA_REGISTRY_PORT:8085}}
+        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        state.dir: ${KAFKA_STREAMS_STATE_DIR:/tmp/kafka-streams/auction-streams}
+        # 멀티 인스턴스 Interactive Query 라우팅: peers가 이 host:port로 위임한다.
+        # 운영/멀티 인스턴스 환경에서는 반드시 접근 가능한 주소를 명시해야 한다.
+        application.server: ${KAFKA_STREAMS_APPLICATION_SERVER}
+        default.deserialization.exception.handler: com.jaehoon.streams.auction.exception.DlqExceptionHandler
+
+auction:
+  streams:
+    # 우선순위: AUCTION_STREAMS_* (Spring 표준) → 구 env 예시(PUNCTUATOR_INTERVAL_SECONDS 등)
+    punctuator-interval-seconds: ${AUCTION_STREAMS_PUNCTUATOR_INTERVAL_SECONDS:${PUNCTUATOR_INTERVAL_SECONDS:30}}
+    max-failures: ${AUCTION_STREAMS_MAX_FAILURES:${STREAMS_MAX_FAILURES:5}}
+    # 멀티 인스턴스 IQ 시 다른 인스턴스(peer)로 위임할 RestClient 타임아웃 — auction/bid 서비스의 auction-streams 호출 기본값과 동일(2s/3s).
+    iq-peer-connect-timeout-ms: ${AUCTION_STREAMS_IQ_PEER_CONNECT_TIMEOUT_MS:2000}
+    iq-peer-read-timeout-ms: ${AUCTION_STREAMS_IQ_PEER_READ_TIMEOUT_MS:3000}

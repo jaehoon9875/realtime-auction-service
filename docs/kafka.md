@@ -48,8 +48,8 @@ Schema Registry에 등록하여 버전 관리합니다.
 | AUCTION_STATUS_CHANGED | 상태 전이 (PENDING→ONGOING, ONGOING→CLOSED) — Auction Service Outbox/Debezium |
 | AUCTION_CLOSED | 경매 마감 (Kafka Streams Punctuator) |
 
+> **M5 구현 결정(시드 정책):** Streams는 `AUCTION_CREATED.startPrice`를 기준으로 State Store의 초기 `currentPrice`를 시드한다. 입찰 0건인 경매도 State Store 조회값이 시작가와 일치해야 한다.
 > 경매 취소도 DB `status`는 `CLOSED`로 통일한다. 별도 `AUCTION_CANCELLED` 이벤트 타입은 사용하지 않는다.
->
 > **`auction-events`의 `AUCTION_CLOSED`(Streams 발행)와 Auction Service DB `CLOSED`의 관계**: DB 컬럼 `CLOSED`는 **Auction Service가 `endsAt`·스케줄러·명시적 상태 변경으로 관리**한다. Punctuator가 토픽에 올리는 마감 이벤트는 **알림·실시간 파이프라인** 위주이며, **Auction DB의 진실 원본을 대체하지 않는다**. 전체 정책은 [architecture.md](./architecture.md)의 “경매 생명주기와 마감 정책”을 참고한다.
 
 ---
@@ -88,7 +88,8 @@ Schema Registry에 등록하여 버전 관리합니다.
   "fields": [
     { "name": "eventId",          "type": "string" },
     { "name": "notificationType", "type": "string" },
-    { "name": "targetUserId",     "type": "string" },
+    { "name": "targetUserId",    "type": ["null", "string"], "default": null },
+    { "name": "targetAuctionId", "type": ["null", "string"], "default": null },
     { "name": "auctionId",        "type": "string" },
     { "name": "payload",          "type": { "type": "map", "values": "string" } },
     { "name": "occurredAt",       "type": "long" }
@@ -96,11 +97,13 @@ Schema Registry에 등록하여 버전 관리합니다.
 }
 ```
 
-| notificationType | 발행 시점 | 대상 |
-|-----------------|----------|------|
-| OUTBID | 더 높은 입찰 발생 | 기존 최고 입찰자 |
-| AUCTION_WON | 경매 마감 + 낙찰 | 최종 낙찰자 |
-| AUCTION_CLOSED | 경매 마감 | 경매 구독자 전체 |
+원본 Avro 파일(Schema Registry 등록용): [`infra/avro/NotificationEvent.avsc`](../infra/avro/NotificationEvent.avsc)
+
+| notificationType | 발행 시점 | 라우팅 필드 | 대상 |
+|-----------------|----------|------------|------|
+| OUTBID | 더 높은 입찰 발생 | `targetUserId` | 기존 최고 입찰자 |
+| AUCTION_WON | 경매 마감 + 낙찰 | `targetUserId` | 최종 낙찰자 |
+| AUCTION_CLOSED | 경매 마감 | `targetAuctionId` | 경매 구독자 전체 (브로드캐스트) |
 
 ---
 
@@ -109,9 +112,9 @@ Schema Registry에 등록하여 버전 관리합니다.
 ```
 bid-events
     │
-    ├─▶ [KTable] State Store (RocksDB)
+    ├─▶ [KTable] State Store: auction-highest-bid (RocksDB)
     │     key: auctionId
-    │     value: { currentPrice, currentWinnerId, bidCount }
+    │     value: { highestBid, highestBidderId, bidCount }
     │     → GET /auctions/{id} 조회 시 여기서 읽음
     │
     ├─▶ [Windowed KStream] 입찰 급증 탐지
@@ -124,11 +127,18 @@ bid-events
 
 auction-events
     │
-    └─▶ [Punctuator]
-          30초 주기로 endsAt 경과 경매 체크
+    └─▶ [AuctionMetadataProcessor]
+          AUCTION_CREATED → State Store: auction-metadata 저장
+          key: auctionId
+          value: { endsAt, startPrice, title }
+
+          [Punctuator] 30초 주기 (WALL_CLOCK_TIME 기준)
+          endsAt 경과 경매 체크 → auction-highest-bid 조회
           → AUCTION_CLOSED 이벤트 발행
-          → notification-events 발행 (AUCTION_CLOSED)
+          → notification-events 발행 (AUCTION_WON, AUCTION_CLOSED)
 ```
+
+> **M5 구현 결정(마감 기준):** Punctuator는 `PunctuationType.WALL_CLOCK_TIME`을 기본으로 사용한다. 이벤트 유입이 없더라도 `endsAt` 경과 경매를 주기적으로 마감 처리하기 위함이다.
 
 ---
 
