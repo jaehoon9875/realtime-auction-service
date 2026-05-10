@@ -61,6 +61,14 @@
 - **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/service/StateQueryService.java`
 - **조치**: `RestClientResponseException` 발생 시 `e.getStatusCode()`로 원본 상태 코드 전달. 404만 별도 처리, 나머지(429·503 등)는 peer 상태 그대로 반환.
 
+### 7. DLQ 전송 fire-and-forget
+- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/exception/DlqExceptionHandler.java`
+- **조치**: `producer.send(dlqRecord, callback)` Callback 람다로 변경. 브로커 비동기 실패 시 에러 로그 출력.
+
+### 8. targetUserId에 경매 ID 할당 (스키마 의미 위반)
+- **파일**: `infra/avro/NotificationEvent.avsc`, `AuctionMetadataProcessor.java`, `BidStateProcessor.java`
+- **조치**: `targetUserId` nullable union 변환 + `targetAuctionId` 필드 추가. `AUCTION_CLOSED`는 `targetAuctionId(auctionId)` + `targetUserId(null)`, `AUCTION_WON`·`OUTBID`는 `targetUserId` 유지. `docs/kafka.md` 라우팅 테이블 업데이트.
+
 ### 11. AuctionStreamsTopology event null 체크 누락
 - **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/topology/AuctionStreamsTopology.java`
 - **조치**: `filter` 조건에 `event != null &&` null 가드 추가.
@@ -71,26 +79,4 @@
 
 ---
 
-## 미처리 (Major / Minor)
-
-### 7. DLQ 전송 fire-and-forget
-- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/exception/DlqExceptionHandler.java`
-- **문제**: `producer.send(dlqRecord)` 후 즉시 `CONTINUE` → 브로커 비동기 실패 탐지 불가
-- **수정**: `producer.send(dlqRecord).get()` 또는 Callback으로 실패 로깅
-
-### 8. targetUserId에 경매 ID 할당 (스키마 의미 위반)
-- **파일**: `streams/auction-streams/src/main/java/com/jaehoon/streams/auction/processor/AuctionMetadataProcessor.java`
-- **문제**: `setTargetUserId(auctionId)` — notification-service가 사용자 ID로 해석 시 오작동 가능
-- **수정**: 스키마에 라우팅 필드 추가, 또는 `targetUserId` 미설정·`auctionId`만 사용하는 계약 정리
-
-
----
-
-## 우선순위 요약 (미처리 기준)
-
-| 우선순위 | 항목 | 이유 |
-|---------|------|------|
-| 1순위 | #8 targetUserId 스키마 위반 | downstream 알림 라우팅 |
-| 2순위 | #7 DLQ fire-and-forget | 유실 탐지 |
-| 2순위 | #9 peer HTTP 상태 보존 | 멀티 인스턴스 IQ |
-| 3순위 | #11 | 토폴로지 null 가드 등 |
+## 미처리 항목 없음 — 전체 처리 완료 (2026-05-10)
