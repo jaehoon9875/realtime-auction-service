@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.mockito.ArgumentMatchers;
+
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
@@ -140,7 +142,7 @@ class UserServiceTest {
 
         given(jwtProvider.extractUserId(oldRefresh)).willReturn(userId);
         // Lua 스크립트 결과: 1 → 값 일치·삭제 성공
-        given(redisTemplate.execute(any(RedisScript.class), any(List.class), any(Object[].class)))
+        given(redisTemplate.execute(ArgumentMatchers.<RedisScript<Object>>any(), ArgumentMatchers.<List<String>>any(), any(Object[].class)))
                 .willReturn(1L);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(jwtProvider.generateAccessToken(userId, "test@example.com")).willReturn("new-access");
@@ -170,7 +172,7 @@ class UserServiceTest {
         UUID userId = UUID.randomUUID();
         given(jwtProvider.extractUserId("expired-token")).willReturn(userId);
         // Lua 스크립트 결과: 2 → 키 자체 없음
-        given(redisTemplate.execute(any(RedisScript.class), any(List.class), any(Object[].class)))
+        given(redisTemplate.execute(ArgumentMatchers.<RedisScript<Object>>any(), ArgumentMatchers.<List<String>>any(), any(Object[].class)))
                 .willReturn(2L);
 
         assertThatThrownBy(() -> userService.refresh("expired-token"))
@@ -185,7 +187,7 @@ class UserServiceTest {
 
         given(jwtProvider.extractUserId(attackerToken)).willReturn(userId);
         // Lua 스크립트 결과: 0 → 값 불일치 (탈취 감지)
-        given(redisTemplate.execute(any(RedisScript.class), any(List.class), any(Object[].class)))
+        given(redisTemplate.execute(ArgumentMatchers.<RedisScript<Object>>any(), ArgumentMatchers.<List<String>>any(), any(Object[].class)))
                 .willReturn(0L);
 
         assertThatThrownBy(() -> userService.refresh(attackerToken))
@@ -203,7 +205,7 @@ class UserServiceTest {
 
         given(jwtProvider.extractUserId(refreshToken)).willReturn(userId);
         // Lua 스크립트 결과: 1 → 삭제 성공
-        given(redisTemplate.execute(any(RedisScript.class), any(List.class), any(Object[].class)))
+        given(redisTemplate.execute(ArgumentMatchers.<RedisScript<Object>>any(), ArgumentMatchers.<List<String>>any(), any(Object[].class)))
                 .willReturn(1L);
         given(userRepository.findById(userId)).willReturn(Optional.empty());
 
