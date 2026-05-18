@@ -1,5 +1,11 @@
 # 🔨 Realtime Auction Service
 
+![CI](https://github.com/jaehoon9875/realtime-auction-service/actions/workflows/ci.yml/badge.svg)
+![Java](https://img.shields.io/badge/Java-21-blue)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-4-green)
+![Kafka](https://img.shields.io/badge/Apache_Kafka-3.x-black)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+
 > Kafka Streams 기반 실시간 경매 서비스
 
 ## Overview
