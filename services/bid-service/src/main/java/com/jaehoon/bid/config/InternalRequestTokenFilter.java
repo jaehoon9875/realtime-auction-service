@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.Set;
 
 import org.springframework.core.env.Environment;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -41,9 +40,9 @@ public class InternalRequestTokenFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain) throws ServletException, IOException {
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain) throws ServletException, IOException {
         if (!StringUtils.hasText(securityProperties.internalRequestSecret())) {
             filterChain.doFilter(request, response);
             return;
