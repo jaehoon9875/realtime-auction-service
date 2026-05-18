@@ -8,14 +8,21 @@ Gateway와 내부 서비스 간 신뢰 관계를 수립하는 Pre-shared Secret 
 
 외부 클라이언트가 Gateway를 우회하여 auction-service에 직접 HTTP 요청을 보내는 것을 차단하기 위함입니다.
 
-```
-[외부 클라이언트]
-    │ JWT 토큰만 소지
-    ▼
-[API Gateway]  ─── JWT 검증 완료 후 ───▶  X-Internal-Request-Token 헤더 주입
-    │
-    ▼
-[auction-service]  ─── 헤더 값 검증 ───▶  일치하면 처리 / 불일치하면 403 거부
+```mermaid
+sequenceDiagram
+    participant C as 외부 클라이언트
+    participant GW as API Gateway
+    participant AS as auction-service
+
+    C->>GW: HTTP 요청 + JWT
+    GW->>GW: JWT 검증
+    GW->>AS: 요청 전달 + X-Internal-Request-Token 헤더 주입
+    AS->>AS: 헤더 값 검증
+    alt 일치
+        AS-->>C: 정상 응답
+    else 불일치 (Gateway 미경유 또는 헤더 없음)
+        AS-->>C: 403 Forbidden
+    end
 ```
 
 Gateway를 통하지 않은 요청은 `X-Internal-Request-Token` 헤더를 가질 수 없으므로 자동으로 차단됩니다.

@@ -65,14 +65,24 @@ docker-compose down -v
 
 healthcheck 의존성에 의해 자동으로 순서가 보장됩니다.
 
-```text
-kafka (KRaft 초기화, ~30초)
-  └─▶ schema-registry
-  └─▶ postgres-auction, postgres-bid  (병렬)
-        └─▶ debezium
-kafka-ui  (kafka 준비 후)
-postgres-user  (독립 기동)
-redis          (독립 기동)
+```mermaid
+graph TD
+    KAFKA["kafka<br/>(KRaft 초기화, ~30초)"]
+    SR["schema-registry"]
+    PA["postgres-auction"]
+    PB["postgres-bid"]
+    DEB["debezium"]
+    KUI["kafka-ui"]
+    PU["postgres-user<br/>(독립 기동)"]
+    REDIS["redis<br/>(독립 기동)"]
+
+    KAFKA --> SR
+    KAFKA --> PA
+    KAFKA --> PB
+    KAFKA --> KUI
+    SR --> DEB
+    PA --> DEB
+    PB --> DEB
 ```
 
 > Debezium은 kafka + schema-registry + postgres-auction + postgres-bid 모두 healthy 상태가 된 후 기동됩니다.
