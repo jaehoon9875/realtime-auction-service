@@ -10,7 +10,6 @@ import java.util.Arrays;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -48,9 +47,9 @@ public class InternalRequestTokenFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(
-            @NonNull HttpServletRequest request,
-            @NonNull HttpServletResponse response,
-            @NonNull FilterChain filterChain
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
     ) throws ServletException, IOException {
         // 로컬 단독 실행: 시크릿 미설정 시 필터 통과
         if (!StringUtils.hasText(securityProperties.internalRequestSecret())) {

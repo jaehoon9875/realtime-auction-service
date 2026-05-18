@@ -55,7 +55,6 @@ class UserIntegrationTest {
         }
     }
 
-    @SuppressWarnings("resource")
     @Container
     static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine");
 
