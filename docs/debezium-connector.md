@@ -3,7 +3,8 @@
 Kafka Connect(Debezium)는 PostgreSQL의 WAL(Write-Ahead Log)을 읽어 `outbox_events` 테이블의
 변경을 Kafka 토픽으로 자동 발행합니다. 이 가이드는 로컬 개발 환경 기준입니다.
 
-> **Connector 등록은 최초 1회만 필요합니다.**
+> [!IMPORTANT]
+> Connector 등록은 최초 1회만 필요합니다.
 > Debezium은 Kafka 내부 토픽에 진행 상태(offset)를 저장하므로, 컨테이너를 재시작해도 등록이 유지됩니다.
 
 ---

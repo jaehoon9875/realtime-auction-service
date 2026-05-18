@@ -59,6 +59,7 @@ openssl rand -hex 32
 INTERNAL_REQUEST_SECRET=<openssl rand -hex 32 으로 생성한 값>
 ```
 
+> [!WARNING]
 > `.env` 파일은 Git에 커밋하지 않습니다. `.env.example`에 키 이름만 유지하세요.
 
 ### 3단계: Gateway 설정 확인

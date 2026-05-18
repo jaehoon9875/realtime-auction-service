@@ -28,7 +28,8 @@ cd infra
 cp .env.example .env
 ```
 
-`.env` 파일은 Git에 커밋되지 않습니다. 로컬에서만 관리하세요.
+> [!WARNING]
+> `.env` 파일은 Git에 커밋되지 않습니다. 로컬에서만 관리하세요.
 
 복사 후 아래 항목을 직접 생성하여 채워야 합니다.
 
@@ -239,5 +240,6 @@ docker-compose down -v
 docker-compose up -d
 ```
 
+> [!CAUTION]
 > `KAFKA_CLUSTER_ID`는 볼륨 초기화 후에도 동일한 값을 유지해야 합니다.
 > 값을 바꾸려면 `kafka-data` 볼륨도 반드시 함께 삭제하세요.
