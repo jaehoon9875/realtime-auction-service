@@ -29,7 +29,7 @@ Auction Service와 Bid Service는 비즈니스 로직 처리 후 Kafka에 이벤
 
 Chosen option: **"Outbox Pattern + Debezium CDC"**, because DB 트랜잭션 안에서 `outbox_events` 테이블에 이벤트를 함께 저장하고, Debezium이 PostgreSQL WAL을 비동기로 읽어 Kafka에 발행하므로 애플리케이션 코드 변경 없이 원자성이 구조적으로 보장되기 때문.
 
-```
+```text
 DB 트랜잭션 (원자적)
 ├── auctions / bids 테이블 저장
 └── outbox_events 테이블 저장
