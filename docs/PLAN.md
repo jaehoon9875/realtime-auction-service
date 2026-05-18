@@ -8,7 +8,7 @@
 | M2 | User Service | ✅ 완료 |
 | M3 | Auction Service + Outbox + Debezium | ✅ 완료 |
 | M4 | Bid Service | ✅ 완료 |
-| M5 | Kafka Streams App | ⬜ 진행 전 |
+| M5 | Kafka Streams App | ✅ 완료 |
 | M6 | Notification Service + WebSocket | ⬜ 진행 전 |
 | M7 | 통합 테스트 + 문서화 | ⬜ 진행 전 |
 | M8 | GKE 배포 | ⬜ 진행 전 |
@@ -68,11 +68,11 @@
 
 ## M5. Kafka Streams App ⭐ 핵심
 
-- [ ] State Store: 경매별 최고가 실시간 관리
-- [ ] Windowed Aggregation: 입찰 급증 탐지
-- [ ] Punctuator: 경매 마감 타이머
-- [ ] notification-events 발행
-- [ ] Dead Letter Queue 처리
+- [x] State Store: 경매별 최고가 실시간 관리
+- [x] Windowed Aggregation: 입찰 급증 탐지
+- [x] Punctuator: 경매 마감 타이머
+- [x] notification-events 발행
+- [x] Dead Letter Queue 처리
 
 **완료 기준**: 입찰 → State Store 갱신 + 마감 시 AUCTION_CLOSED 이벤트 발행
 
