@@ -1,11 +1,11 @@
 # docs/CLAUDE.md
 
-프로젝트 설계 문서, 의사결정 기록, API 명세, 이슈 추적 디렉토리.
+프로젝트 설계 문서, 의사결정 기록, API 명세 디렉토리.
 
 ## 문서 목록
 
-- PLAN.md: 마일스톤별 구현 체크리스트. 현재 진행 단계 파악 시 최우선 참조
-- ISSUES.md: 진행 중 이슈, 미해결 항목, 보류 결정 사항 추적
+- PLAN.md: 마일스톤별 설계 의도·완료 기준 기록 (초기 기획 문서). 진행 상태는 GitHub Milestones에서 관리
+- ISSUES.md: M1~M5 해결된 이슈 아카이브. 신규 이슈는 GitHub Issues에서 관리
 - architecture.md: 전체 아키텍처, 서비스 간 관계, 핵심 설계 결정 및 근거(경매 생명주기·마감 정책 포함)
 - local-dev.md: 로컬 개발 환경 구성 및 docker-compose 운영 가이드
 - api.md: REST API + WebSocket 엔드포인트 명세
@@ -22,7 +22,7 @@
 - adr/: 새로운 기술 결정 또는 기존 결정 번복 시 ADR 추가 또는 기존 ADR status를 `superseded by ADR-XXXX`로 변경
 - kafka.md: 토픽 추가/스키마 변경 시 업데이트. Avro 스키마와 항상 일치
 - schema.md: DB 마이그레이션 추가 시 반영
-- ISSUES.md: 이슈 해결 시 해결 날짜와 방법 기록 후 해결 이슈 섹션으로 이동
+- 이슈 발생 시 GitHub Issues에 등록. 해결된 이슈는 GitHub에서 Close 처리
 - CHANGELOG.md: 마일스톤 완료 시 `[Unreleased]` 바로 아래에 새 버전 항목 추가 (버전: M1=0.1.0, M6=0.6.0 순으로 증가)
 - 미완성 항목: 문서 본문에 가시적인 평문으로 표시 (예: `(M7 도입 예정)`)
 - 의사결정 기록: 결정 내용과 선택하지 않은 대안 및 이유를 함께 기록

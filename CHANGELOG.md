@@ -6,11 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Planned
-- M6: Notification Service + WebSocket 실시간 알림
-- M7: 통합 테스트 + 문서화
-- M8: GKE 배포 (Terraform, Kubernetes, ArgoCD, Strimzi)
-
 ---
 
 ## [0.5.0] - 2026-05-10 — M5: Kafka Streams App

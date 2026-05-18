@@ -1,37 +1,11 @@
 # ISSUES.md
 
-프로젝트 진행 중 발생한 이슈, 미해결 항목, 보류 결정 사항을 기록합니다.
+이슈 추적은 [GitHub Issues](https://github.com/jaehoon9875/realtime-auction-service/issues)에서 관리합니다.
+이 파일은 M1~M5 기간의 해결된 이슈 아카이브만 보관합니다.
 
 ---
 
-## 심각도 기준
-
-| 심각도 | 기준 |
-|--------|------|
-| 🔴 높음 | 다음 단계 진행을 막는 블로커 |
-| 🟡 중간 | 기능에 영향은 있으나 우회 방법이 존재 |
-| 🟢 낮음 | 사소한 불편, 나중에 처리해도 무방 |
-
----
-
-## 진행 중 이슈
-
-| # | 심각도 | 마일스톤 | 제목 | 발생일 | 상태 |
-|---|--------|---------|------|--------|------|
-| - | - | - | (아직 없음) | - | - |
-
----
-
-## 보류 / 결정 필요
-
-| # | 심각도 | 항목 | 내용 | 등록일 |
-|---|--------|------|------|--------|
-| 8 | 🟡 중간 | Kafka/Confluent 버전 정책 | M5 구현·검증 기간에는 Confluent Platform 7.7 기준(브로커/Schema Registry/클라이언트 호환 조합)으로 고정 운영. M5 완료 후 최신 안정 버전 업그레이드를 별도 태스크로 수행하고 E2E/회귀 테스트로 검증한다. | 2026-05-07 |
-| 4 | 🟢 낮음 | `BID_REJECTED` 클라이언트 알림 | `docs/kafka.md`에 `BID_REJECTED` 이벤트는 있으나 `docs/api.md` WebSocket 메시지에 **입찰 거부** 타입 없음. 실시간 거부 UX 미정. | 2026-05-05 |
-
----
-
-## 해결된 이슈
+## 해결된 이슈 아카이브 (M1~M5)
 
 | # | 심각도 | 마일스톤 | 제목 | 해결일 | 해결 방법 |
 |---|--------|---------|------|--------|-----------|
@@ -41,14 +15,3 @@
 | 5 | 🟢 낮음 | infra | CI 트리거 중복 | 2026-05-05 | `push: branches`에서 `feature/**`, `fix/**` 제거. PR 브랜치는 `pull_request` 트리거만으로 커버. |
 | 1 | 🟡 중간 | auction-service | 경매 상태 정합 + `startsAt`·PENDING→ONGOING (구 보류 이슈 1) | 2026-05-05 | **용어·종료**: 코드·DB 진행 중 상태 **`ONGOING`** 통일, 종료는 **`CLOSED`** 만 (`CANCELLED`/`AUCTION_CANCELLED` 문서·설명 정리). Flyway **`V4`** CHECK·`ACTIVE`→`ONGOING` 마이그레이션. **시작·전환**: **`starts_at`** 컬럼·API **`startsAt`** (생략 시 생성 시각), 생성 시 `startsAt > now` → **`PENDING`**, 그 외 **`ONGOING`**. **`AuctionStartScheduler`**·`activateDueAuctions()` 로 예약 경매 시작 시 **`AUCTION_STATUS_CHANGED`** Outbox. Outbox/Avro에 **`startsAt`** epoch, `docs/schema.md`·`api.md`·`kafka.md`·`CLAUDE.md` 동기화. 입찰 시점 검증(Bid Service)은 후속. |
 
----
-
-## 이슈 작성 방법
-
-이슈 발생 시 "진행 중 이슈" 테이블에 추가합니다.
-
-```
-| 1 | 🔴 높음 | M1 | docker-compose Debezium 연결 실패 | 2024-xx-xx | 조사 중 |
-```
-
-해결되면 해결된 이슈 섹션으로 옮기고 해결 방법을 기록합니다.

@@ -1,17 +1,7 @@
 # PLAN.md
 
-## 마일스톤 진행 현황
-
-| 마일스톤 | 내용 | 상태 |
-|---------|------|------|
-| M1 | 로컬 인프라 + 프로젝트 뼈대 | ✅ 완료 |
-| M2 | User Service | ✅ 완료 |
-| M3 | Auction Service + Outbox + Debezium | ✅ 완료 |
-| M4 | Bid Service | ✅ 완료 |
-| M5 | Kafka Streams App | ✅ 완료 |
-| M6 | Notification Service + WebSocket | ⬜ 진행 전 |
-| M7 | 통합 테스트 + 문서화 | ⬜ 진행 전 |
-| M8 | GKE 배포 | ⬜ 진행 전 |
+이 문서는 프로젝트 초기 기획 단계에서 작성된 마일스톤별 설계 의도와 완료 기준을 기록합니다.
+실제 진행 상태는 [GitHub Milestones](https://github.com/jaehoon9875/realtime-auction-service/milestones)에서 관리합니다.
 
 ---
 
@@ -118,7 +108,3 @@
 **완료 기준**: GKE 위에서 전체 서비스 동작
 
 ---
-
-## 이슈
-
-진행 중 발생한 이슈는 [docs/ISSUES.md](docs/ISSUES.md)에서 관리합니다.
