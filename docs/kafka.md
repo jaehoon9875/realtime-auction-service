@@ -109,33 +109,27 @@ Schema Registry에 등록하여 버전 관리합니다.
 
 ## Kafka Streams 처리 흐름
 
-```
-bid-events
-    │
-    ├─▶ [KTable] State Store: auction-highest-bid (RocksDB)
-    │     key: auctionId
-    │     value: { highestBid, highestBidderId, bidCount }
-    │     → GET /auctions/{id} 조회 시 여기서 읽음
-    │
-    ├─▶ [Windowed KStream] 입찰 급증 탐지
-    │     1분 tumbling window
-    │     동일 auctionId 입찰 10회 이상 → 이상 입찰 플래그 로깅
-    │
-    └─▶ [KStream join auction-events]
-          마감 이벤트 발생 시 최고가 확정
-          → notification-events 발행 (AUCTION_WON, OUTBID)
+```mermaid
+graph TD
+    BID["bid-events"]
+    AE["auction-events"]
 
-auction-events
-    │
-    └─▶ [AuctionMetadataProcessor]
-          AUCTION_CREATED → State Store: auction-metadata 저장
-          key: auctionId
-          value: { endsAt, startPrice, title }
+    KT["KTable · auction-highest-bid (RocksDB)<br/>key: auctionId<br/>value: {highestBid, highestBidderId, bidCount}<br/>GET /auctions/{id} 조회 시 사용"]
+    WS["Windowed KStream · 입찰 급증 탐지<br/>1분 tumbling window<br/>동일 auctionId 10회 이상 → 이상 입찰 플래그 로깅"]
+    JOIN["KStream join auction-events<br/>마감 이벤트 발생 시 최고가 확정"]
+    AMP["AuctionMetadataProcessor<br/>AUCTION_CREATED → auction-metadata State Store 저장<br/>key: auctionId · value: {endsAt, startPrice, title}"]
+    PUNCT["Punctuator (WALL_CLOCK_TIME, 30초 주기)<br/>endsAt 경과 경매 → auction-highest-bid 조회"]
+    NE["notification-events"]
 
-          [Punctuator] 30초 주기 (WALL_CLOCK_TIME 기준)
-          endsAt 경과 경매 체크 → auction-highest-bid 조회
-          → AUCTION_CLOSED 이벤트 발행
-          → notification-events 발행 (AUCTION_WON, AUCTION_CLOSED)
+    BID --> KT
+    BID --> WS
+    BID --> JOIN
+    AE --> JOIN
+    AE --> AMP
+    AMP --> PUNCT
+    KT -.->|참조| PUNCT
+    JOIN -->|"AUCTION_WON, OUTBID"| NE
+    PUNCT -->|"AUCTION_WON, AUCTION_CLOSED"| NE
 ```
 
 > **M5 구현 결정(마감 기준):** Punctuator는 `PunctuationType.WALL_CLOCK_TIME`을 기본으로 사용한다. 이벤트 유입이 없더라도 `endsAt` 경과 경매를 주기적으로 마감 처리하기 위함이다.
@@ -146,11 +140,12 @@ auction-events
 
 처리 실패한 이벤트는 DLQ 토픽으로 이동하여 유실 없이 보관합니다.
 
-```
-bid-events 처리 실패
-    │
-    └─▶ bid-dead-letter (retention 30d)
-          { originalEvent, errorMessage, failedAt }
+```mermaid
+graph TD
+    BID["bid-events 처리 실패"]
+    DLQ["bid-dead-letter (retention 30d)<br/>{originalEvent, errorMessage, failedAt}"]
+
+    BID --> DLQ
 ```
 
 DLQ에 쌓인 이벤트는 수동 또는 별도 프로세스로 재처리합니다.

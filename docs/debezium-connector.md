@@ -3,22 +3,30 @@
 Kafka Connect(Debezium)는 PostgreSQL의 WAL(Write-Ahead Log)을 읽어 `outbox_events` 테이블의
 변경을 Kafka 토픽으로 자동 발행합니다. 이 가이드는 로컬 개발 환경 기준입니다.
 
-> **Connector 등록은 최초 1회만 필요합니다.**
+> [!IMPORTANT]
+> Connector 등록은 최초 1회만 필요합니다.
 > Debezium은 Kafka 내부 토픽에 진행 상태(offset)를 저장하므로, 컨테이너를 재시작해도 등록이 유지됩니다.
 
 ---
 
 ## 동작 원리
 
-```text
-auction-service
-  ├─ auctions 테이블 저장          ┐
-  └─ outbox_events 테이블 저장     ┘  같은 트랜잭션(@Transactional)
+```mermaid
+graph TD
+    AS["auction-service<br/>(@Transactional)"]
+    AT["auctions 테이블 저장"]
+    OT["outbox_events 테이블 저장"]
+    WAL["PostgreSQL WAL<br/>(wal_level=logical)"]
+    DEB["Debezium<br/>(pgoutput 플러그인)"]
+    SMT["EventRouter SMT<br/>aggregate_id → Kafka 메시지 키"]
+    KAFKA["Kafka 토픽: auction-events"]
 
-PostgreSQL WAL (wal_level=logical)
-  └─▶ Debezium (pgoutput 플러그인)
-        └─▶ EventRouter SMT (aggregate_id 를 키로 라우팅)
-              └─▶ Kafka 토픽: auction-events
+    AS --> AT
+    AS --> OT
+    OT --> WAL
+    WAL --> DEB
+    DEB --> SMT
+    SMT --> KAFKA
 ```
 
 - `outbox_events` 테이블에 INSERT가 발생하면 Debezium이 WAL에서 감지합니다.

@@ -28,7 +28,8 @@ cd infra
 cp .env.example .env
 ```
 
-`.env` 파일은 Git에 커밋되지 않습니다. 로컬에서만 관리하세요.
+> [!WARNING]
+> `.env` 파일은 Git에 커밋되지 않습니다. 로컬에서만 관리하세요.
 
 복사 후 아래 항목을 직접 생성하여 채워야 합니다.
 
@@ -65,14 +66,24 @@ docker-compose down -v
 
 healthcheck 의존성에 의해 자동으로 순서가 보장됩니다.
 
-```text
-kafka (KRaft 초기화, ~30초)
-  └─▶ schema-registry
-  └─▶ postgres-auction, postgres-bid  (병렬)
-        └─▶ debezium
-kafka-ui  (kafka 준비 후)
-postgres-user  (독립 기동)
-redis          (독립 기동)
+```mermaid
+graph TD
+    KAFKA["kafka<br/>(KRaft 초기화, ~30초)"]
+    SR["schema-registry"]
+    PA["postgres-auction"]
+    PB["postgres-bid"]
+    DEB["debezium"]
+    KUI["kafka-ui"]
+    PU["postgres-user<br/>(독립 기동)"]
+    REDIS["redis<br/>(독립 기동)"]
+
+    KAFKA --> SR
+    KAFKA --> PA
+    KAFKA --> PB
+    KAFKA --> KUI
+    SR --> DEB
+    PA --> DEB
+    PB --> DEB
 ```
 
 > Debezium은 kafka + schema-registry + postgres-auction + postgres-bid 모두 healthy 상태가 된 후 기동됩니다.
@@ -229,5 +240,6 @@ docker-compose down -v
 docker-compose up -d
 ```
 
+> [!CAUTION]
 > `KAFKA_CLUSTER_ID`는 볼륨 초기화 후에도 동일한 값을 유지해야 합니다.
 > 값을 바꾸려면 `kafka-data` 볼륨도 반드시 함께 삭제하세요.

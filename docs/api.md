@@ -157,8 +157,6 @@ Refresh Token을 `Authorization: Bearer {refreshToken}` 헤더로 전달한다.
 
 ## Auction Service
 
-> M3에서 구현 예정. 아래는 설계 기준 명세이며 실제 구현 시 수정될 수 있다.
-
 Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
 
 ---
@@ -305,8 +303,6 @@ Gateway 경로 prefix: `/api/auctions/**` → auction-service `/auctions/**`
 
 ## Bid Service
 
-> M4에서 구현 예정. 아래는 설계 기준 명세이며 실제 구현 시 수정될 수 있다.
-
 Gateway 경로 prefix: `/api/bids/**` → bid-service `/bids/**`
 
 ### 내부 연동 API (bid-service → auction-streams)
@@ -381,9 +377,9 @@ Gateway 경로 prefix: `/api/bids/**` → bid-service `/bids/**`
 
 ---
 
-## WebSocket (Notification Service)
+## WebSocket (Notification Service) (M6 도입 예정)
 
-> M6에서 구현 예정. 아래는 설계 기준 명세이며 실제 구현 시 수정될 수 있다.
+아래는 설계 기준 명세이다. Notification Service·WebSocket은 아직 미구현이다.
 
 Gateway 경로 prefix: `/ws/**` → notification-service `/ws/**`
 

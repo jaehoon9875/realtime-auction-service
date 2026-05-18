@@ -1,5 +1,11 @@
 # 🔨 Realtime Auction Service
 
+![CI](https://github.com/jaehoon9875/realtime-auction-service/actions/workflows/ci.yml/badge.svg)
+![Java](https://img.shields.io/badge/Java-21-blue)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-4-green)
+![Kafka](https://img.shields.io/badge/Apache_Kafka-3.x-black)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+
 > Kafka Streams 기반 실시간 경매 서비스
 
 ## Overview
@@ -10,32 +16,36 @@ Kafka Streams의 상태 기반 처리(State Store), Debezium CDC를 활용한 Ou
 
 ## Architecture
 
-```
-[Client]
-   │
-   ├─ REST API
-   └─ WebSocket (/ws/auctions/{id}, /ws/users/me)
-          │
-   [API Gateway] (Spring Cloud Gateway)
-          │
-   ┌──────┼──────────────────┐
-   │      │                  │
-[Auction] [Bid]         [User]     [Notification]
-[Service] [Service]    [Service]   [Service]
-   │         │                          ▲
-   └────┬────┘                          │
-   Outbox Table                         │
-        │                               │
-   [Debezium CDC]                       │
-        │                               │
-      [Kafka]                           │
-   auction-events                       │
-   bid-events ──▶ [Kafka Streams] ──────┘
-                   - State Store (최고가 관리)
-                   - Windowed Aggregation (이상 탐지)
-                   - Punctuator (마감 처리)
-                        │
-                  notification-events
+```mermaid
+graph TD
+    Client(["Client"])
+    GW["API Gateway<br/>(Spring Cloud Gateway)"]
+
+    AS["Auction Service"]
+    BS["Bid Service"]
+    US["User Service"]
+    NS["Notification Service"]
+
+    OB[("Outbox Table")]
+    CDC["Debezium CDC"]
+    KAFKA[["Kafka"]]
+    KS["Kafka Streams<br/>· State Store - 최고가 관리<br/>· Windowed Aggregation - 이상 탐지<br/>· Punctuator - 마감 처리"]
+
+    Client -->|REST API| GW
+    Client <-->|"WebSocket (/ws/auctions/{id}, /ws/users/me)"| GW
+
+    GW --> AS
+    GW --> BS
+    GW --> US
+    GW <--> NS
+
+    AS --> OB
+    BS --> OB
+    OB --> CDC
+    CDC -->|"auction-events, bid-events"| KAFKA
+
+    KAFKA -->|bid-events| KS
+    KS -->|notification-events| NS
 ```
 
 ## Key Technical Decisions
