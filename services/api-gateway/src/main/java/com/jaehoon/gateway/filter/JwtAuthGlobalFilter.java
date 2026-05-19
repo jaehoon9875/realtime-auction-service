@@ -1,14 +1,12 @@
 package com.jaehoon.gateway.filter;
 
 import com.jaehoon.gateway.config.JwtGatewayProperties;
-import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
@@ -46,15 +44,6 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        // 클라이언트가 직접 심은 인증 헤더를 모든 요청에서 먼저 제거
-        // — SKIP 경로 포함, JWT 없는 경우 포함. 검증 성공 후에만 다시 주입한다.
-        exchange = exchange.mutate()
-                .request(r -> r.headers(h -> {
-                    h.remove("X-User-Id");
-                    h.remove("X-User-Email");
-                }))
-                .build();
-
         String path = exchange.getRequest().getURI().getPath();
 
         // 로그인·회원가입 등은 토큰 유효성과 무관하게 통과
@@ -70,24 +59,14 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         }
 
         // JWT 있으면 검증 — 위조·만료 토큰은 차단
-        Claims claims;
         try {
-            claims = parseToken(token);
+            parseToken(token);
         } catch (JwtException | IllegalArgumentException e) {
             return unauthorized(exchange);
         }
 
-        // 검증 성공 → X-User-Id, X-User-Email 헤더 주입 후 다음 필터로
-        String userId = claims.getSubject();
-        String email = claims.get("email", String.class);
-
-        ServerHttpRequest mutatedRequest = exchange.getRequest()
-                .mutate()
-                .header("X-User-Id", userId)
-                .header("X-User-Email", email != null ? email : "")
-                .build();
-
-        return chain.filter(exchange.mutate().request(mutatedRequest).build());
+        // 검증 성공 → Authorization 헤더 그대로 전달, 각 서비스가 JWT 직접 검증
+        return chain.filter(exchange);
     }
 
     // 라우팅·StripPrefix 필터보다 먼저 실행되도록 높은 우선순위 부여
@@ -105,13 +84,12 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         return null;
     }
 
-    // RSA 공개키로 JWT 파싱·검증 (캐싱된 publicKey 사용)
-    private Claims parseToken(String token) {
-        return Jwts.parser()
+    // RSA 공개키로 JWT 서명·만료 검증 (캐싱된 publicKey 사용)
+    private void parseToken(String token) {
+        Jwts.parser()
                 .verifyWith(publicKey)
                 .build()
-                .parseSignedClaims(token)
-                .getPayload();
+                .parseSignedClaims(token);
     }
 
     // 401 응답 반환 후 체인 종료
