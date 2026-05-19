@@ -23,7 +23,7 @@ import java.util.UUID;
  * API Gateway는 RSA 공개키(publicKey)로만 검증한다.
  * → Gateway가 서명 권한을 갖지 않으므로 토큰 위조 불가.
  *
- * @EnableConfigurationProperties(JwtProvider.class)로 빈 등록 (SecurityConfig 참고).
+ * @EnableConfigurationProperties(JwtProvider.class)로 빈 등록 (JwtConfig 참고).
  */
 @ConfigurationProperties(prefix = "app.jwt")
 @Getter
