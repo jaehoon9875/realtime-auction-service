@@ -71,10 +71,10 @@ Bid Service가 Auction Service에 경매 정보를 조회할 때, Auction Servic
 
 | Service | 역할 | Port |
 |---|---|---|
-| **API Gateway** | 라우팅, 인증 필터 | 8080 |
-| **Auction Service** | 경매 CRUD, Outbox 발행 | 8081 |
-| **Bid Service** | 입찰 처리, 유효성 검증 | 8082 |
-| **User Service** | 회원가입/로그인, JWT | 8083 |
+| **API Gateway** | 라우팅, JWT 1차 방어 (Authorization 헤더 전달) | 8080 |
+| **Auction Service** | 경매 CRUD, Outbox 발행, OAuth2 Resource Server JWT 검증 | 8081 |
+| **Bid Service** | 입찰 처리, 유효성 검증, OAuth2 Resource Server JWT 검증 | 8082 |
+| **User Service** | 회원가입/로그인, JWT 발급, JWKS 노출 | 8083 |
 | **Notification Service** | Kafka 소비 → WebSocket push | 8084 |
 | **Auction Streams** | 실시간 집계, 마감 처리 | - |
 
@@ -83,7 +83,7 @@ Bid Service가 Auction Service에 경매 정보를 조회할 때, Auction Servic
 ### Backend
 - Java 21, Spring Boot 4
 - Spring Cloud Gateway
-- Spring Security + JWT (Refresh Token Rotation)
+- Spring Security + OAuth2 Resource Server + JWT (Refresh Token Rotation)
 - Kafka Streams
 - Resilience4j
 
