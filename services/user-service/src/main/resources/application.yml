@@ -34,6 +34,7 @@ app:
       - /users/refresh
       - /actuator/health
       - /.well-known/jwks.json
+    refresh-endpoint: /users/refresh
   jwt:
     private-key: ${JWT_PRIVATE_KEY}
     public-key: ${JWT_PUBLIC_KEY}
