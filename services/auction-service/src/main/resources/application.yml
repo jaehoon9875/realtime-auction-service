@@ -4,6 +4,11 @@ spring:
   threads:
     virtual:
       enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWK_SET_URI:http://user-service/.well-known/jwks.json}
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_AUCTION_PORT}/${POSTGRES_AUCTION_DB_NAME}
     username: ${POSTGRES_USER}
