@@ -254,7 +254,7 @@ class JwtAuthGlobalFilterTest {
         assertThat(chainCalled.get()).isTrue();
         assertThat(exchange.getResponse().getStatusCode()).isNull();
         assertThat(exchange.getRequest().getHeaders().getFirst("Authorization"))
-                .startsWith("Bearer ");
+                .isEqualTo("Bearer " + token);
     }
 
     // ─────────────────────────────────────────────────
