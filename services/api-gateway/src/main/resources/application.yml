@@ -45,5 +45,12 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
 app:
+  security:
+    # Gateway가 받는 외부 경로 (StripPrefix 전). user-service의 /users/* 와 1:1 대응
+    public-endpoints:
+      - /api/users/signup
+      - /api/users/login
+      - /api/users/refresh
+      - /actuator/health
   jwt:
     public-key: ${JWT_PUBLIC_KEY}

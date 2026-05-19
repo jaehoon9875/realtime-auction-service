@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -43,19 +43,17 @@ public class UserController {
         return ResponseEntity.ok(userService.refresh(refreshToken));
     }
 
-    // 로그아웃: JwtAuthFilter가 Access Token을 검증하여 SecurityContext에 userId를 주입한 후,
     // userId 기준으로 Redis의 Refresh Token 키를 삭제하여 세션 무효화
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserDetails userDetails) {
-        UUID userId = UUID.fromString(userDetails.getUsername());
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal Jwt jwt) {
+        UUID userId = UUID.fromString(jwt.getSubject());
         userService.logout(userId);
         return ResponseEntity.noContent().build();
     }
 
-    // 인증된 사용자만 접근 가능 (JwtAuthFilter에서 SecurityContext에 userId 주입)
     @GetMapping("/me")
-    public ResponseEntity<UserResponse> me(@AuthenticationPrincipal UserDetails userDetails) {
-        UUID userId = UUID.fromString(userDetails.getUsername());
+    public ResponseEntity<UserResponse> me(@AuthenticationPrincipal Jwt jwt) {
+        UUID userId = UUID.fromString(jwt.getSubject());
         return ResponseEntity.ok(userService.me(userId));
     }
 

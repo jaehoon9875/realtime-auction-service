@@ -5,3 +5,9 @@ spring:
       - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
       - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
       - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # test 프로파일은 user-service JWKS에 연결하지 않음 (JwtDecoder는 테스트에서 Mock)
+          jwk-set-uri: http://localhost:9999/.well-known/jwks.json

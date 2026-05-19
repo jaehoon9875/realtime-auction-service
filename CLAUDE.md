@@ -30,7 +30,20 @@ M1·M2·M3·M4·M5 완료. M6(Notification Service + WebSocket) 진행 예정.
 
 - 커밋: `type: 설명` (type 목록: feat, fix, refactor, docs, infra, test, chore)
 - 브랜치: feature/{기능명}, fix/{버그명}
-- 코드 작성 시 주요 로직에는 한글 주석을 작성한다.
+
+## 주석 작성 규칙
+
+- 언어: 한글
+- public 클래스·인터페이스·public 메서드: 선언 바로 위 `/** … */`
+  - 첫 문장: 역할 요약 (한 줄)
+  - `@param`: 이름만으로 의미가 불명확한 파라미터
+  - `@return`: 반환값 의미가 비자명한 경우
+  - `@throws`: 호출자가 처리해야 하는 예외
+- 필드·메서드 본문: `//` → why·도메인 규칙·null 의미·동시성·외부 연동 계약만 (코드와 같은 내용 반복 금지)
+- 복잡한 private 메서드: `//` 블록으로 동작 의도 간략히 명시
+- 필수: public API, 도메인 판단 로직, 비자명한 null/동시성/Outbox·Kafka·WebSocket 처리
+- 임시 주석: `// TODO:` (단기 처리 예정), `// FIXME:` (알려진 버그) — 커밋 전 잔존 여부 확인
+- 테스트: 시나리오 의도를 한글로 명시
 
 ## 보안 규칙
 

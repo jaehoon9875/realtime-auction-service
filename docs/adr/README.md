@@ -12,6 +12,7 @@ MADR(Markdown Architectural Decision Records) 형식으로 작성합니다.
 | [ADR-003](003-redis-websocket-session.md) | Redis 기반 WebSocket 세션 공유 | Proposed | 2026-05-18 |
 | [ADR-004](004-avro-schema-registry.md) | Avro + Schema Registry로 이벤트 스키마 관리 | Accepted | 2026-05-18 |
 | [ADR-005](005-resilience4j-circuit-breaker.md) | Resilience4j Circuit Breaker로 장애 격리 | Accepted | 2026-05-18 |
+| [ADR-006](006-oauth2-resource-server-zero-trust.md) | OAuth2 Resource Server로 Zero Trust JWT 인증 전환 | Accepted | 2026-05-19 |
 
 ## Status 정의
 

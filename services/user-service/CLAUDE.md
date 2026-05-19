@@ -33,6 +33,15 @@
   - Rotation: 재발급 시 기존 키 덮어쓰기 → 이전 토큰 자동 무효화
   - 탈취 감지: Redis에 존재하지 않는 토큰으로 재발급 요청 시 해당 userId 키 삭제 (전체 세션 무효화)
 
+### Refresh Token 전송 방식: Bearer 헤더 채택
+
+현재는 `Authorization: Bearer {refreshToken}` 헤더로 전송한다.
+모바일 앱·외부 API 클라이언트 지원을 고려한 선택이며, 실무에서도 흔히 쓰이는 방식이다.
+
+웹 전용 서비스로 전환할 경우 **HttpOnly 쿠키** 방식이 XSS 공격에 더 안전하다.
+- Bearer 헤더: XSS에 취약(JS로 토큰 탈취 가능), CSRF 안전, 모바일 친화적
+- HttpOnly 쿠키: XSS 안전(JS 접근 불가), CSRF 방어 추가 필요, 웹 친화적
+
 ---
 
 ## Spring Security 설정

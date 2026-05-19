@@ -1,5 +1,6 @@
 package com.jaehoon.gateway.filter;
 
+import com.jaehoon.gateway.config.GatewaySecurityProperties;
 import com.jaehoon.gateway.config.JwtGatewayProperties;
 import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.BeforeAll;
@@ -10,16 +11,15 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
-import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * - 공개 경로: 체인 통과
  * - 비공개 경로 + JWT 없음: 체인 통과 (인가는 각 서비스가 결정)
  * - 비공개 경로 + JWT 만료/변조: 401 반환
- * - 비공개 경로 + 유효 JWT: X-User-Id, X-User-Email 헤더 추가 후 체인 통과
+ * - 비공개 경로 + 유효 JWT: 체인 통과 (Authorization 헤더는 그대로 전달)
  */
 class JwtAuthGlobalFilterTest {
 
@@ -46,9 +46,14 @@ class JwtAuthGlobalFilterTest {
 
     @BeforeEach
     void setUp() {
-        properties = new JwtGatewayProperties();
-        properties.setPublicKey(Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
-        filter = new JwtAuthGlobalFilter(properties);
+        properties = new JwtGatewayProperties(
+                Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
+        GatewaySecurityProperties securityProperties = new GatewaySecurityProperties(List.of(
+                "/api/users/signup",
+                "/api/users/login",
+                "/api/users/refresh",
+                "/actuator/health"));
+        filter = new JwtAuthGlobalFilter(properties, securityProperties);
     }
 
     // ─────────────────────────────────────────────────
@@ -229,59 +234,27 @@ class JwtAuthGlobalFilterTest {
     }
 
     // ─────────────────────────────────────────────────
-    // 유효한 JWT → 체인 통과 + 헤더 추가
+    // 유효한 JWT → 체인 통과
     // ─────────────────────────────────────────────────
 
     @Test
-    @DisplayName("유효한 JWT - 체인 통과 + X-User-Id, X-User-Email 헤더 추가")
-    void validJwt_체인통과_헤더추가() {
-        UUID userId = UUID.randomUUID();
-        String email = "test@example.com";
-        String token = generateToken(userId, email);
+    @DisplayName("유효한 JWT - 체인 통과, Authorization 헤더 유지")
+    void validJwt_체인통과() {
+        String token = generateToken(UUID.randomUUID(), "test@example.com");
 
         MockServerWebExchange exchange = MockServerWebExchange.from(
                 MockServerHttpRequest.get("/api/auctions")
                         .header("Authorization", "Bearer " + token)
                         .build());
 
-        AtomicReference<ServerWebExchange> captured = new AtomicReference<>();
-        GatewayFilterChain chain = ex -> {
-            captured.set(ex);
-            return Mono.empty();
-        };
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
 
-        filter.filter(exchange, chain).block();
+        filter.filter(exchange, chainOf(chainCalled)).block();
 
+        assertThat(chainCalled.get()).isTrue();
         assertThat(exchange.getResponse().getStatusCode()).isNull();
-        assertThat(captured.get()).isNotNull();
-        assertThat(captured.get().getRequest().getHeaders().getFirst("X-User-Id"))
-                .isEqualTo(userId.toString());
-        assertThat(captured.get().getRequest().getHeaders().getFirst("X-User-Email"))
-                .isEqualTo(email);
-    }
-
-    @Test
-    @DisplayName("유효한 JWT - email claim 없는 경우 X-User-Email 빈 문자열")
-    void validJwt_email없음_빈헤더() {
-        Date now = new Date();
-        String token = Jwts.builder()
-                .subject(UUID.randomUUID().toString())
-                .issuedAt(now)
-                .expiration(new Date(now.getTime() + 900_000L))
-                .signWith(keyPair.getPrivate(), Jwts.SIG.RS256)
-                .compact();
-
-        MockServerWebExchange exchange = MockServerWebExchange.from(
-                MockServerHttpRequest.get("/api/auctions")
-                        .header("Authorization", "Bearer " + token)
-                        .build());
-
-        AtomicReference<ServerWebExchange> captured = new AtomicReference<>();
-        GatewayFilterChain chain = ex -> { captured.set(ex); return Mono.empty(); };
-
-        filter.filter(exchange, chain).block();
-
-        assertThat(captured.get().getRequest().getHeaders().getFirst("X-User-Email")).isEqualTo("");
+        assertThat(exchange.getRequest().getHeaders().getFirst("Authorization"))
+                .isEqualTo("Bearer " + token);
     }
 
     // ─────────────────────────────────────────────────

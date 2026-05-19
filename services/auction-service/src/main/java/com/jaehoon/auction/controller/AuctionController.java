@@ -9,6 +9,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,8 +28,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * 경매 REST API.
- * JWT 검증은 API Gateway 에서 수행하며, auction-service 는 GatewayUserFilter 가 등록한
- * SecurityContext 의 principal 로 현재 사용자를 식별한다.
+ * JWT 검증은 OAuth2 Resource Server(JWKS 기반)가 처리하며, principal 은 {@link Jwt} 타입으로 주입된다.
  * 내부 시크릿 헤더 검증은 InternalRequestTokenFilter 에서 처리한다.
  */
 @RestController
@@ -41,10 +41,10 @@ public class AuctionController {
     /** POST /auctions — 경매 생성 (인증 필수) */
     @PostMapping
     public ResponseEntity<AuctionResponse> create(
-            @AuthenticationPrincipal String sellerIdStr,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestBody @Valid CreateAuctionRequest request
     ) {
-        UUID sellerId = UUID.fromString(sellerIdStr);
+        UUID sellerId = UUID.fromString(jwt.getSubject());
         AuctionResponse response = auctionService.createAuction(request, sellerId);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -68,10 +68,10 @@ public class AuctionController {
     public ResponseEntity<AuctionResponse> updateStatus(
             @PathVariable UUID id,
             @RequestBody @Valid UpdateAuctionStatusRequest request,
-            @AuthenticationPrincipal String requesterIdStr
+            @AuthenticationPrincipal Jwt jwt
     ) {
         // 시스템 내부 호출(비인증)이면 null → AuctionService에서 권한 검증 생략
-        UUID requesterId = requesterIdStr != null ? UUID.fromString(requesterIdStr) : null;
+        UUID requesterId = jwt != null ? UUID.fromString(jwt.getSubject()) : null;
         return ResponseEntity.ok(auctionService.updateStatus(id, request.status(), requesterId));
     }
 }

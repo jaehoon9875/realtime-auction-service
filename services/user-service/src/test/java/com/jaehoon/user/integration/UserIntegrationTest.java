@@ -5,12 +5,16 @@ import com.jaehoon.user.config.JwtProvider;
 import com.jaehoon.user.dto.LoginRequest;
 import com.jaehoon.user.dto.SignupRequest;
 import com.jaehoon.user.dto.TokenResponse;
+import com.jaehoon.user.support.MockMvcRequestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -39,8 +43,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("integration-test")
+@Import(UserIntegrationTest.JacksonTestConfig.class)
 @Testcontainers
 class UserIntegrationTest {
+
+    @TestConfiguration
+    static class JacksonTestConfig {
+        // Boot 4 webmvc 단독 구성에서는 ObjectMapper 빈이 없을 수 있어 SecurityConfig 주입용으로 등록
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper();
+        }
+    }
 
     // RSA 키 쌍은 클래스 로딩 시 정적 초기화 (DynamicPropertySource가 BeforeAll보다 먼저 실행됨)
     private static final KeyPair KEY_PAIR = generateKeyPair();
@@ -110,10 +124,9 @@ class UserIntegrationTest {
         assertThat(tokens.accessToken()).isNotBlank();
         assertThat(tokens.refreshToken()).isNotBlank();
 
-        // 3. 내 정보 조회 (Gateway가 Access Token 검증 후 X-User-Id 주입)
-        UUID userId = jwtProvider.extractUserId(tokens.accessToken());
+        // 3. 내 정보 조회 (Access Token을 Authorization 헤더로 직접 전달)
         mockMvc.perform(get("/users/me")
-                        .header("X-User-Id", userId.toString()))
+                        .header("Authorization", "Bearer " + tokens.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(testEmail));
 
@@ -121,14 +134,14 @@ class UserIntegrationTest {
         TokenResponse newTokens = refresh(tokens.refreshToken());
         assertThat(newTokens.refreshToken()).isNotEqualTo(tokens.refreshToken());
 
-        // 5. 로그아웃: Gateway가 X-User-Id 주입 → userId 기준으로 Redis Refresh Token 삭제
-        UUID newUserId = jwtProvider.extractUserId(newTokens.accessToken());
+        // 5. 로그아웃: Access Token으로 userId 식별 → Redis Refresh Token 삭제
         mockMvc.perform(post("/users/logout")
-                        .header("X-User-Id", newUserId.toString()))
+                        .header("Authorization", "Bearer " + newTokens.accessToken()))
                 .andExpect(status().isNoContent());
 
         // 6. 로그아웃 후 Refresh Token으로 재발급 시도 → 400 (Redis에서 해당 userId 키 삭제됨)
         mockMvc.perform(post("/users/refresh")
+                        .with(MockMvcRequestSupport.servletPath("/users/refresh"))
                         .header("Authorization", "Bearer " + newTokens.refreshToken()))
                 .andExpect(status().isBadRequest());
     }
@@ -157,6 +170,7 @@ class UserIntegrationTest {
 
         // 이미 사용된 old refresh token으로 재시도 → 탈취 감지 → 400
         mockMvc.perform(post("/users/refresh")
+                        .with(MockMvcRequestSupport.servletPath("/users/refresh"))
                         .header("Authorization", "Bearer " + first.refreshToken()))
                 .andExpect(status().isBadRequest());
     }
@@ -171,6 +185,7 @@ class UserIntegrationTest {
         String unknownToken = tempProvider.generateRefreshToken(UUID.randomUUID());
 
         mockMvc.perform(post("/users/refresh")
+                        .with(MockMvcRequestSupport.servletPath("/users/refresh"))
                         .header("Authorization", "Bearer " + unknownToken))
                 .andExpect(status().isBadRequest());
     }
@@ -188,9 +203,9 @@ class UserIntegrationTest {
     }
 
     @Test
-    @DisplayName("X-User-Id 헤더 없음 - 401 Unauthorized (Gateway 미통과)")
-    void me_XUserId없음_401() throws Exception {
-        // JWT 검증·만료 체크는 Gateway 책임. user-service는 X-User-Id 헤더 부재 시 401 반환.
+    @DisplayName("Authorization 헤더 없음 - 401 Unauthorized")
+    void me_Authorization없음_401() throws Exception {
+        // Bearer 토큰 없이 보호된 엔드포인트 접근 시 OAuth2 Resource Server가 401 반환
         mockMvc.perform(get("/users/me"))
                 .andExpect(status().isUnauthorized());
     }
@@ -219,6 +234,7 @@ class UserIntegrationTest {
 
     private TokenResponse refresh(String refreshToken) throws Exception {
         MvcResult result = mockMvc.perform(post("/users/refresh")
+                        .with(MockMvcRequestSupport.servletPath("/users/refresh"))
                         .header("Authorization", "Bearer " + refreshToken))
                 .andExpect(status().isOk())
                 .andReturn();

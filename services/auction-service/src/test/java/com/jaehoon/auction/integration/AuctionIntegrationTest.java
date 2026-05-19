@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -53,6 +54,10 @@ class AuctionIntegrationTest {
     // auction-streams는 통합 테스트 범위 밖이므로 Mock으로 대체
     @MockitoBean
     AuctionStreamsClient auctionStreamsClient;
+
+    // integration 프로파일에서는 user-service JWKS에 연결하지 않으므로 JwtDecoder를 Mock으로 대체
+    @MockitoBean
+    JwtDecoder jwtDecoder;
 
     @Autowired
     AuctionService auctionService;

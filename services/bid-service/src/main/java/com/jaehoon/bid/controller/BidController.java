@@ -9,6 +9,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,18 +32,18 @@ public class BidController {
 
     @PostMapping
     public ResponseEntity<BidResponse> placeBid(
-            @AuthenticationPrincipal String bidderIdStr,
+            @AuthenticationPrincipal Jwt jwt,
             @RequestBody @Valid PlaceBidRequest request) {
-        UUID bidderId = UUID.fromString(bidderIdStr);
+        UUID bidderId = UUID.fromString(jwt.getSubject());
         BidResponse response = bidService.placeBid(bidderId, request.auctionId(), request.amount());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/me")
     public ResponseEntity<Page<BidResponse>> getMyBids(
-            @AuthenticationPrincipal String bidderIdStr,
+            @AuthenticationPrincipal Jwt jwt,
             @PageableDefault(size = 20, sort = "placedAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        UUID bidderId = UUID.fromString(bidderIdStr);
+        UUID bidderId = UUID.fromString(jwt.getSubject());
         return ResponseEntity.ok(bidService.getMyBids(bidderId, pageable));
     }
 }

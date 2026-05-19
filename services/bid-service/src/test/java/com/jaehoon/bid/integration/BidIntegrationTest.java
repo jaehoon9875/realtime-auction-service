@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.Container;
@@ -43,6 +44,10 @@ class BidIntegrationTest {
 
     @MockitoBean
     AuctionStreamsClient auctionStreamsClient;
+
+    // integration 프로파일에서는 user-service JWKS에 연결하지 않으므로 JwtDecoder를 Mock으로 대체
+    @MockitoBean
+    JwtDecoder jwtDecoder;
 
     @Autowired
     BidService bidService;
