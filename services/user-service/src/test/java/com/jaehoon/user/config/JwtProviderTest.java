@@ -144,6 +144,16 @@ class JwtProviderTest {
     }
 
     // ───────────────────────────────────────────────
+    // getRSAPublicKey
+    // ───────────────────────────────────────────────
+
+    @Test
+    @DisplayName("getRSAPublicKey - 호출마다 동일 인스턴스 반환 (생성 시 1회 파싱)")
+    void getRSAPublicKey_동일인스턴스() {
+        assertThat(jwtProvider.getRSAPublicKey()).isSameAs(jwtProvider.getRSAPublicKey());
+    }
+
+    // ───────────────────────────────────────────────
     // extractUserId / extractEmail
     // ───────────────────────────────────────────────
 
