@@ -186,9 +186,9 @@ class UserIntegrationTest {
     }
 
     @Test
-    @DisplayName("X-User-Id 헤더 없음 - 401 Unauthorized (Gateway 미통과)")
-    void me_XUserId없음_401() throws Exception {
-        // JWT 검증·만료 체크는 Gateway 책임. user-service는 X-User-Id 헤더 부재 시 401 반환.
+    @DisplayName("Authorization 헤더 없음 - 401 Unauthorized")
+    void me_Authorization없음_401() throws Exception {
+        // Bearer 토큰 없이 보호된 엔드포인트 접근 시 OAuth2 Resource Server가 401 반환
         mockMvc.perform(get("/users/me"))
                 .andExpect(status().isUnauthorized());
     }
