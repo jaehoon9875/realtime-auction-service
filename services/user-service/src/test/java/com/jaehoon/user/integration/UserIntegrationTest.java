@@ -5,12 +5,16 @@ import com.jaehoon.user.config.JwtProvider;
 import com.jaehoon.user.dto.LoginRequest;
 import com.jaehoon.user.dto.SignupRequest;
 import com.jaehoon.user.dto.TokenResponse;
+import com.jaehoon.user.support.MockMvcRequestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -39,8 +43,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("integration-test")
+@Import(UserIntegrationTest.JacksonTestConfig.class)
 @Testcontainers
 class UserIntegrationTest {
+
+    @TestConfiguration
+    static class JacksonTestConfig {
+        // Boot 4 webmvc 단독 구성에서는 ObjectMapper 빈이 없을 수 있어 SecurityConfig 주입용으로 등록
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper();
+        }
+    }
 
     // RSA 키 쌍은 클래스 로딩 시 정적 초기화 (DynamicPropertySource가 BeforeAll보다 먼저 실행됨)
     private static final KeyPair KEY_PAIR = generateKeyPair();
@@ -127,6 +141,7 @@ class UserIntegrationTest {
 
         // 6. 로그아웃 후 Refresh Token으로 재발급 시도 → 400 (Redis에서 해당 userId 키 삭제됨)
         mockMvc.perform(post("/users/refresh")
+                        .with(MockMvcRequestSupport.servletPath("/users/refresh"))
                         .header("Authorization", "Bearer " + newTokens.refreshToken()))
                 .andExpect(status().isBadRequest());
     }
@@ -155,6 +170,7 @@ class UserIntegrationTest {
 
         // 이미 사용된 old refresh token으로 재시도 → 탈취 감지 → 400
         mockMvc.perform(post("/users/refresh")
+                        .with(MockMvcRequestSupport.servletPath("/users/refresh"))
                         .header("Authorization", "Bearer " + first.refreshToken()))
                 .andExpect(status().isBadRequest());
     }
@@ -169,6 +185,7 @@ class UserIntegrationTest {
         String unknownToken = tempProvider.generateRefreshToken(UUID.randomUUID());
 
         mockMvc.perform(post("/users/refresh")
+                        .with(MockMvcRequestSupport.servletPath("/users/refresh"))
                         .header("Authorization", "Bearer " + unknownToken))
                 .andExpect(status().isBadRequest());
     }
@@ -217,6 +234,7 @@ class UserIntegrationTest {
 
     private TokenResponse refresh(String refreshToken) throws Exception {
         MvcResult result = mockMvc.perform(post("/users/refresh")
+                        .with(MockMvcRequestSupport.servletPath("/users/refresh"))
                         .header("Authorization", "Bearer " + refreshToken))
                 .andExpect(status().isOk())
                 .andReturn();

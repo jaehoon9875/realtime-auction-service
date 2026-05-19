@@ -11,6 +11,7 @@ import com.jaehoon.user.exception.GlobalExceptionHandler;
 import com.jaehoon.user.exception.InvalidCredentialsException;
 import com.jaehoon.user.exception.InvalidTokenException;
 import com.jaehoon.user.service.UserService;
+import com.jaehoon.user.support.MockMvcRequestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -67,6 +68,12 @@ class UserControllerTest {
         @Bean
         JwtDecoder jwtDecoder() {
             return token -> { throw new BadJwtException("테스트용 JwtDecoder"); };
+        }
+
+        // SecurityConfig 생성자가 ObjectMapper를 주입받으므로 슬라이스 컨텍스트에 명시 등록한다.
+        @Bean
+        ObjectMapper objectMapper() {
+            return new ObjectMapper();
         }
     }
 
@@ -187,6 +194,7 @@ class UserControllerTest {
         given(userService.refresh(anyString())).willReturn(newToken);
 
         mockMvc.perform(post("/users/refresh")
+                        .with(MockMvcRequestSupport.servletPath("/users/refresh"))
                         .header("Authorization", "Bearer old-refresh-jwt"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("new-access"))
@@ -200,6 +208,7 @@ class UserControllerTest {
                 .willThrow(new InvalidTokenException("만료되었거나 유효하지 않은 Refresh Token입니다"));
 
         mockMvc.perform(post("/users/refresh")
+                        .with(MockMvcRequestSupport.servletPath("/users/refresh"))
                         .header("Authorization", "Bearer expired-token"))
                 .andExpect(status().isBadRequest());
     }
