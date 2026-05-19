@@ -110,10 +110,9 @@ class UserIntegrationTest {
         assertThat(tokens.accessToken()).isNotBlank();
         assertThat(tokens.refreshToken()).isNotBlank();
 
-        // 3. 내 정보 조회 (Gateway가 Access Token 검증 후 X-User-Id 주입)
-        UUID userId = jwtProvider.extractUserId(tokens.accessToken());
+        // 3. 내 정보 조회 (Access Token을 Authorization 헤더로 직접 전달)
         mockMvc.perform(get("/users/me")
-                        .header("X-User-Id", userId.toString()))
+                        .header("Authorization", "Bearer " + tokens.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(testEmail));
 
@@ -121,10 +120,9 @@ class UserIntegrationTest {
         TokenResponse newTokens = refresh(tokens.refreshToken());
         assertThat(newTokens.refreshToken()).isNotEqualTo(tokens.refreshToken());
 
-        // 5. 로그아웃: Gateway가 X-User-Id 주입 → userId 기준으로 Redis Refresh Token 삭제
-        UUID newUserId = jwtProvider.extractUserId(newTokens.accessToken());
+        // 5. 로그아웃: Access Token으로 userId 식별 → Redis Refresh Token 삭제
         mockMvc.perform(post("/users/logout")
-                        .header("X-User-Id", newUserId.toString()))
+                        .header("Authorization", "Bearer " + newTokens.accessToken()))
                 .andExpect(status().isNoContent());
 
         // 6. 로그아웃 후 Refresh Token으로 재발급 시도 → 400 (Redis에서 해당 userId 키 삭제됨)

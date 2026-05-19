@@ -33,6 +33,7 @@ app:
       - /users/login
       - /users/refresh
       - /actuator/health
+      - /.well-known/jwks.json
   jwt:
     private-key: ${JWT_PRIVATE_KEY}
     public-key: ${JWT_PUBLIC_KEY}

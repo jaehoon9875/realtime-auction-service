@@ -11,8 +11,9 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * Spring Security 필터 체인 및 인증 정책을 구성한다.
@@ -23,7 +24,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthFilter jwtAuthFilter;
+    private final JwtDecoder jwtDecoder;
     private final SecurityProperties securityProperties;
 
     /**
@@ -34,6 +35,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         String[] publicEndpoints = securityProperties.getPublicEndpoints().toArray(String[]::new);
+        DefaultBearerTokenResolver defaultResolver = new DefaultBearerTokenResolver();
 
         return http
                 // REST API 서버 → CSRF 불필요
@@ -46,15 +48,20 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 // 미인증 요청(토큰 없음·만료·위조)에 대해 JSON 형식으로 401 반환
-                // 403은 인증은 됐으나 권한이 없는 경우에만 사용
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((req, res, e) -> {
                             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             res.setContentType("application/json;charset=UTF-8");
                             res.getWriter().write("{\"message\":\"인증이 필요합니다\"}");
                         }))
-                // JWT 필터를 Spring Security 인증 필터 앞에 배치
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        // /users/refresh는 Refresh Token을 Authorization 헤더로 수신하므로
+                        // BearerTokenAuthenticationFilter의 Access Token 검증 대상에서 제외
+                        .bearerTokenResolver(request -> {
+                            if ("/users/refresh".equals(request.getRequestURI())) return null;
+                            return defaultResolver.resolve(request);
+                        })
+                        .jwt(jwt -> jwt.decoder(jwtDecoder)))
                 .build();
     }
 

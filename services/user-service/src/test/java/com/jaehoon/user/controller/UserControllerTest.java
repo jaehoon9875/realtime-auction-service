@@ -1,7 +1,6 @@
 package com.jaehoon.user.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jaehoon.user.config.JwtAuthFilter;
 import com.jaehoon.user.config.SecurityConfig;
 import com.jaehoon.user.dto.LoginRequest;
 import com.jaehoon.user.dto.SignupRequest;
@@ -21,7 +20,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.security.oauth2.jwt.BadJwtException;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
@@ -30,28 +30,18 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
  * HTTP 계약 검증: 상태 코드, 응답 포맷, Bean Validation, 인증/인가 동작.
  *
- * - JWT 파싱 동작은 JwtProviderTest / JwtAuthGlobalFilterTest에서 별도 검증하므로,
- *   이 테스트의 JwtAuthFilter는 "그냥 통과"하는 passthrough 구현체를 사용한다.
- * - 인증이 필요한 엔드포인트(.with(user(...)))와 permitAll 경로를 SecurityConfig 설정 그대로 검증한다.
+ * - 인증이 필요한 엔드포인트는 .with(jwt())로 SecurityContext에 JWT 인증을 주입한다.
+ * - JwtDecoder는 테스트용 mock으로 교체하여 실제 RSA 키 없이 동작한다.
  */
 @WebMvcTest(UserController.class)
 @Import({SecurityConfig.class, GlobalExceptionHandler.class, UserControllerTest.TestConfig.class})
-@TestPropertySource(properties = {
-        // JwtProvider 생성에 필요한 프로퍼티 (JwtAuthFilter passthrough이므로 실제 RSA 키 불필요)
-        "JWT_PRIVATE_KEY=dGVzdA==",
-        "JWT_PUBLIC_KEY=dGVzdA==",
-        "app.jwt.private-key=dGVzdA==",
-        "app.jwt.public-key=dGVzdA==",
-        "app.jwt.access-token-expiration-ms=900000",
-        "app.jwt.refresh-token-expiration-ms=604800000"
-})
 class UserControllerTest {
 
     @Autowired MockMvc mockMvc;
@@ -72,10 +62,11 @@ class UserControllerTest {
             return mock(UserService.class);
         }
 
-        // 실제 JwtAuthFilter 사용 — JWT 파싱 없이 X-User-Id 헤더만 읽으므로 별도 passthrough 불필요
+        // 테스트용 JwtDecoder — 실제 RSA 검증 없이 모든 토큰을 거부하여 401 시나리오를 검증한다.
+        // .with(jwt())를 사용하는 테스트는 BearerTokenFilter를 우회하므로 이 decoder가 호출되지 않는다.
         @Bean
-        JwtAuthFilter jwtAuthFilter() {
-            return new JwtAuthFilter();
+        JwtDecoder jwtDecoder() {
+            return token -> { throw new BadJwtException("테스트용 JwtDecoder"); };
         }
     }
 
@@ -186,7 +177,7 @@ class UserControllerTest {
     }
 
     // ─────────────────────────────────────────────────
-    // POST /users/refresh  (공개 경로)
+    // POST /users/refresh  (공개 경로 — BearerTokenFilter 제외)
     // ─────────────────────────────────────────────────
 
     @Test
@@ -223,9 +214,8 @@ class UserControllerTest {
         UUID userId = UUID.randomUUID();
         willDoNothing().given(userService).logout(any(UUID.class));
 
-        // .with(user(userId))로 SecurityContext 주입 → @AuthenticationPrincipal에 userId 전달
         mockMvc.perform(post("/users/logout")
-                        .with(user(userId.toString())))
+                        .with(jwt().jwt(j -> j.subject(userId.toString()))))
                 .andExpect(status().isNoContent());
     }
 
@@ -249,7 +239,7 @@ class UserControllerTest {
         given(userService.me(userId)).willReturn(response);
 
         mockMvc.perform(get("/users/me")
-                        .with(user(userId.toString())))
+                        .with(jwt().jwt(j -> j.subject(userId.toString()))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(userId.toString()))
                 .andExpect(jsonPath("$.email").value(email))
@@ -264,7 +254,7 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("me 변조된 JWT - 401 Unauthorized (passthrough 필터 → 인증 컨텍스트 없음)")
+    @DisplayName("me 변조된 JWT - 401 Unauthorized (BearerTokenFilter에서 거부)")
     void me_변조된JWT_401() throws Exception {
         mockMvc.perform(get("/users/me")
                         .header("Authorization", "Bearer invalid.jwt.token"))

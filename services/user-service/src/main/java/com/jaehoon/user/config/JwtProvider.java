@@ -10,6 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.interfaces.RSAPublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
@@ -103,6 +104,11 @@ public class JwtProvider {
         } catch (Exception e) {
             throw new IllegalStateException("JWT 개인키 로드 실패", e);
         }
+    }
+
+    // JWK Set 노출 및 JwtDecoder 생성에 사용 — RSAPublicKey 타입으로 직접 반환
+    public RSAPublicKey getRSAPublicKey() {
+        return (RSAPublicKey) getPublicKeyInstance();
     }
 
     // Base64(X509) 공개키 문자열 → java.security.PublicKey (호출 시점 파싱)
