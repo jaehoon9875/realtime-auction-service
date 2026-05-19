@@ -10,35 +10,46 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * JWT 기반 Stateless 인증 필터 체인을 구성한다.
+ */
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties(AuctionSecurityProperties.class)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    // GET 조회는 비로그인 허용 (경매 목록·상세)
+    private static final String[] PUBLIC_GET_ENDPOINTS = { "/auctions", "/auctions/*" };
+    // Kubernetes liveness/readiness 프로브는 인증 없이 접근 허용
+    private static final String[] HEALTH_ENDPOINTS = { "/actuator/health", "/actuator/health/**" };
+
     private final InternalRequestTokenFilter internalRequestTokenFilter;
 
+    /**
+     * JWT 기반 Stateless 인증 필터 체인을 구성한다.
+     */
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-                // 브라우저 폼·세션 CSRF가 아닌 Bearer/헤더 기반 API이므로 비활성화
+                // CSRF는 브라우저 쿠키 기반 공격 방어용이므로 Bearer 헤더 기반 REST API에서는 불필요
                 .csrf(AbstractHttpConfigurer::disable)
-                // 서버 세션을 만들지 않음(REST)
+                // 세션 비활성화: JWT 토큰 기반 인증이므로 세션 필요 없음. (서버 측 상태 관리 불필요)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // 인증 요청 권한 설정
                 .authorizeHttpRequests(auth -> auth
-                        // 경매 목록·상세 조회는 비로그인 허용
-                        .requestMatchers(HttpMethod.GET, "/auctions", "/auctions/*").permitAll()
-                        // Kubernetes liveness/readiness(/actuator/health/**) 프로브도 인증 없이 접근 허용
-                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                        // 경매 생성·상태 변경 등 나머지는 인증 필요
-                        .anyRequest().authenticated()
-                )
-                // InternalRequestTokenFilter: 내부 서비스 호출 검증 (oauth2ResourceServer보다 먼저 실행)
-                .addFilterBefore(internalRequestTokenFilter, UsernamePasswordAuthenticationFilter.class)
-                // JWKS 엔드포인트(user-service)로 공개키를 가져와 JWT 직접 검증
+                        .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
+                        // Kubernetes liveness/readiness 프로브는 인증 없이 접근 허용
+                        .requestMatchers(HEALTH_ENDPOINTS).permitAll()
+                        // 나머지 요청은 인증 필요
+                        .anyRequest().authenticated())
+                // Gateway 시크릿 검증을 JWT 검증(BearerTokenAuthenticationFilter)보다 먼저 수행
+                // Gateway를 거치지 않은 직접 호출을 JWT 검증 전에 차단한다
+                .addFilterBefore(internalRequestTokenFilter, BearerTokenAuthenticationFilter.class)
+                // user-service JWKS 엔드포인트로 공개키를 가져와 JWT 서명·만료 검증
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
                 .build();
     }
