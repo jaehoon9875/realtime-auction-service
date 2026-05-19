@@ -27,6 +27,12 @@ spring:
     locations:
       - classpath:db/migration
 app:
+  security:
+    public-endpoints:
+      - /users/signup
+      - /users/login
+      - /users/refresh
+      - /actuator/health
   jwt:
     private-key: ${JWT_PRIVATE_KEY}
     public-key: ${JWT_PUBLIC_KEY}
