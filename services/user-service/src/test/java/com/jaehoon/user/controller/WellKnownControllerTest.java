@@ -65,7 +65,7 @@ class WellKnownControllerTest {
                     "/users/refresh",
                     "/actuator/health",
                     "/.well-known/jwks.json"
-            ));
+            ), "/users/refresh");
         }
 
         @Bean
