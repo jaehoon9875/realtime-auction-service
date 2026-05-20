@@ -1,5 +1,6 @@
 package com.jaehoon.notification.integration;
 
+import static com.jaehoon.notification.kafka.NotificationTypes.BID_REJECTED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.jaehoon.auction.events.NotificationEvent;
@@ -94,7 +95,7 @@ class NotificationIntegrationTest {
         NotificationEvent event =
                 NotificationEvent.newBuilder()
                         .setEventId("integration-evt-1")
-                        .setNotificationType("BID_REJECTED")
+                        .setNotificationType(BID_REJECTED)
                         .setTargetUserId(userId)
                         .setAuctionId("auction-integration-1")
                         .setPayload(
@@ -111,7 +112,7 @@ class NotificationIntegrationTest {
                 .untilAsserted(
                         () -> {
                             assertThat(received).hasSize(1);
-                            assertThat(received.getFirst()).contains("BID_REJECTED");
+                            assertThat(received.getFirst()).contains(BID_REJECTED);
                             assertThat(received.getFirst()).contains("PRICE_TOO_LOW");
                         });
     }

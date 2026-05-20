@@ -1,5 +1,11 @@
 package com.jaehoon.notification.kafka;
 
+import static com.jaehoon.notification.kafka.NotificationTypes.AUCTION_CLOSED;
+import static com.jaehoon.notification.kafka.NotificationTypes.AUCTION_WON;
+import static com.jaehoon.notification.kafka.NotificationTypes.BID_REJECTED;
+import static com.jaehoon.notification.kafka.NotificationTypes.BID_UPDATED;
+import static com.jaehoon.notification.kafka.NotificationTypes.OUTBID;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -26,21 +32,28 @@ public class NotificationMessageMapper {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * NotificationEvent를 WebSocket push용 JSON 문자열로 변환한다.
+     *
+     * @param event NotificationEvent (Avro)
+     * @return docs/api.md 형식의 JSON 문자열
+     * @throws IllegalArgumentException 지원하지 않는 notificationType
+     */
     public String toWebSocketMessage(NotificationEvent event) {
         String type = event.getNotificationType().toString();
         return switch (type) {
-            case "BID_UPDATED" -> toJson(buildBidUpdated(event));
-            case "AUCTION_CLOSED" -> toJson(buildAuctionClosed(event));
-            case "AUCTION_WON" -> toJson(buildAuctionWon(event));
-            case "OUTBID" -> toJson(buildOutbid(event));
-            case "BID_REJECTED" -> toJson(buildBidRejected(event));
+            case BID_UPDATED -> toJson(buildBidUpdated(event));
+            case AUCTION_CLOSED -> toJson(buildAuctionClosed(event));
+            case AUCTION_WON -> toJson(buildAuctionWon(event));
+            case OUTBID -> toJson(buildOutbid(event));
+            case BID_REJECTED -> toJson(buildBidRejected(event));
             default -> throw new IllegalArgumentException("지원하지 않는 notificationType: " + type);
         };
     }
 
     private ObjectNode buildBidUpdated(NotificationEvent event) {
         Map<String, String> payload = event.getPayload();
-        ObjectNode node = baseNode("BID_UPDATED", event);
+        ObjectNode node = baseNode(BID_UPDATED, event);
         putLongField(node, "currentPrice", payload, "currentPrice");
         putLongField(node, "bidCount", payload, "bidCount");
         return node;
@@ -48,7 +61,7 @@ public class NotificationMessageMapper {
 
     private ObjectNode buildAuctionClosed(NotificationEvent event) {
         Map<String, String> payload = event.getPayload();
-        ObjectNode node = baseNode("AUCTION_CLOSED", event);
+        ObjectNode node = baseNode(AUCTION_CLOSED, event);
         // Streams는 title만 넣을 수 있어 finalPrice·winnerId는 payload 키 fallback
         if (!putLongField(node, "finalPrice", payload, "finalPrice", "highestBid")) {
             node.putNull("finalPrice");
@@ -61,21 +74,21 @@ public class NotificationMessageMapper {
 
     private ObjectNode buildAuctionWon(NotificationEvent event) {
         Map<String, String> payload = event.getPayload();
-        ObjectNode node = baseNode("AUCTION_WON", event);
+        ObjectNode node = baseNode(AUCTION_WON, event);
         putLongField(node, "finalPrice", payload, "finalPrice", "highestBid");
         return node;
     }
 
     private ObjectNode buildOutbid(NotificationEvent event) {
         Map<String, String> payload = event.getPayload();
-        ObjectNode node = baseNode("OUTBID", event);
+        ObjectNode node = baseNode(OUTBID, event);
         putLongField(node, "currentPrice", payload, "currentPrice", "newHighestBid");
         return node;
     }
 
     private ObjectNode buildBidRejected(NotificationEvent event) {
         Map<String, String> payload = event.getPayload();
-        ObjectNode node = baseNode("BID_REJECTED", event);
+        ObjectNode node = baseNode(BID_REJECTED, event);
         putLongField(node, "rejectedPrice", payload, "rejectedPrice");
         putTextField(node, "reason", payload, "reason");
         return node;

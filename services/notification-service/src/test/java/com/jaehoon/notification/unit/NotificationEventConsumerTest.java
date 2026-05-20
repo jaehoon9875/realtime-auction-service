@@ -1,5 +1,9 @@
 package com.jaehoon.notification.unit;
 
+import static com.jaehoon.notification.kafka.NotificationTypes.AUCTION_CLOSED;
+import static com.jaehoon.notification.kafka.NotificationTypes.BID_REJECTED;
+import static com.jaehoon.notification.kafka.NotificationTypes.BID_UPDATED;
+import static com.jaehoon.notification.kafka.NotificationTypes.OUTBID;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -41,19 +45,19 @@ class NotificationEventConsumerTest {
     void BID_UPDATED는_경매방_브로드캐스트로_라우팅한다() {
         NotificationEvent event = NotificationEvent.newBuilder()
                 .setEventId("e1")
-                .setNotificationType("BID_UPDATED")
+                .setNotificationType(BID_UPDATED)
                 .setTargetAuctionId("auction-1")
                 .setAuctionId("auction-1")
                 .setPayload(Map.of("currentPrice", "1000", "bidCount", "1"))
                 .setOccurredAt(1_736_947_200L)
                 .build();
-        when(messageMapper.toWebSocketMessage(event)).thenReturn("{\"type\":\"BID_UPDATED\"}");
+        when(messageMapper.toWebSocketMessage(event)).thenReturn("{\"type\":\"" + BID_UPDATED + "\"}");
         when(sessionRegistry.sendToAuction(eq("auction-1"), anyString()))
                 .thenReturn(Mono.empty());
 
         consumer.consume(event);
 
-        verify(sessionRegistry).sendToAuction("auction-1", "{\"type\":\"BID_UPDATED\"}");
+        verify(sessionRegistry).sendToAuction("auction-1", "{\"type\":\"" + BID_UPDATED + "\"}");
         verify(sessionRegistry, never()).sendToUser(anyString(), anyString());
     }
 
@@ -61,37 +65,37 @@ class NotificationEventConsumerTest {
     void AUCTION_CLOSED는_targetAuctionId_우선으로_브로드캐스트한다() {
         NotificationEvent event = NotificationEvent.newBuilder()
                 .setEventId("e2")
-                .setNotificationType("AUCTION_CLOSED")
+                .setNotificationType(AUCTION_CLOSED)
                 .setTargetAuctionId("target-auction")
                 .setAuctionId("auction-fallback")
                 .setPayload(Map.of())
                 .setOccurredAt(1_736_947_200L)
                 .build();
-        when(messageMapper.toWebSocketMessage(event)).thenReturn("{\"type\":\"AUCTION_CLOSED\"}");
+        when(messageMapper.toWebSocketMessage(event)).thenReturn("{\"type\":\"" + AUCTION_CLOSED + "\"}");
         when(sessionRegistry.sendToAuction(eq("target-auction"), anyString()))
                 .thenReturn(Mono.empty());
 
         consumer.consume(event);
 
-        verify(sessionRegistry).sendToAuction("target-auction", "{\"type\":\"AUCTION_CLOSED\"}");
+        verify(sessionRegistry).sendToAuction("target-auction", "{\"type\":\"" + AUCTION_CLOSED + "\"}");
     }
 
     @Test
     void BID_REJECTED는_개인_알림으로_라우팅한다() {
         NotificationEvent event = NotificationEvent.newBuilder()
                 .setEventId("e3")
-                .setNotificationType("BID_REJECTED")
+                .setNotificationType(BID_REJECTED)
                 .setTargetUserId("user-bidder")
                 .setAuctionId("auction-1")
                 .setPayload(Map.of("rejectedPrice", "500", "reason", "PRICE_TOO_LOW"))
                 .setOccurredAt(1_736_947_200L)
                 .build();
-        when(messageMapper.toWebSocketMessage(event)).thenReturn("{\"type\":\"BID_REJECTED\"}");
+        when(messageMapper.toWebSocketMessage(event)).thenReturn("{\"type\":\"" + BID_REJECTED + "\"}");
         when(sessionRegistry.sendToUser(eq("user-bidder"), anyString())).thenReturn(Mono.empty());
 
         consumer.consume(event);
 
-        verify(sessionRegistry).sendToUser("user-bidder", "{\"type\":\"BID_REJECTED\"}");
+        verify(sessionRegistry).sendToUser("user-bidder", "{\"type\":\"" + BID_REJECTED + "\"}");
         verify(sessionRegistry, never()).sendToAuction(anyString(), anyString());
     }
 
@@ -99,7 +103,7 @@ class NotificationEventConsumerTest {
     void targetUserId가_없으면_개인_알림을_보내지_않는다() {
         NotificationEvent event = NotificationEvent.newBuilder()
                 .setEventId("e4")
-                .setNotificationType("OUTBID")
+                .setNotificationType(OUTBID)
                 .setAuctionId("auction-1")
                 .setPayload(Map.of("newHighestBid", "1000"))
                 .setOccurredAt(1_736_947_200L)

@@ -1,7 +1,11 @@
 package com.jaehoon.notification.kafka;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.jaehoon.notification.kafka.NotificationTypes.AUCTION_CLOSED;
+import static com.jaehoon.notification.kafka.NotificationTypes.AUCTION_WON;
+import static com.jaehoon.notification.kafka.NotificationTypes.BID_REJECTED;
+import static com.jaehoon.notification.kafka.NotificationTypes.BID_UPDATED;
+import static com.jaehoon.notification.kafka.NotificationTypes.OUTBID;
+
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * notification-events 토픽을 소비해 WebSocket 세션으로 알림을 전달한다.
+ * notificationType에 따라 경매 구독자 브로드캐스트(/ws/auctions)와 개인 알림(/ws/users/me)으로 라우팅한다.
  */
 @Slf4j
 @Component
@@ -27,18 +32,24 @@ public class NotificationEventConsumer {
         this.messageMapper = messageMapper;
     }
 
+    /**
+     * Kafka notification-events 이벤트를 수신해 타입별 WebSocket 라우팅을 수행한다.
+     *
+     * @param event NotificationEvent (Avro)
+     */
     @KafkaListener(topics = "notification-events", groupId = "notification-service")
     public void consume(NotificationEvent event) {
         String notificationType = event.getNotificationType().toString();
         switch (notificationType) {
-            case "BID_UPDATED" -> handleBidUpdated(event);
-            case "AUCTION_CLOSED" -> handleAuctionClosed(event);
-            case "AUCTION_WON", "OUTBID", "BID_REJECTED" -> handlePersonal(event);
+            case BID_UPDATED -> handleBidUpdated(event);
+            case AUCTION_CLOSED -> handleAuctionClosed(event);
+            case AUCTION_WON, OUTBID, BID_REJECTED -> handlePersonal(event);
             default -> log.warn("알 수 없는 notificationType, 건너뜀. type={}, eventId={}",
                     notificationType, event.getEventId());
         }
     }
 
+    // BID_UPDATED는 /ws/auctions/{auctionId} 구독자 전체에 브로드캐스트
     private void handleBidUpdated(NotificationEvent event) {
         String auctionId = resolveAuctionId(event);
         if (auctionId == null) {
@@ -48,6 +59,7 @@ public class NotificationEventConsumer {
         pushToAuction(auctionId, event);
     }
 
+    // AUCTION_CLOSED는 경매 마감 알림용 브로드캐스트 — Auction DB status와 별개(알림 파이프라인)
     private void handleAuctionClosed(NotificationEvent event) {
         String auctionId = resolveAuctionId(event);
         if (auctionId == null) {
@@ -57,6 +69,7 @@ public class NotificationEventConsumer {
         pushToAuction(auctionId, event);
     }
 
+    // AUCTION_WON·OUTBID·BID_REJECTED는 targetUserId 기준 개인 알림
     private void handlePersonal(NotificationEvent event) {
         if (event.getTargetUserId() == null) {
             log.warn("개인 알림 라우팅 실패: targetUserId 없음. type={}, eventId={}",
@@ -71,6 +84,7 @@ public class NotificationEventConsumer {
             log.warn("개인 알림 매핑 실패. type={}, eventId={}", event.getNotificationType(), event.getEventId(), e);
             return;
         }
+        // WebFlux Mono — Kafka listener 스레드에서 fire-and-forget 전송
         sessionRegistry.sendToUser(userId, message)
                 .doOnError(
                         e -> log.error("WebSocket 전송 실패. userId={}, type={}", userId, event.getNotificationType(), e))
@@ -91,7 +105,10 @@ public class NotificationEventConsumer {
                 .subscribe();
     }
 
-    /** 브로드캐스트는 targetAuctionId 우선, 없으면 auctionId */
+    /**
+     * 브로드캐스트 대상 경매 ID를 결정한다.
+     * Streams 발행 시 targetAuctionId를 우선 사용하고, 없으면 auctionId로 fallback한다.
+     */
     private String resolveAuctionId(NotificationEvent event) {
         if (event.getTargetAuctionId() != null) {
             return event.getTargetAuctionId().toString();

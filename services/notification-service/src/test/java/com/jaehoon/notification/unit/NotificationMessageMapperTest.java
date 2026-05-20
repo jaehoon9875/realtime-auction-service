@@ -1,5 +1,9 @@
 package com.jaehoon.notification.unit;
 
+import static com.jaehoon.notification.kafka.NotificationTypes.AUCTION_CLOSED;
+import static com.jaehoon.notification.kafka.NotificationTypes.BID_REJECTED;
+import static com.jaehoon.notification.kafka.NotificationTypes.BID_UPDATED;
+import static com.jaehoon.notification.kafka.NotificationTypes.OUTBID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -28,14 +32,14 @@ class NotificationMessageMapperTest {
 
     @Test
     void BID_UPDATED_필드를_매핑한다() throws Exception {
-        NotificationEvent event = baseEvent("BID_UPDATED", "auction-1")
+        NotificationEvent event = baseEvent(BID_UPDATED, "auction-1")
                 .setTargetAuctionId("auction-1")
                 .setPayload(Map.of("currentPrice", "1500000", "bidCount", "3"))
                 .build();
 
         JsonNode json = readJson(mapper.toWebSocketMessage(event));
 
-        assertThat(json.get("type").asText()).isEqualTo("BID_UPDATED");
+        assertThat(json.get("type").asText()).isEqualTo(BID_UPDATED);
         assertThat(json.get("auctionId").asText()).isEqualTo("auction-1");
         assertThat(json.get("currentPrice").asLong()).isEqualTo(1_500_000L);
         assertThat(json.get("bidCount").asInt()).isEqualTo(3);
@@ -45,7 +49,7 @@ class NotificationMessageMapperTest {
 
     @Test
     void AUCTION_CLOSED_finalPrice_winnerId_fallback을_적용한다() throws Exception {
-        NotificationEvent event = baseEvent("AUCTION_CLOSED", "auction-2")
+        NotificationEvent event = baseEvent(AUCTION_CLOSED, "auction-2")
                 .setTargetAuctionId("auction-2")
                 .setPayload(
                         Map.of(
@@ -56,14 +60,14 @@ class NotificationMessageMapperTest {
 
         JsonNode json = readJson(mapper.toWebSocketMessage(event));
 
-        assertThat(json.get("type").asText()).isEqualTo("AUCTION_CLOSED");
+        assertThat(json.get("type").asText()).isEqualTo(AUCTION_CLOSED);
         assertThat(json.get("finalPrice").asLong()).isEqualTo(2_000_000L);
         assertThat(json.get("winnerId").asText()).isEqualTo("user-winner");
     }
 
     @Test
     void AUCTION_CLOSED_payload가_부족하면_null을_넣는다() throws Exception {
-        NotificationEvent event = baseEvent("AUCTION_CLOSED", "auction-3")
+        NotificationEvent event = baseEvent(AUCTION_CLOSED, "auction-3")
                 .setTargetAuctionId("auction-3")
                 .setPayload(Map.of("title", "제목만"))
                 .build();
@@ -76,27 +80,27 @@ class NotificationMessageMapperTest {
 
     @Test
     void OUTBID_newHighestBid_fallback을_적용한다() throws Exception {
-        NotificationEvent event = baseEvent("OUTBID", "auction-4")
+        NotificationEvent event = baseEvent(OUTBID, "auction-4")
                 .setTargetUserId("user-prev")
                 .setPayload(Map.of("newHighestBid", "900000"))
                 .build();
 
         JsonNode json = readJson(mapper.toWebSocketMessage(event));
 
-        assertThat(json.get("type").asText()).isEqualTo("OUTBID");
+        assertThat(json.get("type").asText()).isEqualTo(OUTBID);
         assertThat(json.get("currentPrice").asLong()).isEqualTo(900_000L);
     }
 
     @Test
     void BID_REJECTED_필드를_매핑한다() throws Exception {
-        NotificationEvent event = baseEvent("BID_REJECTED", "auction-5")
+        NotificationEvent event = baseEvent(BID_REJECTED, "auction-5")
                 .setTargetUserId("user-bidder")
                 .setPayload(Map.of("rejectedPrice", "100000", "reason", "PRICE_TOO_LOW"))
                 .build();
 
         JsonNode json = readJson(mapper.toWebSocketMessage(event));
 
-        assertThat(json.get("type").asText()).isEqualTo("BID_REJECTED");
+        assertThat(json.get("type").asText()).isEqualTo(BID_REJECTED);
         assertThat(json.get("rejectedPrice").asLong()).isEqualTo(100_000L);
         assertThat(json.get("reason").asText()).isEqualTo("PRICE_TOO_LOW");
     }
