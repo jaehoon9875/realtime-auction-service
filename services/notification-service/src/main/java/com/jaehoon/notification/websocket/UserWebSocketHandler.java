@@ -19,10 +19,15 @@ public class UserWebSocketHandler implements WebSocketHandler {
         this.registry = registry;
     }
 
+    /**
+     * WebSocket 연결 수립 시 세션을 등록하고, 연결 해제 시 세션을 정리한다.
+     * receive()를 소비해야 연결이 유지된다. Flux 종료 시점이 클라이언트 disconnect 감지 시점이다.
+     */
     @Override
     public Mono<Void> handle(WebSocketSession session) {
         // SecurityWebFilterChain이 핸드셰이크 시 ?token= JWT를 검증하고 Principal을 세팅함
         return session.getHandshakeInfo().getPrincipal()
+                .switchIfEmpty(session.close().then(Mono.empty()))  // 안전망: Principal 없으면 즉시 종료
                 .flatMap(principal -> {
                     String userId = principal.getName();
                     registry.registerUserSession(userId, session);

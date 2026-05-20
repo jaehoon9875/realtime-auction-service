@@ -1,19 +1,21 @@
 package com.jaehoon.notification.kafka;
 
-import com.jaehoon.auction.events.NotificationEvent;
-import com.jaehoon.notification.session.WebSocketSessionRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import com.jaehoon.auction.events.NotificationEvent;
+import com.jaehoon.notification.session.WebSocketSessionRegistry;
+
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * notification-events 토픽을 소비해 WebSocket 세션으로 알림을 전달한다.
  */
+@Slf4j
 @Component
 public class NotificationEventConsumer {
-
-    private static final Logger log = LoggerFactory.getLogger(NotificationEventConsumer.class);
 
     private final WebSocketSessionRegistry sessionRegistry;
     private final NotificationMessageMapper messageMapper;
@@ -70,7 +72,8 @@ public class NotificationEventConsumer {
             return;
         }
         sessionRegistry.sendToUser(userId, message)
-                .doOnError(e -> log.error("WebSocket 전송 실패. userId={}, type={}", userId, event.getNotificationType(), e))
+                .doOnError(
+                        e -> log.error("WebSocket 전송 실패. userId={}, type={}", userId, event.getNotificationType(), e))
                 .subscribe();
     }
 
@@ -83,7 +86,8 @@ public class NotificationEventConsumer {
             return;
         }
         sessionRegistry.sendToAuction(auctionId, message)
-                .doOnError(e -> log.error("WebSocket 전송 실패. auctionId={}, type={}", auctionId, event.getNotificationType(), e))
+                .doOnError(e -> log.error("WebSocket 전송 실패. auctionId={}, type={}", auctionId,
+                        event.getNotificationType(), e))
                 .subscribe();
     }
 
