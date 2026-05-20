@@ -2,9 +2,8 @@ package com.jaehoon.streams.auction.topology;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jaehoon.auction.avro.BidEvent;
-import com.jaehoon.auction.events.AuctionEvent;
 import com.jaehoon.auction.events.NotificationEvent;
-import com.jaehoon.streams.auction.config.AuctionStreamsProperties;
+import com.jaehoon.streams.auction.config.StateStoreConfig;
 import com.jaehoon.streams.auction.store.AuctionBidState;
 import com.jaehoon.streams.auction.store.AuctionMetadata;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
@@ -50,9 +49,6 @@ class BidStreamsTopologyTest {
                 AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock://test"
         );
 
-        SpecificAvroSerde<AuctionEvent> auctionSerde = new SpecificAvroSerde<>(mockRegistry);
-        auctionSerde.configure(schemaConf, false);
-
         SpecificAvroSerde<BidEvent> bidSerde = new SpecificAvroSerde<>(mockRegistry);
         bidSerde.configure(schemaConf, false);
 
@@ -65,12 +61,8 @@ class BidStreamsTopologyTest {
 
         StreamsBuilder builder = new StreamsBuilder();
 
-        // AuctionStreamsTopology가 STORE_AUCTION_METADATA, STORE_HIGHEST_BID를 선언하므로 먼저 빌드
-        AuctionStreamsProperties props = new AuctionStreamsProperties(3600, 3, 2000, 3000);
-        AuctionStreamsTopology auctionTopology = new AuctionStreamsTopology(
-                builder, props, auctionSerde, metadataSerde, bidStateSerde, notificationSerde
-        );
-        auctionTopology.buildTopology();
+        // StateStoreConfig가 STORE_AUCTION_METADATA, STORE_HIGHEST_BID를 선언
+        new StateStoreConfig(builder, metadataSerde, bidStateSerde).registerStateStores();
 
         BidStreamsTopology bidTopology = new BidStreamsTopology(builder, bidSerde, notificationSerde);
         bidTopology.buildTopology();
@@ -147,7 +139,7 @@ class BidStreamsTopologyTest {
     }
 
     @Test
-    void BID_REJECTED_이벤트는_무시된다() {
+    void BID_REJECTED_이벤트는_스토어를_변경하지_않고_거부_알림을_발행한다() {
         BidEvent rejected = BidEvent.newBuilder()
                 .setEventId("ev-1")
                 .setEventType("BID_REJECTED")
@@ -160,8 +152,14 @@ class BidStreamsTopologyTest {
 
         bidInput.pipeInput("auction-1", rejected);
 
+        // State Store는 변경되지 않아야 함
         assertThat(bidStateStore.get("auction-1")).isNull();
-        assertThat(notificationOutput.isEmpty()).isTrue();
+
+        // 거부된 입찰자에게 개인 알림이 발행되어야 함
+        List<NotificationEvent> notifications = notificationOutput.readValuesToList();
+        assertThat(notifications).hasSize(1);
+        assertThat(notifications.get(0).getNotificationType().toString()).isEqualTo(NOTIFICATION_BID_REJECTED);
+        assertThat(notifications.get(0).getTargetUserId().toString()).isEqualTo("bidder-A");
     }
 
     @Test
