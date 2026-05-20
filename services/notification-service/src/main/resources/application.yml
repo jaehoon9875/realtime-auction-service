@@ -16,7 +16,8 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
     consumer:
       group-id: notification-service
-      auto-offset-reset: earliest
+      # 최초 기동 시 과거 알림 전송 방지
+      auto-offset-reset: latest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
       properties:
@@ -29,5 +30,8 @@ spring:
           jwk-set-uri: ${JWK_SET_URI}
 
 app:
+  kafka:
+    topics:
+      notification-events: ${KAFKA_NOTIFICATION_EVENTS_TOPIC:notification-events}
   # Redis 세션 라우팅 시 어느 인스턴스에 세션이 있는지 식별하는 값
   instance-id: ${HOSTNAME:local-instance}

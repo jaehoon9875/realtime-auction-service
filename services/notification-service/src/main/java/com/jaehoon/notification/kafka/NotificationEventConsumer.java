@@ -37,7 +37,7 @@ public class NotificationEventConsumer {
      *
      * @param event NotificationEvent (Avro)
      */
-    @KafkaListener(topics = "notification-events", groupId = "notification-service")
+    @KafkaListener(topics = "${app.kafka.topics.notification-events}")
     public void consume(NotificationEvent event) {
         String notificationType = event.getNotificationType().toString();
         switch (notificationType) {
