@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.0] - 2026-05-20 — M6: Notification Service + WebSocket
+
+### Added
+- notification-service Spring Boot 모듈 (WebFlux, 포트 8084)
+- `notification-events` Kafka Consumer → WebSocket 실시간 push
+- Raw WebSocket 엔드포인트: `/ws/auctions/{auctionId}`, `/ws/users/me`
+- Redis 기반 세션 공유 및 멀티 인스턴스 Pub/Sub 라우팅 (`notify:{instanceId}`)
+- WebFlux JWT Resource Server (`?token=` 쿼리 파라미터 지원)
+- auction-streams `BID_REJECTED` → `notification-events` 분기
+- docker-compose `notification-service` 컨테이너 및 Dockerfile
+- 단위·통합 테스트 (`integrationTest` 태스크, Docker 필요)
+
+---
+
 ## [0.5.0] - 2026-05-10 — M5: Kafka Streams App
 
 ### Added

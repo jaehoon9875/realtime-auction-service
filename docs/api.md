@@ -413,6 +413,17 @@ WS /ws/users/me         # 개인 알림 구독
 }
 ```
 
+**BID_REJECTED** - 입찰 거부 시 (개인 알림)
+```json
+{
+  "type": "BID_REJECTED",
+  "auctionId": "uuid",
+  "rejectedPrice": 1200000,
+  "reason": "PRICE_TOO_LOW",
+  "occurredAt": "2024-04-28T15:32:00"
+}
+```
+
 **OUTBID** - 내가 입찰한 경매에서 더 높은 금액 입찰 시 (개인 알림)
 ```json
 {
