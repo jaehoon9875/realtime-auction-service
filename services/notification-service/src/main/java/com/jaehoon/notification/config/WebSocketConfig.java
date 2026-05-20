@@ -12,24 +12,34 @@ import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAd
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * WebSocket URL → 핸들러 매핑과 업그레이드 처리 어댑터를 등록하는 설정.
+ */
 @Configuration
 public class WebSocketConfig {
 
+    private static final String WS_AUCTION = "/ws/auctions/*";
+    private static final String WS_USER_ME = "/ws/users/me";
+    private static final int WS_HANDLER_ORDER = -1;
+
     /**
-     * WebSocket URL → 핸들러 매핑.
-     * order=-1: @RequestMapping보다 높은 우선순위로 WebSocket 업그레이드 요청을 먼저 처리한다.
+     * WebSocket URL → 핸들러 매핑을 등록한다.
      */
     @Bean
     public HandlerMapping webSocketHandlerMapping(
             AuctionWebSocketHandler auctionHandler,
             UserWebSocketHandler userHandler) {
         Map<String, WebSocketHandler> urlMap = new LinkedHashMap<>();
-        urlMap.put("/ws/auctions/*", auctionHandler);
-        urlMap.put("/ws/users/me", userHandler);
-        return new SimpleUrlHandlerMapping(urlMap, -1);
+        urlMap.put(WS_AUCTION, auctionHandler);
+        urlMap.put(WS_USER_ME, userHandler);
+        // order=-1 로 @RequestMapping보다 먼저 WebSocket 업그레이드 요청을 처리한다.
+        return new SimpleUrlHandlerMapping(urlMap, WS_HANDLER_ORDER);
     }
 
-    /** WebSocket 업그레이드 요청을 WebSocketHandler로 위임하는 어댑터. */
+    /**
+     * WebSocketHandler를 호출하는 어댑터 빈.
+     * WebFlux가 HandlerMapping과 조합하여 사용한다.
+     */
     @Bean
     public WebSocketHandlerAdapter webSocketHandlerAdapter() {
         return new WebSocketHandlerAdapter();
