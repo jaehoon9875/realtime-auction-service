@@ -1,0 +1,158 @@
+package com.jaehoon.notification.session;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+/**
+ * WebSocket 세션 위치를 Redis에 저장하고, 다른 인스턴스로 메시지를 라우팅한다.
+ */
+@Component
+public class RedisSessionStore {
+
+  private static final String AUCTION_SESSIONS_KEY = "ws:auction:%s:sessions";
+  private static final String USER_SESSION_KEY = "ws:user:%s:session";
+  private static final String NOTIFY_CHANNEL = "notify:%s";
+
+  private final ReactiveStringRedisTemplate redis;
+  private final ObjectMapper objectMapper;
+  private final String instanceId;
+
+  public RedisSessionStore(
+      ReactiveStringRedisTemplate redis,
+      ObjectMapper objectMapper,
+      @Value("${app.instance-id}") String instanceId) {
+    this.redis = redis;
+    this.objectMapper = objectMapper;
+    this.instanceId = instanceId;
+  }
+
+  /** 이 JVM 인스턴스 식별자 */
+  public String getInstanceId() {
+    return instanceId;
+  }
+
+  /**
+   * 경매 구독 세션을 Redis Set에 등록한다.
+   *
+   * @param auctionId 경매 ID
+   * @param sessionId WebSocket 세션 ID
+   */
+  public Mono<Void> addAuctionSession(String auctionId, String sessionId) {
+    return redis.opsForSet()
+        .add(auctionSessionsKey(auctionId), sessionRef(sessionId))
+        .then();
+  }
+
+  /**
+   * 경매 구독 세션을 Redis Set에서 제거한다.
+   *
+   * @param auctionId 경매 ID
+   * @param sessionId WebSocket 세션 ID
+   */
+  public Mono<Void> removeAuctionSession(String auctionId, String sessionId) {
+    return redis.opsForSet()
+        .remove(auctionSessionsKey(auctionId), sessionRef(sessionId))
+        .then();
+  }
+
+  /**
+   * 사용자 개인 알림 세션을 Redis에 등록한다.
+   *
+   * @param userId 사용자 ID
+   * @param sessionId WebSocket 세션 ID
+   */
+  public Mono<Void> setUserSession(String userId, String sessionId) {
+    return redis.opsForValue()
+        .set(userSessionKey(userId), sessionRef(sessionId))
+        .then();
+  }
+
+  /**
+   * 사용자 개인 알림 세션을 Redis에서 제거한다.
+   *
+   * @param userId 사용자 ID
+   */
+  public Mono<Void> removeUserSession(String userId) {
+    return redis.delete(userSessionKey(userId)).then();
+  }
+
+  /**
+   * 경매 구독자 전체의 세션 위치(instanceId, sessionId)를 조회한다.
+   *
+   * @param auctionId 경매 ID
+   */
+  public Flux<SessionTarget> getAuctionSessionTargets(String auctionId) {
+    return redis.opsForSet()
+        .members(auctionSessionsKey(auctionId))
+        .map(this::parseSessionRef);
+  }
+
+  /**
+   * 사용자 개인 알림 세션 위치를 조회한다.
+   *
+   * @param userId 사용자 ID
+   */
+  public Mono<SessionTarget> getUserSessionTarget(String userId) {
+    return redis.opsForValue()
+        .get(userSessionKey(userId))
+        .map(this::parseSessionRef);
+  }
+
+  /**
+   * 대상 인스턴스의 Pub/Sub 채널로 WebSocket 메시지를 발행한다.
+   *
+   * @param targetInstanceId 메시지를 받을 인스턴스 ID
+   * @param sessionId 대상 WebSocket 세션 ID
+   * @param message 전송할 JSON 문자열
+   */
+  public Mono<Void> publishNotify(String targetInstanceId, String sessionId, String message) {
+    String channel = NOTIFY_CHANNEL.formatted(targetInstanceId);
+    try {
+      String payload = objectMapper.writeValueAsString(new NotifyPayload(sessionId, message));
+      return redis.convertAndSend(channel, payload).then();
+    } catch (JsonProcessingException e) {
+      return Mono.error(e);
+    }
+  }
+
+  /** Pub/Sub 채널명: notify:{instanceId} */
+  public String notifyChannelForInstance(String instanceId) {
+    return NOTIFY_CHANNEL.formatted(instanceId);
+  }
+
+  /** NotifyPayload JSON 역직렬화 */
+  public NotifyPayload readNotifyPayload(String json) throws JsonProcessingException {
+    return objectMapper.readValue(json, NotifyPayload.class);
+  }
+
+  private String sessionRef(String sessionId) {
+    return instanceId + ":" + sessionId;
+  }
+
+  private SessionTarget parseSessionRef(String ref) {
+    int colon = ref.indexOf(':');
+    if (colon <= 0 || colon >= ref.length() - 1) {
+      throw new IllegalArgumentException("Invalid session ref: " + ref);
+    }
+    return new SessionTarget(ref.substring(0, colon), ref.substring(colon + 1));
+  }
+
+  private static String auctionSessionsKey(String auctionId) {
+    return AUCTION_SESSIONS_KEY.formatted(auctionId);
+  }
+
+  private static String userSessionKey(String userId) {
+    return USER_SESSION_KEY.formatted(userId);
+  }
+
+  /** Redis에 저장된 세션 위치 (instanceId + sessionId) */
+  public record SessionTarget(String instanceId, String sessionId) {}
+
+  /** Pub/Sub 채널 notify:{instanceId} 페이로드 */
+  public record NotifyPayload(String sessionId, String message) {}
+}

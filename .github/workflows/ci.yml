@@ -27,9 +27,9 @@ jobs:
           - service: bid-service
             path: services/bid-service
             gradle_task: :services:bid-service
-          # - service: notification-service
-          #   path: services/notification-service
-          #   gradle_task: :services:notification-service
+          - service: notification-service
+            path: services/notification-service
+            gradle_task: :services:notification-service
           - service: auction-streams
             path: streams/auction-streams
             gradle_task: :streams:auction-streams

@@ -237,6 +237,35 @@ services:
       KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: debezium
       KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://debezium:8083
 
+  # ──────────────────────────────────────────────────────────────
+  # Notification Service (WebSocket + Kafka notification-events)
+  # API Gateway /ws/** → NOTIFICATION_SERVICE_URI (호스트: localhost:8084)
+  # ──────────────────────────────────────────────────────────────
+  notification-service:
+    build:
+      context: ..
+      dockerfile: services/notification-service/Dockerfile
+    hostname: notification-service
+    container_name: notification-service
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8084}:8084"
+    environment:
+      SERVER_PORT: 8084
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWK_SET_URI: ${JWK_SET_URI}
+      HOSTNAME: notification-service
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   kafka-data:
   postgres-auction-data:
