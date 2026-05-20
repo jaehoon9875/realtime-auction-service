@@ -1,6 +1,5 @@
 package com.jaehoon.notification.session;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,18 +48,10 @@ public class InstanceNotifyListener {
   }
 
   private void dispatchToLocalSession(String payload) {
-    try {
-      RedisSessionStore.NotifyPayload notify =
-          redisSessionStore.readNotifyPayload(payload);
-      sessionRegistry
-          .sendToLocalSession(notify.sessionId(), notify.message())
-          .doOnError(
-              error ->
-                  log.warn(
-                      "로컬 세션 전송 실패 sessionId={}", notify.sessionId(), error))
-          .subscribe();
-    } catch (JsonProcessingException e) {
-      log.warn("Pub/Sub 페이로드 파싱 실패 payload={}", payload, e);
-    }
+    redisSessionStore.readNotifyPayload(payload)
+        .flatMap(notify -> sessionRegistry.sendToLocalSession(notify.sessionId(), notify.message())
+            .doOnError(error -> log.warn("로컬 세션 전송 실패 sessionId={}", notify.sessionId(), error)))
+        .doOnError(error -> log.warn("Pub/Sub 페이로드 파싱 실패 payload={}", payload, error))
+        .subscribe();
   }
 }
