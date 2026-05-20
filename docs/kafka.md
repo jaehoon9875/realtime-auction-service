@@ -101,7 +101,9 @@ Schema Registry에 등록하여 버전 관리합니다.
 
 | notificationType | 발행 시점 | 라우팅 필드 | 대상 |
 |-----------------|----------|------------|------|
+| BID_UPDATED | BID_PLACED 처리 후 최고가 갱신 | `targetAuctionId` | 경매 구독자 전체 (브로드캐스트) |
 | OUTBID | 더 높은 입찰 발생 | `targetUserId` | 기존 최고 입찰자 |
+| BID_REJECTED | BID_REJECTED 이벤트 수신 | `targetUserId` | 거부된 입찰자 개인 |
 | AUCTION_WON | 경매 마감 + 낙찰 | `targetUserId` | 최종 낙찰자 |
 | AUCTION_CLOSED | 경매 마감 | `targetAuctionId` | 경매 구독자 전체 (브로드캐스트) |
 
