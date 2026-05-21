@@ -16,7 +16,7 @@ import reactor.core.publisher.Mono;
 @Component
 public class RedisSessionStore {
 
-  private static final String AUCTION_SESSIONS_KEY = "ws:auction:%s:sessions";
+  private static final String AUCTION_SESSIONS_KEY = "auction:%s:sessions";
   private static final String USER_SESSION_KEY = "ws:user:%s:session";
   private static final String NOTIFY_CHANNEL = "notify:%s";
   // 서버 비정상 종료 시 ghost session이 Redis에 영구 잔류하는 것을 방지하는 안전망 TTL

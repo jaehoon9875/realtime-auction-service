@@ -1,12 +1,14 @@
 package com.jaehoon.notification.session;
 
 import jakarta.annotation.PostConstruct;
+import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.ReactiveRedisMessageListenerContainer;
 import org.springframework.stereotype.Component;
+import reactor.util.retry.Retry;
 
 /**
  * 이 인스턴스 전용 Redis Pub/Sub 채널(notify:{instanceId})을 구독하고,
@@ -42,7 +44,8 @@ public class InstanceNotifyListener {
         .map(message -> message.getMessage())
         .doOnNext(this::dispatchToLocalSession)
         .doOnError(error -> log.error("Redis Pub/Sub 수신 오류 channel={}", channel, error))
-        .retry()
+        // Redis 장애 시 서버 회복 시간을 확보하기 위해 지수 백오프로 재구독한다.
+        .retryWhen(Retry.backoff(Long.MAX_VALUE, Duration.ofSeconds(1)).maxBackoff(Duration.ofSeconds(30)))
         .subscribe();
     log.info("Redis Pub/Sub 구독 시작 channel={}", channel);
   }

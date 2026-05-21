@@ -143,7 +143,7 @@ class NotificationIntegrationTest {
 
         reactiveRedis
                 .opsForSet()
-                .add("ws:auction:" + auctionId + ":sessions", remoteRef)
+                .add("auction:" + auctionId + ":sessions", remoteRef)
                 .block(Duration.ofSeconds(5));
 
         // 무관한 로컬 세션을 감시용으로 등록해, 잘못된 push 여부를 실제로 검증
