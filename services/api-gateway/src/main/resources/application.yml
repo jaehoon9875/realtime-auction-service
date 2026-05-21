@@ -42,8 +42,48 @@ spring:
           uri: ${NOTIFICATION_SERVICE_URI}
           predicates:
             - Path=/ws/**
+
+        # API 문서 프록시 — Gateway 통합 Swagger UI 집계용
+        # X-Forwarded-Prefix: /api 주입 → 각 서비스가 servers URL을 /api 로 동적 생성
+        - id: user-service-docs
+          uri: ${USER_SERVICE_URI}
+          predicates:
+            - Path=/user-service/v3/api-docs
+          filters:
+            - SetPath=/v3/api-docs
+            - AddRequestHeader=X-Forwarded-Prefix, /api
+
+        - id: auction-service-docs
+          uri: ${AUCTION_SERVICE_URI}
+          predicates:
+            - Path=/auction-service/v3/api-docs
+          filters:
+            - SetPath=/v3/api-docs
+            - AddRequestHeader=X-Forwarded-Prefix, /api
+
+        - id: bid-service-docs
+          uri: ${BID_SERVICE_URI}
+          predicates:
+            - Path=/bid-service/v3/api-docs
+          filters:
+            - SetPath=/v3/api-docs
+            - AddRequestHeader=X-Forwarded-Prefix, /api
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${API_GATEWAY_PORT:8080}
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    # 각 서비스 api-docs를 Gateway 프록시 경로로 지정 (CORS 없이 동일 오리진 처리)
+    urls:
+      - name: user-service
+        url: /user-service/v3/api-docs
+      - name: auction-service
+        url: /auction-service/v3/api-docs
+      - name: bid-service
+        url: /bid-service/v3/api-docs
+  api-docs:
+    # Gateway 자체는 문서화할 컨트롤러가 없으므로 비활성화
+    enabled: false
 app:
   security:
     # Gateway가 받는 외부 경로 (StripPrefix 전). user-service의 /users/* 와 1:1 대응
