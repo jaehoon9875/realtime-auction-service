@@ -1,10 +1,10 @@
 package com.jaehoon.streams.auction.topology;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jaehoon.auction.avro.BidDeadLetterEvent;
 import com.jaehoon.auction.avro.BidEvent;
-import com.jaehoon.auction.events.AuctionEvent;
 import com.jaehoon.auction.events.NotificationEvent;
-import com.jaehoon.streams.auction.config.AuctionStreamsProperties;
+import com.jaehoon.streams.auction.config.StateStoreConfig;
 import com.jaehoon.streams.auction.store.AuctionBidState;
 import com.jaehoon.streams.auction.store.AuctionMetadata;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
@@ -41,6 +41,7 @@ class BidStreamsTopologyTest {
     private TopologyTestDriver testDriver;
     private TestInputTopic<String, BidEvent> bidInput;
     private TestOutputTopic<String, NotificationEvent> notificationOutput;
+    private TestOutputTopic<String, BidDeadLetterEvent> dlqOutput;
     private KeyValueStore<String, AuctionBidState> bidStateStore;
 
     @BeforeEach
@@ -50,14 +51,14 @@ class BidStreamsTopologyTest {
                 AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock://test"
         );
 
-        SpecificAvroSerde<AuctionEvent> auctionSerde = new SpecificAvroSerde<>(mockRegistry);
-        auctionSerde.configure(schemaConf, false);
-
         SpecificAvroSerde<BidEvent> bidSerde = new SpecificAvroSerde<>(mockRegistry);
         bidSerde.configure(schemaConf, false);
 
         SpecificAvroSerde<NotificationEvent> notificationSerde = new SpecificAvroSerde<>(mockRegistry);
         notificationSerde.configure(schemaConf, false);
+
+        SpecificAvroSerde<BidDeadLetterEvent> dlqSerde = new SpecificAvroSerde<>(mockRegistry);
+        dlqSerde.configure(schemaConf, false);
 
         ObjectMapper mapper = new ObjectMapper();
         Serde<AuctionMetadata> metadataSerde = jsonSerde(mapper, AuctionMetadata.class);
@@ -65,14 +66,10 @@ class BidStreamsTopologyTest {
 
         StreamsBuilder builder = new StreamsBuilder();
 
-        // AuctionStreamsTopology가 STORE_AUCTION_METADATA, STORE_HIGHEST_BID를 선언하므로 먼저 빌드
-        AuctionStreamsProperties props = new AuctionStreamsProperties(3600, 3, 2000, 3000);
-        AuctionStreamsTopology auctionTopology = new AuctionStreamsTopology(
-                builder, props, auctionSerde, metadataSerde, bidStateSerde, notificationSerde
-        );
-        auctionTopology.buildTopology();
+        // StateStoreConfig가 STORE_AUCTION_METADATA, STORE_HIGHEST_BID를 선언
+        new StateStoreConfig(builder, metadataSerde, bidStateSerde).registerStateStores();
 
-        BidStreamsTopology bidTopology = new BidStreamsTopology(builder, bidSerde, notificationSerde);
+        BidStreamsTopology bidTopology = new BidStreamsTopology(builder, bidSerde, notificationSerde, dlqSerde);
         bidTopology.buildTopology();
 
         Properties streamsProps = new Properties();
@@ -86,6 +83,9 @@ class BidStreamsTopologyTest {
         );
         notificationOutput = testDriver.createOutputTopic(
                 TOPIC_NOTIFICATION_EVENTS, new StringDeserializer(), notificationSerde.deserializer()
+        );
+        dlqOutput = testDriver.createOutputTopic(
+                TOPIC_BID_DEAD_LETTER, new StringDeserializer(), dlqSerde.deserializer()
         );
         bidStateStore = testDriver.getKeyValueStore(STORE_HIGHEST_BID);
     }
@@ -147,7 +147,7 @@ class BidStreamsTopologyTest {
     }
 
     @Test
-    void BID_REJECTED_이벤트는_무시된다() {
+    void BID_REJECTED_이벤트는_스토어를_변경하지_않고_거부_알림을_발행한다() {
         BidEvent rejected = BidEvent.newBuilder()
                 .setEventId("ev-1")
                 .setEventType("BID_REJECTED")
@@ -160,8 +160,14 @@ class BidStreamsTopologyTest {
 
         bidInput.pipeInput("auction-1", rejected);
 
+        // State Store는 변경되지 않아야 함
         assertThat(bidStateStore.get("auction-1")).isNull();
-        assertThat(notificationOutput.isEmpty()).isTrue();
+
+        // 거부된 입찰자에게 개인 알림이 발행되어야 함
+        List<NotificationEvent> notifications = notificationOutput.readValuesToList();
+        assertThat(notifications).hasSize(1);
+        assertThat(notifications.get(0).getNotificationType().toString()).isEqualTo(NOTIFICATION_BID_REJECTED);
+        assertThat(notifications.get(0).getTargetUserId().toString()).isEqualTo("bidder-A");
     }
 
     @Test
@@ -187,6 +193,34 @@ class BidStreamsTopologyTest {
         assertThat(bidStateStore.get("auction-1").highestBid()).isEqualTo(5000L);
         assertThat(bidStateStore.get("auction-2").highestBid()).isEqualTo(9000L);
         assertThat(notificationOutput.isEmpty()).isTrue();
+    }
+
+    @Test
+    void 알_수_없는_이벤트_타입은_DLQ로_라우팅되고_알림은_발행되지_않는다() {
+        BidEvent unknown = BidEvent.newBuilder()
+                .setEventId("ev-unknown-1")
+                .setEventType("UNKNOWN_TYPE")
+                .setBidId("bid-unknown-1")
+                .setAuctionId("auction-1")
+                .setBidderId("bidder-A")
+                .setAmount(5000L)
+                .setOccurredAt(BASE_TIME.toEpochMilli())
+                .build();
+
+        bidInput.pipeInput("auction-1", unknown);
+
+        // notification-events에는 아무것도 발행되지 않아야 함
+        assertThat(notificationOutput.isEmpty()).isTrue();
+        // State Store도 변경되지 않아야 함
+        assertThat(bidStateStore.get("auction-1")).isNull();
+
+        // DLQ에 원본 이벤트와 실패 사유가 담겨야 함
+        List<BidDeadLetterEvent> dlqEvents = dlqOutput.readValuesToList();
+        assertThat(dlqEvents).hasSize(1);
+        BidDeadLetterEvent dlqEvent = dlqEvents.get(0);
+        assertThat(dlqEvent.getOriginalEvent().getEventId().toString()).isEqualTo("ev-unknown-1");
+        assertThat(dlqEvent.getFailureReason().toString()).contains("UNKNOWN_EVENT_TYPE");
+        assertThat(dlqEvent.getFailedAt()).isPositive();
     }
 
     private BidEvent bidEvent(String auctionId, String bidderId, long amount) {

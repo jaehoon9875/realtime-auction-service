@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.StreamsBuilderFactoryBeanConfigurer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jaehoon.auction.avro.BidDeadLetterEvent;
 import com.jaehoon.auction.avro.BidEvent;
 import com.jaehoon.auction.events.AuctionEvent;
 import com.jaehoon.auction.events.NotificationEvent;
@@ -49,6 +50,11 @@ public class StreamsSerdeConfig {
 
     @Bean
     public Serde<NotificationEvent> notificationEventSerde() {
+        return specificAvroSerde(false);
+    }
+
+    @Bean
+    public Serde<BidDeadLetterEvent> bidDeadLetterEventSerde() {
         return specificAvroSerde(false);
     }
 

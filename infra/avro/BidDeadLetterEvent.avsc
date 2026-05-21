@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "namespace": "com.jaehoon.auction.avro",
+  "name": "BidDeadLetterEvent",
+  "fields": [
+    { "name": "originalEvent", "type": "com.jaehoon.auction.avro.BidEvent" },
+    { "name": "failureReason", "type": "string" },
+    { "name": "failedAt",      "type": "long" }
+  ]
+}

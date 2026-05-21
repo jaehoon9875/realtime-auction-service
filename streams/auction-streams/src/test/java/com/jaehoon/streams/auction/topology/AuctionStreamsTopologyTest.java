@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jaehoon.auction.events.AuctionEvent;
 import com.jaehoon.auction.events.NotificationEvent;
 import com.jaehoon.streams.auction.config.AuctionStreamsProperties;
+import com.jaehoon.streams.auction.config.StateStoreConfig;
 import com.jaehoon.streams.auction.store.AuctionBidState;
 import com.jaehoon.streams.auction.store.AuctionMetadata;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
@@ -70,8 +71,11 @@ class AuctionStreamsTopologyTest {
         AuctionStreamsProperties props = new AuctionStreamsProperties(1, 3, 2000, 3000);
         StreamsBuilder builder = new StreamsBuilder();
 
+        // StateStoreConfig가 STORE_AUCTION_METADATA, STORE_HIGHEST_BID를 선언
+        new StateStoreConfig(builder, metadataSerde, bidStateSerde).registerStateStores();
+
         AuctionStreamsTopology topology = new AuctionStreamsTopology(
-                builder, props, auctionSerde, metadataSerde, bidStateSerde, notificationSerde
+                builder, props, auctionSerde, notificationSerde
         );
         topology.buildTopology();
 

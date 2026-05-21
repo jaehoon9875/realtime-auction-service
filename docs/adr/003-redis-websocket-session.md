@@ -1,12 +1,12 @@
 ---
-status: "proposed"
+status: "accepted"
 date: 2026-05-18
 decision-makers: jaehoon9875
 ---
 
 # Redis 기반 WebSocket 세션 공유
 
-> **Proposed**: M6(Notification Service) 구현 예정. 구현 완료 후 `accepted`로 변경.
+> **Accepted**: M6 Notification Service에서 Redis 세션 저장(`ws:auction:*`, `ws:user:*`) 및 인스턴스별 Pub/Sub(`notify:{instanceId}`)로 구현함.
 
 ## Context and Problem Statement
 
@@ -55,9 +55,9 @@ Kafka 알림 이벤트 (사용자 A 대상)
 
 ### Confirmation
 
-M6 구현 완료 후 확인 항목:
-- 다수 Notification Service 인스턴스 기동 상태에서 올바른 인스턴스로 WebSocket 메시지 전달
-- 인스턴스 재시작 시 Redis 세션 만료 처리 동작
+M6 구현으로 확인한 항목:
+- Redis에 `{instanceId}:{sessionId}` 저장 후, 타 인스턴스 소비 시 `notify:{instanceId}` Pub/Sub으로 로컬 세션에 전달
+- 연결 해제 시 Redis 세션 키 제거
 
 ## Pros and Cons of the Options
 

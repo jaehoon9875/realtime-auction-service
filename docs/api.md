@@ -377,11 +377,11 @@ Gateway 경로 prefix: `/api/bids/**` → bid-service `/bids/**`
 
 ---
 
-## WebSocket (Notification Service) (M6 도입 예정)
+## WebSocket (Notification Service) (M6)
 
-아래는 설계 기준 명세이다. Notification Service·WebSocket은 아직 미구현이다.
+notification-service가 구현한 WebSocket push 메시지 명세이다. Gateway 경로 prefix `/ws/**`는 notification-service `/ws/**`로 라우팅된다.
 
-Gateway 경로 prefix: `/ws/**` → notification-service `/ws/**`
+로컬 실행: `./gradlew :services:notification-service:bootRun` (포트 8084). docker-compose는 Kafka·Redis 등 인프라만 기동한다.
 
 ### 연결
 ```
@@ -410,6 +410,17 @@ WS /ws/users/me         # 개인 알림 구독
   "finalPrice": 1400000,
   "winnerId": "uuid",
   "occurredAt": "2024-04-28T18:00:00"
+}
+```
+
+**BID_REJECTED** - 입찰 거부 시 (개인 알림)
+```json
+{
+  "type": "BID_REJECTED",
+  "auctionId": "uuid",
+  "rejectedPrice": 1200000,
+  "reason": "PRICE_TOO_LOW",
+  "occurredAt": "2024-04-28T15:32:00"
 }
 ```
 

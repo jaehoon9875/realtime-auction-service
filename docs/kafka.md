@@ -101,7 +101,9 @@ Schema Registry에 등록하여 버전 관리합니다.
 
 | notificationType | 발행 시점 | 라우팅 필드 | 대상 |
 |-----------------|----------|------------|------|
+| BID_UPDATED | BID_PLACED 처리 후 최고가 갱신 | `targetAuctionId` | 경매 구독자 전체 (브로드캐스트) |
 | OUTBID | 더 높은 입찰 발생 | `targetUserId` | 기존 최고 입찰자 |
+| BID_REJECTED | BID_REJECTED 이벤트 수신 | `targetUserId` | 거부된 입찰자 개인 |
 | AUCTION_WON | 경매 마감 + 낙찰 | `targetUserId` | 최종 낙찰자 |
 | AUCTION_CLOSED | 경매 마감 | `targetAuctionId` | 경매 구독자 전체 (브로드캐스트) |
 
@@ -142,13 +144,34 @@ graph TD
 
 ```mermaid
 graph TD
-    BID["bid-events 처리 실패"]
-    DLQ["bid-dead-letter (retention 30d)<br/>{originalEvent, errorMessage, failedAt}"]
+    DESER["역직렬화 실패 (DlqExceptionHandler)"]
+    UNKNOWN["알 수 없는 이벤트 타입 (BidStreamsTopology)"]
+    DLQ["bid-dead-letter (retention 30d)"]
 
-    BID --> DLQ
+    DESER -->|"raw bytes + Kafka 헤더\n(source-topic, error-message, failed-at)"| DLQ
+    UNKNOWN -->|"BidDeadLetterEvent Avro\n(originalEvent, failureReason, failedAt)"| DLQ
 ```
 
 DLQ에 쌓인 이벤트는 수동 또는 별도 프로세스로 재처리합니다.
+
+### BidDeadLetterEvent 스키마
+
+`bid-dead-letter` 토픽에서 알 수 없는 이벤트 타입 경로에 사용하는 Avro 래퍼 스키마. 원본 Avro 파일: [`infra/avro/BidDeadLetterEvent.avsc`](../infra/avro/BidDeadLetterEvent.avsc)
+
+```json
+{
+  "type": "record",
+  "name": "BidDeadLetterEvent",
+  "fields": [
+    { "name": "originalEvent",  "type": "com.jaehoon.auction.avro.BidEvent" },
+    { "name": "failureReason",  "type": "string" },
+    { "name": "failedAt",       "type": "long" }
+  ]
+}
+```
+
+> `BidDeadLetterEvent`는 `BidEvent`를 중첩 참조하므로 `register-schemas.sh`로 수동 등록하지 않는다.
+> Kafka Streams가 최초 프로덕 시 전체 스키마(BidEvent 인라인 포함)를 Schema Registry에 자동 등록한다.
 
 ---
 

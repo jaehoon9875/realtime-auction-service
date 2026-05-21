@@ -23,11 +23,13 @@ public final class StreamsConstants {
 
     // bid-events 이벤트 타입
     public static final String EVENT_BID_PLACED = "BID_PLACED";
+    public static final String EVENT_BID_REJECTED = "BID_REJECTED";
 
     // notification-events 알림 타입
     public static final String NOTIFICATION_AUCTION_WON = "AUCTION_WON";
     public static final String NOTIFICATION_AUCTION_CLOSED = "AUCTION_CLOSED";
     public static final String NOTIFICATION_OUTBID = "OUTBID";
+    public static final String NOTIFICATION_BID_REJECTED = "BID_REJECTED";
 
     // Processor 이름
     public static final String PROCESSOR_AUCTION_METADATA = "auction-metadata-processor";

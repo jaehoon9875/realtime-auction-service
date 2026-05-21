@@ -1,0 +1,37 @@
+server:
+  port: ${SERVER_PORT:8084}
+
+spring:
+  application:
+    name: notification-service
+  threads:
+    virtual:
+      enabled: false  # WebFlux는 자체 이벤트 루프 사용
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: notification-service
+      # 최초 기동 시 과거 알림 전송 방지
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+      properties:
+        schema.registry.url: ${SCHEMA_REGISTRY_URL}
+        specific.avro.reader: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${JWK_SET_URI}
+
+app:
+  kafka:
+    topics:
+      notification-events: ${KAFKA_NOTIFICATION_EVENTS_TOPIC:notification-events}
+  # Redis 세션 라우팅 시 어느 인스턴스에 세션이 있는지 식별하는 값
+  instance-id: ${HOSTNAME:local-instance}

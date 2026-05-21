@@ -1,0 +1,20 @@
+# notification-service 통합 테스트 (Testcontainers Kafka + Redis)
+spring:
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      properties:
+        schema.registry.url: mock://notification-integration
+        auto.register.schemas: true
+    consumer:
+      properties:
+        schema.registry.url: mock://notification-integration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:9999/.well-known/jwks.json
+
+app:
+  instance-id: integration-test
