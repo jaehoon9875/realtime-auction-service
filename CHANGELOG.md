@@ -17,7 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Redis 기반 세션 공유 및 멀티 인스턴스 Pub/Sub 라우팅 (`notify:{instanceId}`)
 - WebFlux JWT Resource Server (`?token=` 쿼리 파라미터 지원)
 - auction-streams `BID_REJECTED` → `notification-events` 분기
-- docker-compose `notification-service` 컨테이너 및 Dockerfile
+- notification-service Dockerfile (로컬 앱 기동은 `./gradlew :services:notification-service:bootRun`, docker-compose는 인프라만)
 - 단위·통합 테스트 (`integrationTest` 태스크, Docker 필요)
 
 ---
