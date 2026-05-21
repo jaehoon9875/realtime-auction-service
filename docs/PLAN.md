@@ -83,11 +83,12 @@
 
 - Testcontainers 통합 테스트
 - E2E 시나리오 검증 (경매 생성 → 입찰 → 마감 → 낙찰 알림)
-- OpenAPI/Swagger 자동 생성 전환
-  - `user-service`, `auction-service`, `bid-service`에 `springdoc-openapi-starter-webmvc-ui` 의존성 추가
-  - `notification-service`에 `springdoc-openapi-starter-webflux-ui` 의존성 추가
-  - 주요 엔드포인트에 `@Operation`, `@ApiResponse` 어노테이션 추가
-  - `docs/api.md` → OpenAPI YAML 또는 Swagger UI 링크로 대체 여부 결정
+- OpenAPI/Swagger 자동 생성 전환 (진행 중)
+  - ✅ `user-service`, `auction-service`, `bid-service`에 `springdoc-openapi-starter-webmvc-ui` 3.0.3
+  - ✅ api-gateway 통합 Swagger UI + 각 서비스 `v3/api-docs` 프록시
+  - ✅ 주요 엔드포인트 `@Operation`, `@ApiResponse`, `OpenApiConfig`(Bearer JWT)
+  - ✅ `docs/api.md` → Swagger UI 링크 정본 + 레거시 수동 명세 보존
+  - ⏸ `notification-service`: REST 없음(WebSocket 전용) — REST API 추가 시 springdoc 도입
 - docs/ 문서 최종 정리
 - README 최종 정리
 - AI 워크플로우 도입 (선택) → [docs/ai-workflows.md](ai-workflows.md)

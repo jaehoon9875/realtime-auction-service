@@ -36,7 +36,7 @@ PR 생성/업데이트 시 자동 트리거. 검토 항목:
 main 브랜치 머지 시 트리거. API 또는 Kafka 스키마 변경을 감지하여 `docs/` 업데이트 PR을 자동 생성.
 
 **감지 대상:**
-- `services/**/controller/**/*.java` 변경 → `docs/api.md` 업데이트
+- `services/**/controller/**/*.java` 변경 → OpenAPI 어노테이션·Swagger 반영 확인. WebSocket·레거시 설명은 `docs/api.md` 업데이트
 - `*.avsc` 또는 Avro 스키마 관련 변경 → `docs/kafka.md` 업데이트
 - `**/schema.sql` 또는 마이그레이션 파일 변경 → `docs/schema.md` 업데이트
 

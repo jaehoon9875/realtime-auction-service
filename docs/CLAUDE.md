@@ -8,7 +8,7 @@
 - ISSUES.md: M1~M5 해결된 이슈 아카이브. 신규 이슈는 GitHub Issues에서 관리
 - architecture.md: 전체 아키텍처, 서비스 간 관계, 핵심 설계 결정 및 근거(경매 생명주기·마감 정책 포함)
 - local-dev.md: 로컬 개발 환경 구성 및 docker-compose 운영 가이드
-- api.md: REST API + WebSocket 엔드포인트 명세
+- api.md: REST는 Swagger UI/OpenAPI 정본, WebSocket·레거시 수동 명세 포함
 - schema.md: 서비스별 DB 스키마 (PostgreSQL)
 - kafka.md: Kafka 토픽 목록, 이벤트 스키마 (Avro), 파티셔닝 전략
 - avro-schema.md: Schema Registry 등록 절차, `infra/avro` 스크립트와의 관계

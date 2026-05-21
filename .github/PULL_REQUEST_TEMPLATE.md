@@ -15,7 +15,7 @@
 ## 체크리스트
 
 - [ ] `./gradlew test` 로컬 실행 완료
-- [ ] 신규 API 추가 시 `docs/api.md` 업데이트
+- [ ] 신규 REST API 추가 시 OpenAPI 어노테이션(`@Operation`, `@ApiResponse` 등) 반영. WebSocket·레거시 설명 변경 시 `docs/api.md` 업데이트
 - [ ] Kafka 토픽/스키마 변경 시 `docs/kafka.md` 업데이트
 - [ ] 시크릿/민감 정보 미포함 확인
 - [ ] Kafka 직접 발행 없음 (Outbox Pattern 준수)

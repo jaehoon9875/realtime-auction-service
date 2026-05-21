@@ -1,6 +1,10 @@
 # 통합 테스트 전용 프로파일
 # - DataSource / JPA / Redis / Flyway 모두 활성화 (Testcontainers가 실제 컨테이너 제공)
 # - @DynamicPropertySource가 datasource.url, redis.host/port, JWT_PRIVATE_KEY, JWT_PUBLIC_KEY 등을 오버라이드한다.
+USER_SERVICE_PORT: 0
+# OpenAPI 공개 접근 통합 테스트(apiDocs_인증없이_200)에서 /v3/api-docs 노출 필요
+SWAGGER_ENABLED: true
+
 spring:
   jpa:
     hibernate:

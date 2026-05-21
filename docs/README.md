@@ -12,7 +12,7 @@
 | [ISSUES.md](ISSUES.md) | 진행 중 이슈, 미해결 항목, 보류 결정 사항 추적 |
 | [architecture.md](architecture.md) | 전체 아키텍처, 서비스 간 관계, 핵심 설계 결정 및 근거 |
 | [local-dev.md](local-dev.md) | 로컬 개발 환경 구성 및 docker-compose 운영 가이드 |
-| [api.md](api.md) | REST API + WebSocket 엔드포인트 명세 |
+| [api.md](api.md) | REST API(Swagger UI/OpenAPI 정본) + WebSocket·레거시 수동 명세 |
 | [schema.md](schema.md) | 서비스별 DB 스키마 (PostgreSQL) |
 | [kafka.md](kafka.md) | Kafka 토픽 목록, 이벤트 스키마 (Avro), 파티셔닝 전략 |
 | [internal-service-auth.md](internal-service-auth.md) | Gateway ↔ 내부 서비스 간 Pre-shared Secret 인증 설정 가이드 |

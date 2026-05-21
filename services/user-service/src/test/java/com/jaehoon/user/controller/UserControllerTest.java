@@ -269,4 +269,5 @@ class UserControllerTest {
                         .header("Authorization", "Bearer invalid.jwt.token"))
                 .andExpect(status().isUnauthorized());
     }
+
 }

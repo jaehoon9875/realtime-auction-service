@@ -42,5 +42,5 @@
 
 | 문서 | 내용 |
 |------|------|
-| [docs/api.md](../docs/api.md) | REST API + WebSocket 엔드포인트 명세 |
+| [docs/api.md](../docs/api.md) | REST API(Swagger UI/OpenAPI 정본) + WebSocket·레거시 명세 |
 | [docs/schema.md](../docs/schema.md) | 서비스별 DB 스키마 |

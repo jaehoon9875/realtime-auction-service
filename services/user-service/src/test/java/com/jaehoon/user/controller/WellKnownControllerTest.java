@@ -64,6 +64,10 @@ class WellKnownControllerTest {
                     "/users/signup",
                     "/users/login",
                     "/users/refresh",
+                    "/v3/api-docs",
+                    "/v3/api-docs/**",
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
                     "/actuator/health",
                     "/.well-known/jwks.json"
             ), "/users/refresh");

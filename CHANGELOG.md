@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- OpenAPI 자동 생성 (springdoc-openapi 3.0.3): user-service, auction-service, bid-service
+- Controller `@Operation` / `@ApiResponse`, `OpenApiConfig`(Bearer JWT), Security `permitAll` for `/v3/api-docs/**`, `/swagger-ui/**`
+- api-gateway 통합 Swagger UI 및 각 서비스 `v3/api-docs` 프록시 라우트
+- `docs/api.md`: Swagger UI 링크를 정본으로 안내, 수동 REST 명세는 레거시 섹션으로 이동
+
 ---
 
 ## [0.6.0] - 2026-05-20 — M6: Notification Service + WebSocket
