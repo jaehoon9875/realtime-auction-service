@@ -27,7 +27,7 @@ public class QueryParamBearerTokenConverter implements ServerAuthenticationConve
     @Override
     public Mono<Authentication> convert(ServerWebExchange exchange) {
         String token = resolveFromAuthorizationHeader(exchange);
-        if (!StringUtils.hasText(token)) {
+        if (!StringUtils.hasText(token) && isWebSocketHandshake(exchange)) {
             token = exchange.getRequest().getQueryParams().getFirst(TOKEN_QUERY_PARAM);
         }
         if (!StringUtils.hasText(token)) {
@@ -43,5 +43,12 @@ public class QueryParamBearerTokenConverter implements ServerAuthenticationConve
             return authorization.substring(BEARER_PREFIX.length());
         }
         return null;
+    }
+
+    // ?token= 폴백은 브라우저 WebSocket API가 커스텀 헤더를 지원하지 않아 불가피한 WebSocket 핸드셰이크에서만 허용한다.
+    private boolean isWebSocketHandshake(ServerWebExchange exchange) {
+        String upgrade = exchange.getRequest().getHeaders().getFirst(HttpHeaders.UPGRADE);
+        String path = exchange.getRequest().getPath().value();
+        return "websocket".equalsIgnoreCase(upgrade) && path.startsWith("/ws/");
     }
 }
