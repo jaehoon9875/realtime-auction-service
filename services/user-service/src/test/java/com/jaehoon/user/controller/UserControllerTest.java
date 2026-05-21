@@ -269,4 +269,15 @@ class UserControllerTest {
                         .header("Authorization", "Bearer invalid.jwt.token"))
                 .andExpect(status().isUnauthorized());
     }
+
+    // ─────────────────────────────────────────────────
+    // OpenAPI 공개 접근 검증 (public-endpoints 설정 회귀 방지)
+    // ─────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("/v3/api-docs - 인증 없이 200 OK")
+    void apiDocs_인증없이_200() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk());
+    }
 }
