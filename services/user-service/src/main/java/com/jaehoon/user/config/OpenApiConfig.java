@@ -7,9 +7,17 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * User Service OpenAPI 문서 및 Bearer 인증 스키마를 구성한다.
+ */
 @Configuration
 public class OpenApiConfig {
 
+    /**
+     * Swagger UI용 OpenAPI 메타데이터와 보안 스키마를 생성한다.
+     *
+     * @return User Service용 OpenAPI 설정
+     */
     @Bean
     public OpenAPI openAPI() {
         return new OpenAPI()

@@ -25,6 +25,11 @@ public class WellKnownController {
 
     private final JwtProvider jwtProvider;
 
+    /**
+     * RSA 공개키를 JWKS JSON으로 반환한다.
+     *
+     * @return RFC 7517 형식의 JWKS 객체
+     */
     @GetMapping("/.well-known/jwks.json")
     public Map<String, Object> jwks() {
         RSAKey rsaKey = new RSAKey.Builder(jwtProvider.getRSAPublicKey())

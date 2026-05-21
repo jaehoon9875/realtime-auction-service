@@ -27,6 +27,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * 입찰 요청 및 입찰 내역 조회 REST API.
+ */
 @Tag(name = "Bid", description = "입찰 요청 및 조회 API")
 @RestController
 @RequestMapping("/bids")
@@ -35,6 +38,16 @@ public class BidController {
 
     private final BidService bidService;
 
+    /**
+     * 인증된 사용자가 경매에 입찰한다.
+     *
+     * @param jwt     Access Token principal (입찰자 ID)
+     * @param request 입찰 대상 경매 ID와 입찰가
+     * @return 생성된 입찰 정보 (HTTP 201)
+     * @throws com.jaehoon.bid.exception.AuctionNotFoundException 경매가 없을 때
+     * @throws com.jaehoon.bid.exception.BadRequestException 경매 상태·마감·입찰가 검증 실패
+     * @throws com.jaehoon.bid.exception.ExternalServiceException auction-service 또는 auction-streams 장애
+     */
     @Operation(summary = "입찰 요청", security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponse(responseCode = "201", description = "입찰 성공")
     @ApiResponse(responseCode = "400", description = "유효하지 않은 입찰 (경매 상태, 마감, 입찰가)")
@@ -49,6 +62,13 @@ public class BidController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    /**
+     * 인증된 사용자의 입찰 내역을 최신순으로 페이징 조회한다.
+     *
+     * @param jwt      Access Token principal (입찰자 ID)
+     * @param pageable 페이징·정렬 (기본: placedAt desc, size 20)
+     * @return 페이징된 입찰 목록
+     */
     @Operation(summary = "내 입찰 내역 조회", security = @SecurityRequirement(name = "BearerAuth"))
     @ApiResponse(responseCode = "200", description = "입찰 내역 반환")
     @GetMapping("/me")
