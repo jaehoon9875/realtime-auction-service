@@ -2,6 +2,7 @@ package com.jaehoon.notification.session;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import reactor.core.publisher.Mono;
 /**
  * WebSocket 세션 위치를 Redis에 저장하고, 다른 인스턴스로 메시지를 라우팅한다.
  */
+@Slf4j
 @Component
 public class RedisSessionStore {
 
@@ -97,7 +99,15 @@ public class RedisSessionStore {
   public Flux<SessionTarget> getAuctionSessionTargets(String auctionId) {
     return redis.opsForSet()
         .members(auctionSessionsKey(auctionId))
-        .map(this::parseSessionRef);
+        .flatMap(ref -> {
+          try {
+            return Mono.just(parseSessionRef(ref));
+          } catch (IllegalArgumentException e) {
+            // 잘못된 ref 하나로 전체 구독자 알림이 누락되지 않도록 해당 항목만 건너뛴다.
+            log.warn("잘못된 세션 ref 건너뜀. auctionId={}, ref={}", auctionId, ref);
+            return Mono.empty();
+          }
+        });
   }
 
   /**

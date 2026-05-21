@@ -16,7 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * notification-events 토픽을 소비해 WebSocket 세션으로 알림을 전달한다.
- * notificationType에 따라 경매 구독자 브로드캐스트(/ws/auctions)와 개인 알림(/ws/users/me)으로 라우팅한다.
+ * notificationType에 따라 경매 구독자 브로드캐스트(/ws/auctions)와 개인 알림(/ws/users/me)으로
+ * 라우팅한다.
  */
 @Slf4j
 @Component
@@ -80,29 +81,31 @@ public class NotificationEventConsumer {
         String message;
         try {
             message = messageMapper.toWebSocketMessage(event);
-        } catch (IllegalArgumentException e) {
+        } catch (NotificationMappingException e) {
+            // 지원하지 않는 타입이거나 직렬화 실패 — 해당 이벤트만 스킵하고 Kafka 리스너는 유지한다.
             log.warn("개인 알림 매핑 실패. type={}, eventId={}", event.getNotificationType(), event.getEventId(), e);
             return;
         }
         // WebFlux Mono — Kafka listener 스레드에서 fire-and-forget 전송
         sessionRegistry.sendToUser(userId, message)
-                .doOnError(
-                        e -> log.error("WebSocket 전송 실패. userId={}, type={}", userId, event.getNotificationType(), e))
-                .subscribe();
+                .subscribe(
+                        null,
+                        e -> log.error("WebSocket 전송 실패. userId={}, type={}", userId, event.getNotificationType(), e));
     }
 
     private void pushToAuction(String auctionId, NotificationEvent event) {
         String message;
         try {
             message = messageMapper.toWebSocketMessage(event);
-        } catch (IllegalArgumentException e) {
+        } catch (NotificationMappingException e) {
+            // 지원하지 않는 타입이거나 직렬화 실패 — 해당 이벤트만 스킵하고 Kafka 리스너는 유지한다.
             log.warn("경매 알림 매핑 실패. type={}, eventId={}", event.getNotificationType(), event.getEventId(), e);
             return;
         }
         sessionRegistry.sendToAuction(auctionId, message)
-                .doOnError(e -> log.error("WebSocket 전송 실패. auctionId={}, type={}", auctionId,
-                        event.getNotificationType(), e))
-                .subscribe();
+                .subscribe(
+                        null,
+                        e -> log.error("WebSocket 전송 실패. auctionId={}, type={}", auctionId, event.getNotificationType(), e));
     }
 
     /**

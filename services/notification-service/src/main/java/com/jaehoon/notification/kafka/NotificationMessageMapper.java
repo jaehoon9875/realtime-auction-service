@@ -37,7 +37,7 @@ public class NotificationMessageMapper {
      *
      * @param event NotificationEvent (Avro)
      * @return docs/api.md 형식의 JSON 문자열
-     * @throws IllegalArgumentException 지원하지 않는 notificationType
+     * @throws NotificationMappingException 지원하지 않는 notificationType이거나 JSON 직렬화에 실패한 경우
      */
     public String toWebSocketMessage(NotificationEvent event) {
         String type = event.getNotificationType().toString();
@@ -47,15 +47,19 @@ public class NotificationMessageMapper {
             case AUCTION_WON -> toJson(buildAuctionWon(event));
             case OUTBID -> toJson(buildOutbid(event));
             case BID_REJECTED -> toJson(buildBidRejected(event));
-            default -> throw new IllegalArgumentException("지원하지 않는 notificationType: " + type);
+            default -> throw new NotificationMappingException("지원하지 않는 notificationType: " + type);
         };
     }
 
     private ObjectNode buildBidUpdated(NotificationEvent event) {
         Map<String, String> payload = event.getPayload();
         ObjectNode node = baseNode(BID_UPDATED, event);
-        putLongField(node, "currentPrice", payload, "currentPrice");
-        putLongField(node, "bidCount", payload, "bidCount");
+        if (!putLongField(node, "currentPrice", payload, "currentPrice")) {
+            throw new NotificationMappingException("BID_UPDATED payload에 currentPrice 없음. eventId=" + event.getEventId());
+        }
+        if (!putLongField(node, "bidCount", payload, "bidCount")) {
+            throw new NotificationMappingException("BID_UPDATED payload에 bidCount 없음. eventId=" + event.getEventId());
+        }
         return node;
     }
 
@@ -75,22 +79,30 @@ public class NotificationMessageMapper {
     private ObjectNode buildAuctionWon(NotificationEvent event) {
         Map<String, String> payload = event.getPayload();
         ObjectNode node = baseNode(AUCTION_WON, event);
-        putLongField(node, "finalPrice", payload, "finalPrice", "highestBid");
+        if (!putLongField(node, "finalPrice", payload, "finalPrice", "highestBid")) {
+            throw new NotificationMappingException("AUCTION_WON payload에 finalPrice 없음. eventId=" + event.getEventId());
+        }
         return node;
     }
 
     private ObjectNode buildOutbid(NotificationEvent event) {
         Map<String, String> payload = event.getPayload();
         ObjectNode node = baseNode(OUTBID, event);
-        putLongField(node, "currentPrice", payload, "currentPrice", "newHighestBid");
+        if (!putLongField(node, "currentPrice", payload, "currentPrice", "newHighestBid")) {
+            throw new NotificationMappingException("OUTBID payload에 currentPrice 없음. eventId=" + event.getEventId());
+        }
         return node;
     }
 
     private ObjectNode buildBidRejected(NotificationEvent event) {
         Map<String, String> payload = event.getPayload();
         ObjectNode node = baseNode(BID_REJECTED, event);
-        putLongField(node, "rejectedPrice", payload, "rejectedPrice");
-        putTextField(node, "reason", payload, "reason");
+        if (!putLongField(node, "rejectedPrice", payload, "rejectedPrice")) {
+            throw new NotificationMappingException("BID_REJECTED payload에 rejectedPrice 없음. eventId=" + event.getEventId());
+        }
+        if (!putTextField(node, "reason", payload, "reason")) {
+            throw new NotificationMappingException("BID_REJECTED payload에 reason 없음. eventId=" + event.getEventId());
+        }
         return node;
     }
 
@@ -136,7 +148,9 @@ public class NotificationMessageMapper {
         try {
             return objectMapper.writeValueAsString(node);
         } catch (JsonProcessingException e) {
-            throw new IllegalStateException("WebSocket 메시지 JSON 직렬화 실패", e);
+            // ObjectNode는 Jackson 내부 구조라 직렬화 실패가 거의 불가능하지만,
+            // 커스텀 직렬화기 등 예외 케이스를 대비해 명시적으로 변환한다.
+            throw new NotificationMappingException("WebSocket 메시지 JSON 직렬화 실패", e);
         }
     }
 }

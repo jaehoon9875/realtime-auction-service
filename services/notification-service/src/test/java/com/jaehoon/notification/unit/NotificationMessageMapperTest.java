@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jaehoon.auction.events.NotificationEvent;
+import com.jaehoon.notification.kafka.NotificationMappingException;
 import com.jaehoon.notification.kafka.NotificationMessageMapper;
 import com.jaehoon.notification.support.NotificationEventTestSupport;
 import java.util.Map;
@@ -110,7 +111,7 @@ class NotificationMessageMapperTest {
         NotificationEvent event = baseEvent("UNKNOWN", "auction-x").build();
 
         assertThatThrownBy(() -> mapper.toWebSocketMessage(event))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(NotificationMappingException.class)
                 .hasMessageContaining("UNKNOWN");
     }
 
