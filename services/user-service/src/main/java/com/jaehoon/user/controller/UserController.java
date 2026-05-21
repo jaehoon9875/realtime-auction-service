@@ -7,6 +7,10 @@ import com.jaehoon.user.dto.UserResponse;
 import com.jaehoon.user.exception.InvalidTokenException;
 import com.jaehoon.user.service.UserService;
 import com.jaehoon.user.util.BearerTokenExtractor;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+@Tag(name = "User", description = "회원가입, 로그인, 토큰 관리 API")
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
@@ -24,18 +29,26 @@ public class UserController {
 
     private final UserService userService;
 
+    @Operation(summary = "회원가입")
+    @ApiResponse(responseCode = "201", description = "가입 성공")
+    @ApiResponse(responseCode = "400", description = "이미 존재하는 이메일")
     @PostMapping("/signup")
     public ResponseEntity<Void> signup(@Valid @RequestBody SignupRequest request) {
         userService.signup(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+    @Operation(summary = "로그인")
+    @ApiResponse(responseCode = "200", description = "토큰 발급")
+    @ApiResponse(responseCode = "400", description = "이메일 또는 비밀번호 불일치")
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(userService.login(request));
     }
 
-    // Refresh Token은 Authorization: Bearer {refreshToken} 헤더로 수신
+    @Operation(summary = "Access Token 재발급")
+    @ApiResponse(responseCode = "200", description = "새 Access Token 발급")
+    @ApiResponse(responseCode = "400", description = "Refresh Token 만료 또는 유효하지 않음")
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refresh(
             @RequestHeader("Authorization") String bearerToken) {
@@ -43,7 +56,8 @@ public class UserController {
         return ResponseEntity.ok(userService.refresh(refreshToken));
     }
 
-    // userId 기준으로 Redis의 Refresh Token 키를 삭제하여 세션 무효화
+    @Operation(summary = "로그아웃", security = @SecurityRequirement(name = "BearerAuth"))
+    @ApiResponse(responseCode = "204", description = "로그아웃 성공")
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(@AuthenticationPrincipal Jwt jwt) {
         UUID userId = UUID.fromString(jwt.getSubject());
@@ -51,6 +65,8 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "내 정보 조회", security = @SecurityRequirement(name = "BearerAuth"))
+    @ApiResponse(responseCode = "200", description = "사용자 정보 반환")
     @GetMapping("/me")
     public ResponseEntity<UserResponse> me(@AuthenticationPrincipal Jwt jwt) {
         UUID userId = UUID.fromString(jwt.getSubject());

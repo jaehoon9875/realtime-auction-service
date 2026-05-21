@@ -20,6 +20,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j")
 
+    // --- OpenAPI ---
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
+
     // --- Database (Flyway: 마이그레이션, postgresql: JDBC 드라이버) ---
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")

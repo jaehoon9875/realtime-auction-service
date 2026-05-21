@@ -1,3 +1,7 @@
+server:
+  port: ${AUCTION_SERVICE_PORT:8081}
+  # Gateway가 X-Forwarded-Prefix: /api 를 주입하면 springdoc servers URL이 /api 로 생성됨
+  forward-headers-strategy: framework
 spring:
   application:
     name: auction-service
@@ -26,6 +30,13 @@ spring:
     enabled: true
     locations:
       - classpath:db/migration
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${SWAGGER_ENABLED:true}
+  api-docs:
+    path: /v3/api-docs
+    enabled: ${SWAGGER_ENABLED:true}
 app:
   auction:
     schedule:
@@ -40,6 +51,11 @@ app:
     # 빈 문자열 기본값 의도적 사용: 로컬/테스트 환경에서 Gateway 없이 단독 기동 시 시크릿 미설정 허용.
     # 운영 환경 fail-fast는 InternalRequestTokenFilter@PostConstruct가 프로파일 기반으로 처리.
     internal-request-secret: ${INTERNAL_REQUEST_SECRET:}
+    public-endpoints:
+      - /v3/api-docs
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-ui.html
   auction-streams:
     # auction-streams 서비스 URL
     base-url: ${AUCTION_STREAMS_BASE_URL}

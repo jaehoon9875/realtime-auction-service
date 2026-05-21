@@ -28,12 +28,15 @@ public class SecurityConfig {
     private static final String[] HEALTH_ENDPOINTS = { "/actuator/health", "/actuator/health/**" };
 
     private final InternalRequestTokenFilter internalRequestTokenFilter;
+    private final AuctionSecurityProperties securityProperties;
 
     /**
      * JWT 기반 Stateless 인증 필터 체인을 구성한다.
      */
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        String[] publicEndpoints = securityProperties.publicEndpoints().toArray(String[]::new);
+
         return http
                 // CSRF는 브라우저 쿠키 기반 공격 방어용이므로 Bearer 헤더 기반 REST API에서는 불필요
                 .csrf(AbstractHttpConfigurer::disable)
@@ -44,6 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                         // Kubernetes liveness/readiness 프로브는 인증 없이 접근 허용
                         .requestMatchers(HEALTH_ENDPOINTS).permitAll()
+                        .requestMatchers(publicEndpoints).permitAll()
                         // 나머지 요청은 인증 필요
                         .anyRequest().authenticated())
                 // Gateway 시크릿 검증을 JWT 검증(BearerTokenAuthenticationFilter)보다 먼저 수행
