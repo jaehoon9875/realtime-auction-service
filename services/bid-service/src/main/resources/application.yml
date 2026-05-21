@@ -32,10 +32,10 @@ spring:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
-    enabled: ${SWAGGER_ENABLED:true}
+    enabled: ${SWAGGER_ENABLED}
   api-docs:
     path: /v3/api-docs
-    enabled: ${SWAGGER_ENABLED:true}
+    enabled: ${SWAGGER_ENABLED}
 
 app:
   # Gateway가 붙여 보내는 내부 요청 토큰 검증용 설정.

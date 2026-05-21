@@ -1,5 +1,5 @@
 server:
-  port: ${USER_SERVICE_PORT:8083}
+  port: ${USER_SERVICE_PORT}
   forward-headers-strategy: framework
 spring:
   application:
@@ -32,10 +32,10 @@ spring:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
-    enabled: ${SWAGGER_ENABLED:true}
+    enabled: ${SWAGGER_ENABLED}
   api-docs:
     path: /v3/api-docs
-    enabled: ${SWAGGER_ENABLED:true}
+    enabled: ${SWAGGER_ENABLED}
 app:
   security:
     public-endpoints:
