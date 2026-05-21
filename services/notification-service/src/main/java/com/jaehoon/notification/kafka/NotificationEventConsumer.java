@@ -26,6 +26,13 @@ public class NotificationEventConsumer {
     private final WebSocketSessionRegistry sessionRegistry;
     private final NotificationMessageMapper messageMapper;
 
+    /**
+     * NotificationEventConsumer를 생성한다.
+     * Kafka 소비와 WebSocket 라우팅에 필요한 의존성을 주입한다.
+     * 
+     * @param sessionRegistry WebSocket 세션 조회/전송
+     * @param messageMapper   NotificationEvent -> WebSocket JSON 변환
+     */
     public NotificationEventConsumer(
             WebSocketSessionRegistry sessionRegistry,
             NotificationMessageMapper messageMapper) {
@@ -105,7 +112,8 @@ public class NotificationEventConsumer {
         sessionRegistry.sendToAuction(auctionId, message)
                 .subscribe(
                         null,
-                        e -> log.error("WebSocket 전송 실패. auctionId={}, type={}", auctionId, event.getNotificationType(), e));
+                        e -> log.error("WebSocket 전송 실패. auctionId={}, type={}", auctionId, event.getNotificationType(),
+                                e));
     }
 
     /**

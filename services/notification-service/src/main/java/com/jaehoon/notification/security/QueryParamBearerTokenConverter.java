@@ -17,6 +17,13 @@ public class QueryParamBearerTokenConverter implements ServerAuthenticationConve
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String TOKEN_QUERY_PARAM = "token";
 
+    /**
+     * 요청에서 Bearer JWT를 추출해 Authentication으로 변환한다.
+     * Authorization 헤더를 우선하고, 없으면 {@code token} 쿼리 파라미터를 사용한다.
+     * 
+     * @param exchange 현재 WebFlux 요청/응답
+     * @return 토큰이 있으면 BearerTokenAuthenticationToken, 없으면 빈 Mono
+     */
     @Override
     public Mono<Authentication> convert(ServerWebExchange exchange) {
         String token = resolveFromAuthorizationHeader(exchange);
@@ -29,6 +36,7 @@ public class QueryParamBearerTokenConverter implements ServerAuthenticationConve
         return Mono.just(new BearerTokenAuthenticationToken(token));
     }
 
+    // Authorization 헤더에서 Bearer 토큰을 추출한다.
     private String resolveFromAuthorizationHeader(ServerWebExchange exchange) {
         String authorization = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         if (authorization != null && authorization.startsWith(BEARER_PREFIX)) {

@@ -36,6 +36,12 @@ public class KafkaConsumerConfig {
     @Value("${spring.kafka.consumer.properties.schema.registry.url}")
     private String schemaRegistryUrl;
 
+    /**
+     * notification-events용 Kafka ConsumerFactory를 생성한다.
+     * 키는 String, 값은 Schema Registry Avro NotificationEvent로 역직렬화한다.
+     *
+     * @return NotificationEvent 역직렬화가 설정된 ConsumerFactory
+     */
     @Bean
     public ConsumerFactory<String, NotificationEvent> notificationEventConsumerFactory() {
         Map<String, Object> props = new HashMap<>();
@@ -49,11 +55,16 @@ public class KafkaConsumerConfig {
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
+    /**
+     * {@code @KafkaListener}가 사용할 리스너 컨테이너 팩토리를 생성한다.
+     *
+     * @param notificationEventConsumerFactory notification-events ConsumerFactory
+     * @return NotificationEvent 수신용 ConcurrentKafkaListenerContainerFactory
+     */
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, NotificationEvent> kafkaListenerContainerFactory(
             ConsumerFactory<String, NotificationEvent> notificationEventConsumerFactory) {
-        ConcurrentKafkaListenerContainerFactory<String, NotificationEvent> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
+        ConcurrentKafkaListenerContainerFactory<String, NotificationEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(notificationEventConsumerFactory);
         return factory;
     }

@@ -23,11 +23,17 @@ import java.util.Map;
 @Component
 public class NotificationMessageMapper {
 
-    private static final DateTimeFormatter ISO_LOCAL =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss").withZone(ZoneOffset.UTC);
+    private static final DateTimeFormatter ISO_LOCAL = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+            .withZone(ZoneOffset.UTC);
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * NotificationMessageMapper를 생성한다.
+     * WebSocket 메시지 직렬화에 사용할 ObjectMapper를 주입한다.
+     * 
+     * @param objectMapper Spring Bean으로 등록된 ObjectMapper
+     */
     public NotificationMessageMapper(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
@@ -37,7 +43,8 @@ public class NotificationMessageMapper {
      *
      * @param event NotificationEvent (Avro)
      * @return docs/api.md 형식의 JSON 문자열
-     * @throws NotificationMappingException 지원하지 않는 notificationType이거나 JSON 직렬화에 실패한 경우
+     * @throws NotificationMappingException 지원하지 않는 notificationType이거나 JSON 직렬화에
+     *                                      실패한 경우
      */
     public String toWebSocketMessage(NotificationEvent event) {
         String type = event.getNotificationType().toString();
@@ -55,7 +62,8 @@ public class NotificationMessageMapper {
         Map<String, String> payload = event.getPayload();
         ObjectNode node = baseNode(BID_UPDATED, event);
         if (!putLongField(node, "currentPrice", payload, "currentPrice")) {
-            throw new NotificationMappingException("BID_UPDATED payload에 currentPrice 없음. eventId=" + event.getEventId());
+            throw new NotificationMappingException(
+                    "BID_UPDATED payload에 currentPrice 없음. eventId=" + event.getEventId());
         }
         if (!putLongField(node, "bidCount", payload, "bidCount")) {
             throw new NotificationMappingException("BID_UPDATED payload에 bidCount 없음. eventId=" + event.getEventId());
@@ -98,7 +106,8 @@ public class NotificationMessageMapper {
         Map<String, String> payload = event.getPayload();
         ObjectNode node = baseNode(BID_REJECTED, event);
         if (!putLongField(node, "rejectedPrice", payload, "rejectedPrice")) {
-            throw new NotificationMappingException("BID_REJECTED payload에 rejectedPrice 없음. eventId=" + event.getEventId());
+            throw new NotificationMappingException(
+                    "BID_REJECTED payload에 rejectedPrice 없음. eventId=" + event.getEventId());
         }
         if (!putTextField(node, "reason", payload, "reason")) {
             throw new NotificationMappingException("BID_REJECTED payload에 reason 없음. eventId=" + event.getEventId());
