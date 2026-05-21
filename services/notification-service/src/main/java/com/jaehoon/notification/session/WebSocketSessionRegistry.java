@@ -102,9 +102,12 @@ public class WebSocketSessionRegistry {
    */
   public void removeUserSession(String userId, String sessionId) {
     localSessions.remove(sessionId);
-    userSessions.remove(userId, sessionId);
+    // 로컬 맵 제거 실패 = 재연결로 이미 새 세션이 등록된 상태 → Redis 건드리지 않음
+    if (!userSessions.remove(userId, sessionId)) {
+      return;
+    }
     redisSessionStore
-        .removeUserSession(userId)
+        .removeUserSessionIfMatch(userId, sessionId)
         .subscribe(
             null,
             error -> log.error("Redis 사용자 세션 제거 실패 userId={} sessionId={}", userId, sessionId, error));

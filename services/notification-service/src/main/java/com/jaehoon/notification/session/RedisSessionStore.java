@@ -2,9 +2,11 @@ package com.jaehoon.notification.session;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -18,6 +20,10 @@ public class RedisSessionStore {
 
   private static final String AUCTION_SESSIONS_KEY = "auction:%s:sessions";
   private static final String USER_SESSION_KEY = "ws:user:%s:session";
+  // 현재 값이 기대값과 같을 때만 키를 삭제하는 원자적 compare-and-delete
+  private static final RedisScript<Long> DELETE_IF_MATCH_SCRIPT = RedisScript.of(
+      "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+      Long.class);
   private static final String NOTIFY_CHANNEL = "notify:%s";
   // 서버 비정상 종료 시 ghost session이 Redis에 영구 잔류하는 것을 방지하는 안전망 TTL
   private static final Duration SESSION_TTL = Duration.ofHours(24);
@@ -89,6 +95,18 @@ public class RedisSessionStore {
    */
   public Mono<Void> removeUserSession(String userId) {
     return redis.delete(userSessionKey(userId)).then();
+  }
+
+  /**
+   * Redis에 저장된 세션이 지정한 sessionId와 일치할 때만 원자적으로 삭제한다.
+   * 재연결 레이스 컨디션에서 최신 세션을 덮어쓰는 것을 방지한다.
+   *
+   * @param userId    사용자 ID
+   * @param sessionId 삭제 대상 세션 ID (현재 저장값과 다르면 삭제하지 않음)
+   */
+  public Mono<Void> removeUserSessionIfMatch(String userId, String sessionId) {
+    return redis.execute(DELETE_IF_MATCH_SCRIPT, List.of(userSessionKey(userId)), sessionRef(sessionId))
+        .then();
   }
 
   /**
