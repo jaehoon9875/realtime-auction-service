@@ -1,5 +1,67 @@
 # API 명세
 
+REST API의 **정본**은 [springdoc-openapi](https://springdoc.org/)가 생성하는 OpenAPI 명세입니다.
+엔드포인트·요청/응답 스키마·인증 요구 사항은 Swagger UI에서 확인하세요.
+
+WebSocket(Notification Service)과 일부 내부 연동 설명은 OpenAPI 대상이 아니므로 [레거시 명세](#레거시-명세-참고용)를 참고하세요.
+
+---
+
+## Swagger UI
+
+### API Gateway (권장)
+
+Gateway가 각 서비스의 `v3/api-docs`를 프록시하고, 통합 Swagger UI에서 한 화면으로 볼 수 있습니다.
+`servers` URL은 Gateway가 주입하는 `X-Forwarded-Prefix: /api` 기준으로 생성됩니다.
+
+| 용도 | URL |
+|------|-----|
+| 통합 Swagger UI | http://localhost:8080/swagger-ui.html |
+| user-service OpenAPI JSON | http://localhost:8080/user-service/v3/api-docs |
+| auction-service OpenAPI JSON | http://localhost:8080/auction-service/v3/api-docs |
+| bid-service OpenAPI JSON | http://localhost:8080/bid-service/v3/api-docs |
+
+로컬에서 Gateway·3개 REST 서비스를 기동한 뒤 접속합니다. 상세는 [local-dev.md](./local-dev.md#api-문서-swagger-ui)를 참고하세요.
+
+### 서비스 직접 접근 (개발용)
+
+서비스만 단독 `bootRun`할 때는 아래 포트(`infra/.env.example`의 `*_SERVICE_PORT`)를 사용합니다.
+
+| 서비스 | Swagger UI | OpenAPI JSON |
+|--------|------------|--------------|
+| user-service | http://localhost:8083/swagger-ui.html | http://localhost:8083/v3/api-docs |
+| auction-service | http://localhost:8081/swagger-ui.html | http://localhost:8081/v3/api-docs |
+| bid-service | http://localhost:8082/swagger-ui.html | http://localhost:8082/v3/api-docs |
+
+### 적용 범위
+
+| 서비스 | OpenAPI | 비고 |
+|--------|---------|------|
+| user-service, auction-service, bid-service | ✅ | `springdoc-openapi-starter-webmvc-ui` 3.0.3 |
+| api-gateway | ✅ (집계 UI만) | 각 서비스 api-docs 프록시, Gateway 자체 api-docs 비활성 |
+| notification-service | ❌ | REST 없음, WebSocket 전용 |
+| auction-streams | ❌ | 내부 Interactive Queries API |
+
+### 운영 환경
+
+각 REST 서비스 `application.yml`에서 `SWAGGER_ENABLED`(기본 `true`)로 Swagger UI·`/v3/api-docs` 노출을 끌 수 있습니다.
+운영에서는 `SWAGGER_ENABLED=false` 권장.
+
+---
+
+## 공통 (요약)
+
+- **Base URL (클라이언트)**: `http://localhost:8080/api` — Gateway가 `/api` prefix를 제거한 뒤 각 서비스로 라우팅
+- **인증**: JWT Bearer (`Authorization: Bearer {accessToken}`), RS256
+- Swagger UI **Authorize**에 Access Token을 넣으면 보호 API를 Try it out 할 수 있습니다
+
+---
+
+## 레거시 명세 (참고용)
+
+아래는 OpenAPI 도입 이전에 수동으로 관리하던 명세입니다.
+REST 상세·예시는 **Swagger UI를 우선** 참고하고, WebSocket·내부 연동·역사적 설명은 이 절을 참고하세요.
+
 ## 공통
 
 ### Base URL

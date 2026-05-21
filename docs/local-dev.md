@@ -109,6 +109,39 @@ graph TD
 
 ---
 
+## API 문서 (Swagger UI)
+
+REST API 명세는 springdoc이 생성한 OpenAPI가 정본입니다. 상세 링크는 [api.md](./api.md)를 참고하세요.
+
+### 통합 UI (권장)
+
+api-gateway와 user / auction / bid 서비스를 기동한 뒤:
+
+- **Swagger UI**: http://localhost:8080/swagger-ui.html
+- user / auction / bid OpenAPI JSON은 Gateway가 `/user-service/v3/api-docs` 등으로 프록시
+
+```bash
+# 예: Gateway + REST 서비스 (infra/.env 로드 후)
+./gradlew :services:api-gateway:bootRun
+./gradlew :services:user-service:bootRun
+./gradlew :services:auction-service:bootRun
+./gradlew :services:bid-service:bootRun
+```
+
+### 서비스 단독 기동
+
+| 서비스 | 포트 | Swagger UI |
+|--------|------|------------|
+| user-service | 8083 | http://localhost:8083/swagger-ui.html |
+| auction-service | 8081 | http://localhost:8081/swagger-ui.html |
+| bid-service | 8082 | http://localhost:8082/swagger-ui.html |
+
+### 운영
+
+`SWAGGER_ENABLED=false`로 Swagger UI·`/v3/api-docs` 노출을 끌 수 있습니다 (`infra/.env.example` 참고).
+
+---
+
 ## Auction Streams Interactive Query 설정
 
 `application.server`는 인스턴스 간 Interactive Query 위임 시 사용하는 "내 주소"입니다.

@@ -105,7 +105,7 @@ Bid Service가 Auction Service에 경매 정보를 조회할 때, Auction Servic
 
 ## Documentation
 
-- [API 명세](docs/api.md)
+- [API 명세](docs/api.md) · [Swagger UI (로컬 Gateway)](http://localhost:8080/swagger-ui.html)
 - [DB 스키마](docs/schema.md)
 - [Kafka 토픽 설계](docs/kafka.md)
 - [아키텍처 상세](docs/architecture.md)
