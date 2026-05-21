@@ -51,7 +51,7 @@ spring:
             - Path=/user-service/v3/api-docs
           filters:
             - SetPath=/v3/api-docs
-            - AddRequestHeader=X-Forwarded-Prefix, /api
+            - SetRequestHeader=X-Forwarded-Prefix, /api
 
         - id: auction-service-docs
           uri: ${AUCTION_SERVICE_URI}
@@ -59,7 +59,8 @@ spring:
             - Path=/auction-service/v3/api-docs
           filters:
             - SetPath=/v3/api-docs
-            - AddRequestHeader=X-Forwarded-Prefix, /api
+            - SetRequestHeader=X-Forwarded-Prefix, /api
+            - SetRequestHeader=X-Internal-Request-Token, ${INTERNAL_REQUEST_SECRET}
 
         - id: bid-service-docs
           uri: ${BID_SERVICE_URI}
@@ -67,7 +68,9 @@ spring:
             - Path=/bid-service/v3/api-docs
           filters:
             - SetPath=/v3/api-docs
-            - AddRequestHeader=X-Forwarded-Prefix, /api
+            - SetRequestHeader=X-Forwarded-Prefix, /api
+            - SetRequestHeader=X-Internal-Request-Token, ${INTERNAL_REQUEST_SECRET}
+
 server:
   port: ${API_GATEWAY_PORT:8080}
 springdoc:

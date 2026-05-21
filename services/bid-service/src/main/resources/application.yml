@@ -44,12 +44,6 @@ app:
     # 빈 문자열 기본값 의도적 사용: 로컬/테스트 환경에서 Gateway 없이 단독 기동 시 시크릿 미설정 허용.
     # 운영 환경 fail-fast는 InternalRequestTokenFilter@PostConstruct가 프로파일 기반으로 처리.
     internal-request-secret: ${INTERNAL_REQUEST_SECRET:}
-    public-endpoints:
-      - /v3/api-docs
-      - /v3/api-docs/**
-      - /swagger-ui/**
-      - /swagger-ui.html
-      - /actuator/health
   auction-service:
     base-url: ${AUCTION_SERVICE_BASE_URL}
     connect-timeout-ms: ${AUCTION_SERVICE_CONNECT_TIMEOUT:2000}
