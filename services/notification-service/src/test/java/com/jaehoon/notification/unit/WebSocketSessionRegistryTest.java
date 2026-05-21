@@ -124,5 +124,6 @@ class WebSocketSessionRegistryTest {
         StepVerifier.create(registry.sendToLocalSession("session-1", "gone"))
                 .verifyComplete();
         assertThat(received).isEmpty();
+        verify(redisSessionStore).removeAuctionSession("auction-1", "session-1");
     }
 }
