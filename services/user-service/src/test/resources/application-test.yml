@@ -1,3 +1,6 @@
+USER_SERVICE_PORT: 0
+SWAGGER_ENABLED: false
+
 spring:
   autoconfigure:
     exclude:
