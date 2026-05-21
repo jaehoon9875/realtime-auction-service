@@ -2,6 +2,7 @@ package com.jaehoon.streams.auction.topology;
 
 import static com.jaehoon.streams.auction.constants.StreamsConstants.*;
 
+import com.jaehoon.auction.avro.BidDeadLetterEvent;
 import com.jaehoon.auction.avro.BidEvent;
 import com.jaehoon.auction.events.NotificationEvent;
 import com.jaehoon.streams.auction.processor.BidStateProcessor;
@@ -33,12 +34,14 @@ public class BidStreamsTopology {
         private final StreamsBuilder builder;
         private final Serde<BidEvent> bidEventSerde;
         private final Serde<NotificationEvent> notificationEventSerde;
+        private final Serde<BidDeadLetterEvent> bidDeadLetterEventSerde;
 
         /**
          * 입찰 이벤트 처리 토폴로지를 등록한다.
-         * 
+         *
          * BID_PLACED : BidStateProcessor로 최고가 State Store를 갱신하고 OUTBID 알림 발행.
          * BID_REJECTED : 거부된 입찰자 개인 알림 발행.
+         * unknown : 알 수 없는 이벤트 타입은 bid-dead-letter 토픽으로 라우팅.
          * 1분 window 내 10건 이상 급증 시 경고 로그 출력. (알림 미발행.)
          */
         @PostConstruct
@@ -57,6 +60,7 @@ public class BidStreamsTopology {
 
                 KStream<String, BidEvent> validBids = branches.get("bid-placed");
                 KStream<String, BidEvent> rejectedBids = branches.get("bid-rejected");
+                KStream<String, BidEvent> unknownBids = branches.get("bid-unknown");
 
                 // BidStateProcessor는 최고가 State Store를 갱신하고 notification-events를 발행한다.
                 validBids
@@ -77,6 +81,18 @@ public class BidStreamsTopology {
                                                 .setOccurredAt(event.getOccurredAt())
                                                 .build())
                                 .to(TOPIC_NOTIFICATION_EVENTS, Produced.with(Serdes.String(), notificationEventSerde));
+
+                unknownBids
+                                .mapValues(event -> {
+                                        log.warn("알 수 없는 bid 이벤트 타입 — DLQ로 라우팅. eventType={}, eventId={}",
+                                                        event.getEventType(), event.getEventId());
+                                        return BidDeadLetterEvent.newBuilder()
+                                                        .setOriginalEvent(event)
+                                                        .setFailureReason("UNKNOWN_EVENT_TYPE: " + event.getEventType())
+                                                        .setFailedAt(System.currentTimeMillis())
+                                                        .build();
+                                })
+                                .to(TOPIC_BID_DEAD_LETTER, Produced.with(Serdes.String(), bidDeadLetterEventSerde));
 
                 // 급증 탐지는 BID_PLACED 기준으로만 집계
                 validBids
