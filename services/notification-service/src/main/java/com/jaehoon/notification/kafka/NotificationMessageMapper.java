@@ -118,9 +118,28 @@ public class NotificationMessageMapper {
     private ObjectNode baseNode(String type, NotificationEvent event) {
         ObjectNode node = objectMapper.createObjectNode();
         node.put("type", type);
-        node.put("auctionId", event.getAuctionId().toString());
+        String auctionId = resolveAuctionId(event);
+        if (auctionId == null) {
+            throw new NotificationMappingException(
+                    "auctionId/targetAuctionId 없음. eventId=" + event.getEventId());
+        }
+        node.put("auctionId", auctionId);
         node.put("occurredAt", formatOccurredAt(event.getOccurredAt()));
         return node;
+    }
+
+    /**
+     * WebSocket JSON의 auctionId를 결정한다.
+     * NotificationEventConsumer.resolveAuctionId와 동일하게 targetAuctionId를 우선한다.
+     */
+    private String resolveAuctionId(NotificationEvent event) {
+        if (event.getTargetAuctionId() != null) {
+            return event.getTargetAuctionId().toString();
+        }
+        if (event.getAuctionId() != null) {
+            return event.getAuctionId().toString();
+        }
+        return null;
     }
 
     /** epoch 초·밀리초 모두 수용해 API ISO-8601 문자열로 변환 */
@@ -135,8 +154,13 @@ public class NotificationMessageMapper {
         for (String key : keys) {
             String value = payload.get(key);
             if (value != null && !value.isBlank()) {
-                node.put(field, Long.parseLong(value));
-                return true;
+                try {
+                    node.put(field, Long.parseLong(value));
+                    return true;
+                } catch (NumberFormatException e) {
+                    throw new NotificationMappingException(
+                            "숫자 필드 파싱 실패: field=" + field + ", key=" + key + ", value=" + value, e);
+                }
             }
         }
         return false;
