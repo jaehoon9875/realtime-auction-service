@@ -19,14 +19,15 @@ COPY services/notification-service/ services/notification-service/
 COPY infra/avro/ infra/avro/
 
 RUN chmod +x gradlew \
-    && ./gradlew :services:notification-service:bootJar -x test --no-daemon
+    && ./gradlew :services:notification-service:bootJar -x test --no-daemon \
+    && cp "$(find /workspace/services/notification-service/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' | head -n1)" /workspace/app.jar
 
 FROM eclipse-temurin:21-jre-jammy AS runtime
 
 RUN groupadd --system app && useradd --system --gid app app
 WORKDIR /app
 
-COPY --from=build /workspace/services/notification-service/build/libs/*-SNAPSHOT.jar app.jar
+COPY --from=build /workspace/app.jar app.jar
 RUN chown app:app app.jar
 
 USER app
