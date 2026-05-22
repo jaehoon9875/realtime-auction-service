@@ -11,7 +11,7 @@ repositories {
     maven("https://packages.confluent.io/maven/")
 }
 
-val confluentVersion = "8.2.0"
+val confluentVersion = "8.1.0"
 
 dependencies {
     // --- Spring Boot Starters ---

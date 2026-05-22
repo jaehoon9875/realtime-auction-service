@@ -12,6 +12,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - api-gateway 통합 Swagger UI 및 각 서비스 `v3/api-docs` 프록시 라우트
 - `docs/api.md`: Swagger UI 링크를 정본으로 안내, 수동 REST 명세는 레거시 섹션으로 이동
 
+### Changed
+- Kafka 버전 정렬 — Apache Kafka 4.1 / Confluent Platform 8.1 기준 통일 (ADR-007)
+  - `infra/docker-compose.yml`: `cp-kafka`, `cp-schema-registry` 7.7.0 → 8.1.0
+  - `streams/auction-streams/build.gradle.kts`: `confluentVersion` 8.2.0 → 8.1.0
+  - `services/notification-service/build.gradle.kts`: `confluentVersion` 8.2.0 → 8.1.0
+  - Testcontainers: `confluentinc/cp-kafka` → `apache/kafka:4.1.0` (`@DynamicPropertySource` 방식으로 전환)
+
 ---
 
 ## [0.6.0] - 2026-05-20 — M6: Notification Service + WebSocket
