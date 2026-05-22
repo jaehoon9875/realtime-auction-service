@@ -3,22 +3,18 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'infra/**'
   push:
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-      - 'infra/**'
 
 jobs:
   # 변경된 서비스만 골라 matrix JSON을 생성한다.
+  # docs/infra/md만 변경 시 matrix가 비어 build-and-test는 스킵되지만, 이 잡은 항상 실행되어 required check를 만족한다.
   # 루트 빌드 파일(*.gradle.kts, settings.gradle.kts) 변경 시 전체 서비스 실행.
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -135,3 +131,21 @@ jobs:
         with:
           name: test-results-${{ matrix.service }}
           path: ${{ matrix.path }}/build/reports/tests/test/
+
+  # build-and-test가 스킵되어도 워크플로가 성공으로 끝나도록 항상 실행한다.
+  ci-success:
+    needs: [changes, build-and-test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify CI pipeline
+        run: |
+          if [[ "${{ needs.changes.result }}" != "success" ]]; then
+            echo "changes job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.build-and-test.result }}" == "failure" ]]; then
+            echo "build-and-test failed"
+            exit 1
+          fi
+          echo "CI passed"
