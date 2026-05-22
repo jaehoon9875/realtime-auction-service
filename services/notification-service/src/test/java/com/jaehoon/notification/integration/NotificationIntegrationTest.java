@@ -173,6 +173,33 @@ class NotificationIntegrationTest {
         assertThat(received).isEmpty();
     }
 
+    @Test
+    void 동일_eventId_이벤트_2회_발행_시_WebSocket_push는_1회만_발생한다() {
+        List<String> received = new CopyOnWriteArrayList<>();
+        WebSocketSession session = WebSocketTestSupport.mockSession("ws-user-dup", received);
+        String userId = "user-dup-1";
+
+        sessionRegistry.registerUserSession(userId, session);
+        awaitRedisUserSession(userId);
+
+        NotificationEvent event = NotificationEvent.newBuilder()
+                .setEventId("dup-integration-evt-1")
+                .setNotificationType(BID_REJECTED)
+                .setTargetUserId(userId)
+                .setAuctionId("auction-dup-1")
+                .setPayload(Map.of("rejectedPrice", "1000", "reason", "PRICE_TOO_LOW"))
+                .setOccurredAt(1_736_947_200L)
+                .build();
+
+        // 동일 이벤트 2회 발행
+        kafkaTemplate.send(TOPIC, userId, event);
+        kafkaTemplate.send(TOPIC, userId, event);
+
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(15))
+                .untilAsserted(() -> assertThat(received).hasSize(1));
+    }
+
     private void awaitRedisUserSession(String userId) {
         Awaitility.await()
                 .atMost(Duration.ofSeconds(10))
