@@ -156,6 +156,28 @@ class NotificationEventConsumerTest {
     }
 
     @Test
+    void Redis_장애_시_이벤트를_정상_처리한다() {
+        // Redis 타임아웃 → 중복 허용(알림 유실 방지) 폴백 검증
+        when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class)))
+                .thenReturn(Mono.error(new RuntimeException("Redis timeout")));
+
+        NotificationEvent event = NotificationEvent.newBuilder()
+                .setEventId("redis-fail-event-1")
+                .setNotificationType(BID_UPDATED)
+                .setTargetAuctionId("auction-1")
+                .setAuctionId("auction-1")
+                .setPayload(Map.of("currentPrice", "1000", "bidCount", "1"))
+                .setOccurredAt(1_736_947_200L)
+                .build();
+        when(messageMapper.toWebSocketMessage(event)).thenReturn("{\"type\":\"" + BID_UPDATED + "\"}");
+        when(sessionRegistry.sendToAuction(anyString(), anyString())).thenReturn(Mono.empty());
+
+        consumer.consume(event);
+
+        verify(sessionRegistry).sendToAuction("auction-1", "{\"type\":\"" + BID_UPDATED + "\"}");
+    }
+
+    @Test
     void 알_수_없는_타입은_무시한다() {
         NotificationEvent event = NotificationEvent.newBuilder()
                 .setEventId("e5")

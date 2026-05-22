@@ -62,9 +62,16 @@ public class NotificationEventConsumer {
         String idempotentKey = IDEMPOTENT_KEY_PREFIX + eventId;
 
         // SET NX: 키가 없을 때만 저장 성공 → 이미 있으면 중복이므로 스킵
-        Boolean isNew = redisTemplate.opsForValue()
-                .setIfAbsent(idempotentKey, "1", IDEMPOTENT_TTL)
-                .block();
+        // Redis 장애 시 중복 허용(isNew=true)으로 폴백 — 알림 유실이 중복보다 더 나쁜 결과
+        Boolean isNew;
+        try {
+            isNew = redisTemplate.opsForValue()
+                    .setIfAbsent(idempotentKey, "1", IDEMPOTENT_TTL)
+                    .block(Duration.ofSeconds(2));
+        } catch (Exception e) {
+            log.warn("Redis 중복 체크 실패, 이벤트 처리 진행. eventId={}", eventId, e);
+            isNew = true;
+        }
 
         if (!Boolean.TRUE.equals(isNew)) {
             log.debug("중복 이벤트 스킵. eventId={}", eventId);
