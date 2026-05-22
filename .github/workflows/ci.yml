@@ -137,15 +137,18 @@ jobs:
     needs: [changes, build-and-test]
     if: always()
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Verify CI pipeline
         run: |
           if [[ "${{ needs.changes.result }}" != "success" ]]; then
-            echo "changes job failed"
+            echo "changes job failed (result: ${{ needs.changes.result }})"
             exit 1
           fi
-          if [[ "${{ needs.build-and-test.result }}" == "failure" ]]; then
-            echo "build-and-test failed"
+          # success·skipped만 허용 (failure·cancelled 등은 실패 처리)
+          if [[ "${{ needs.build-and-test.result }}" != "success" && \
+                "${{ needs.build-and-test.result }}" != "skipped" ]]; then
+            echo "build-and-test did not succeed (result: ${{ needs.build-and-test.result }})"
             exit 1
           fi
           echo "CI passed"
