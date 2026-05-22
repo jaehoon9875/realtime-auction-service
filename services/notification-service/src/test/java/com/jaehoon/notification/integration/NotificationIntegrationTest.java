@@ -3,6 +3,8 @@ package com.jaehoon.notification.integration;
 import static com.jaehoon.notification.kafka.NotificationTypes.BID_REJECTED;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.UUID;
+
 import com.jaehoon.auction.events.NotificationEvent;
 import com.jaehoon.notification.session.RedisSessionStore;
 import com.jaehoon.notification.session.WebSocketSessionRegistry;
@@ -183,7 +185,7 @@ class NotificationIntegrationTest {
         awaitRedisUserSession(userId);
 
         NotificationEvent event = NotificationEvent.newBuilder()
-                .setEventId("dup-integration-evt-1")
+                .setEventId(UUID.randomUUID().toString())
                 .setNotificationType(BID_REJECTED)
                 .setTargetUserId(userId)
                 .setAuctionId("auction-dup-1")
