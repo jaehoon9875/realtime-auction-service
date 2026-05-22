@@ -80,36 +80,36 @@ public class NotificationEventConsumer {
 
         String notificationType = event.getNotificationType().toString();
         switch (notificationType) {
-            case BID_UPDATED -> handleBidUpdated(event);
-            case AUCTION_CLOSED -> handleAuctionClosed(event);
-            case AUCTION_WON, OUTBID, BID_REJECTED -> handlePersonal(event);
+            case BID_UPDATED -> handleBidUpdated(event, idempotentKey);
+            case AUCTION_CLOSED -> handleAuctionClosed(event, idempotentKey);
+            case AUCTION_WON, OUTBID, BID_REJECTED -> handlePersonal(event, idempotentKey);
             default -> log.warn("알 수 없는 notificationType, 건너뜀. type={}, eventId={}",
                     notificationType, eventId);
         }
     }
 
     // BID_UPDATED는 /ws/auctions/{auctionId} 구독자 전체에 브로드캐스트
-    private void handleBidUpdated(NotificationEvent event) {
+    private void handleBidUpdated(NotificationEvent event, String idempotentKey) {
         String auctionId = resolveAuctionId(event);
         if (auctionId == null) {
             log.warn("BID_UPDATED 라우팅 실패: auctionId 없음. eventId={}", event.getEventId());
             return;
         }
-        pushToAuction(auctionId, event);
+        pushToAuction(auctionId, event, idempotentKey);
     }
 
     // AUCTION_CLOSED는 경매 마감 알림용 브로드캐스트 — Auction DB status와 별개(알림 파이프라인)
-    private void handleAuctionClosed(NotificationEvent event) {
+    private void handleAuctionClosed(NotificationEvent event, String idempotentKey) {
         String auctionId = resolveAuctionId(event);
         if (auctionId == null) {
             log.warn("AUCTION_CLOSED 라우팅 실패: auctionId 없음. eventId={}", event.getEventId());
             return;
         }
-        pushToAuction(auctionId, event);
+        pushToAuction(auctionId, event, idempotentKey);
     }
 
     // AUCTION_WON·OUTBID·BID_REJECTED는 targetUserId 기준 개인 알림
-    private void handlePersonal(NotificationEvent event) {
+    private void handlePersonal(NotificationEvent event, String idempotentKey) {
         if (event.getTargetUserId() == null) {
             log.warn("개인 알림 라우팅 실패: targetUserId 없음. type={}, eventId={}",
                     event.getNotificationType(), event.getEventId());
@@ -125,13 +125,17 @@ public class NotificationEventConsumer {
             return;
         }
         // WebFlux Mono — Kafka listener 스레드에서 fire-and-forget 전송
+        // 전송 실패 시 Redis 키 삭제 → Kafka 재시도 시 중복 판단 없이 재처리 가능
         sessionRegistry.sendToUser(userId, message)
                 .subscribe(
                         null,
-                        e -> log.error("WebSocket 전송 실패. userId={}, type={}", userId, event.getNotificationType(), e));
+                        e -> {
+                            log.error("WebSocket 전송 실패, 멱등 키 롤백. userId={}, type={}", userId, event.getNotificationType(), e);
+                            redisTemplate.delete(idempotentKey).subscribe();
+                        });
     }
 
-    private void pushToAuction(String auctionId, NotificationEvent event) {
+    private void pushToAuction(String auctionId, NotificationEvent event, String idempotentKey) {
         String message;
         try {
             message = messageMapper.toWebSocketMessage(event);
@@ -140,11 +144,14 @@ public class NotificationEventConsumer {
             log.warn("경매 알림 매핑 실패. type={}, eventId={}", event.getNotificationType(), event.getEventId(), e);
             return;
         }
+        // 전송 실패 시 Redis 키 삭제 → Kafka 재시도 시 중복 판단 없이 재처리 가능
         sessionRegistry.sendToAuction(auctionId, message)
                 .subscribe(
                         null,
-                        e -> log.error("WebSocket 전송 실패. auctionId={}, type={}", auctionId, event.getNotificationType(),
-                                e));
+                        e -> {
+                            log.error("WebSocket 전송 실패, 멱등 키 롤백. auctionId={}, type={}", auctionId, event.getNotificationType(), e);
+                            redisTemplate.delete(idempotentKey).subscribe();
+                        });
     }
 
     /**
