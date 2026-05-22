@@ -44,6 +44,7 @@ Chosen option: **"CP 8.1 / Kafka 4.1로 전체 통일"**, because Spring Boot 4.
 | `infra/docker-compose.yml` — `cp-kafka` 이미지 | `7.7.0` | `8.1.0` |
 | `infra/docker-compose.yml` — `cp-schema-registry` 이미지 | `7.7.0` | `8.1.0` |
 | `streams/auction-streams/build.gradle.kts` — `confluentVersion` | `8.2.0` | `8.1.0` |
+| `services/notification-service/build.gradle.kts` — `confluentVersion` | `8.2.0` | `8.1.0` |
 
 `kafka-streams`, `kafka-clients`는 Spring Boot BOM(`4.1.2`)이 관리하므로 별도 변경 없음.
 
