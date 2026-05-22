@@ -4,35 +4,76 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
+  # 변경된 서비스만 골라 matrix JSON을 생성한다.
+  # docs/infra/md만 변경 시 matrix가 비어 build-and-test는 스킵되지만, 이 잡은 항상 실행되어 required check를 만족한다.
+  # 루트 빌드 파일(*.gradle.kts, settings.gradle.kts) 변경 시 전체 서비스 실행.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            root-build:
+              - '*.gradle.kts'
+              - 'settings.gradle.kts'
+              - 'gradle/**'
+            api-gateway:
+              - 'services/api-gateway/**'
+            user-service:
+              - 'services/user-service/**'
+            auction-service:
+              - 'services/auction-service/**'
+            bid-service:
+              - 'services/bid-service/**'
+            notification-service:
+              - 'services/notification-service/**'
+            auction-streams:
+              - 'streams/auction-streams/**'
+
+      - id: set-matrix
+        run: |
+          # 루트 빌드 파일 변경 → 전체 서비스 실행
+          if [ "${{ steps.filter.outputs.root-build }}" = "true" ]; then
+            echo 'matrix={"include":[{"service":"api-gateway","path":"services/api-gateway","gradle_task":":services:api-gateway"},{"service":"user-service","path":"services/user-service","gradle_task":":services:user-service"},{"service":"auction-service","path":"services/auction-service","gradle_task":":services:auction-service"},{"service":"bid-service","path":"services/bid-service","gradle_task":":services:bid-service"},{"service":"notification-service","path":"services/notification-service","gradle_task":":services:notification-service"},{"service":"auction-streams","path":"streams/auction-streams","gradle_task":":streams:auction-streams"}]}' >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          matrix='{"include":['
+          first=true
+          add() {
+            [ "$first" = false ] && matrix+=','
+            matrix+="{\"service\":\"$1\",\"path\":\"$2\",\"gradle_task\":\"$3\"}"
+            first=false
+          }
+
+          [ "${{ steps.filter.outputs.api-gateway }}"         = "true" ] && add "api-gateway"         "services/api-gateway"         ":services:api-gateway"
+          [ "${{ steps.filter.outputs.user-service }}"         = "true" ] && add "user-service"         "services/user-service"         ":services:user-service"
+          [ "${{ steps.filter.outputs.auction-service }}"      = "true" ] && add "auction-service"      "services/auction-service"      ":services:auction-service"
+          [ "${{ steps.filter.outputs.bid-service }}"          = "true" ] && add "bid-service"          "services/bid-service"          ":services:bid-service"
+          [ "${{ steps.filter.outputs.notification-service }}" = "true" ] && add "notification-service" "services/notification-service" ":services:notification-service"
+          [ "${{ steps.filter.outputs.auction-streams }}"      = "true" ] && add "auction-streams"      "streams/auction-streams"       ":streams:auction-streams"
+
+          matrix+=']}'
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
   build-and-test:
+    needs: changes
+    if: needs.changes.outputs.matrix != '{"include":[]}'
     name: ${{ matrix.service }}
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        include:
-          # settings.gradle.kts에 등록된 모듈만 포함 — 서비스 추가 시 함께 등록
-          - service: api-gateway
-            path: services/api-gateway
-            gradle_task: :services:api-gateway
-          - service: user-service
-            path: services/user-service
-            gradle_task: :services:user-service
-          - service: auction-service
-            path: services/auction-service
-            gradle_task: :services:auction-service
-          - service: bid-service
-            path: services/bid-service
-            gradle_task: :services:bid-service
-          - service: notification-service
-            path: services/notification-service
-            gradle_task: :services:notification-service
-          - service: auction-streams
-            path: streams/auction-streams
-            gradle_task: :streams:auction-streams
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
       fail-fast: false  # 한 서비스 실패해도 나머지는 계속 실행
 
     steps:
@@ -90,3 +131,24 @@ jobs:
         with:
           name: test-results-${{ matrix.service }}
           path: ${{ matrix.path }}/build/reports/tests/test/
+
+  # build-and-test가 스킵되어도 워크플로가 성공으로 끝나도록 항상 실행한다.
+  ci-success:
+    needs: [changes, build-and-test]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Verify CI pipeline
+        run: |
+          if [[ "${{ needs.changes.result }}" != "success" ]]; then
+            echo "changes job failed (result: ${{ needs.changes.result }})"
+            exit 1
+          fi
+          # success·skipped만 허용 (failure·cancelled 등은 실패 처리)
+          if [[ "${{ needs.build-and-test.result }}" != "success" && \
+                "${{ needs.build-and-test.result }}" != "skipped" ]]; then
+            echo "build-and-test did not succeed (result: ${{ needs.build-and-test.result }})"
+            exit 1
+          fi
+          echo "CI passed"
