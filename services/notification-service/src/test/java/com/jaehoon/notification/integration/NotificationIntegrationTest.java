@@ -54,6 +54,10 @@ class NotificationIntegrationTest {
     static KafkaContainer kafka =
             new KafkaContainer(DockerImageName.parse("apache/kafka:4.1.0"));
 
+    /**
+     * Testcontainers Kafka 부트스트랩 서버를 {@code spring.kafka.bootstrap-servers}에 주입한다.
+     * {@code apache/kafka} 이미지용 KafkaContainer는 Spring Boot 4.0.6 {@code @ServiceConnection} 미지원이라 동적 프로퍼티로 연결한다.
+     */
     @DynamicPropertySource
     static void kafkaProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
