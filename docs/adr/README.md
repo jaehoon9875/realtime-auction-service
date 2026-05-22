@@ -13,6 +13,7 @@ MADR(Markdown Architectural Decision Records) 형식으로 작성합니다.
 | [ADR-004](004-avro-schema-registry.md) | Avro + Schema Registry로 이벤트 스키마 관리 | Accepted | 2026-05-18 |
 | [ADR-005](005-resilience4j-circuit-breaker.md) | Resilience4j Circuit Breaker로 장애 격리 | Accepted | 2026-05-18 |
 | [ADR-006](006-oauth2-resource-server-zero-trust.md) | OAuth2 Resource Server로 Zero Trust JWT 인증 전환 | Accepted | 2026-05-19 |
+| [ADR-007](007-kafka-version-alignment.md) | Kafka 버전 정렬 — Apache Kafka 4.1 / Confluent Platform 8.1 기준 통일 | Accepted | 2026-05-22 |
 
 ## Status 정의
 

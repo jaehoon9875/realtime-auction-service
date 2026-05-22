@@ -5,7 +5,7 @@ services:
   # 내부 통신: kafka:29092 / 외부(로컬 앱) 접속: localhost:9092
   # ──────────────────────────────────────────────────────────────
   kafka:
-    image: confluentinc/cp-kafka:7.7.0
+    image: confluentinc/cp-kafka:8.1.0
     hostname: kafka
     container_name: kafka
     ports:
@@ -44,7 +44,7 @@ services:
   # Debezium, 각 서비스의 Kafka Producer/Consumer가 스키마 검증에 사용
   # ──────────────────────────────────────────────────────────────
   schema-registry:
-    image: confluentinc/cp-schema-registry:7.7.0
+    image: confluentinc/cp-schema-registry:8.1.0
     hostname: schema-registry
     container_name: schema-registry
     depends_on:

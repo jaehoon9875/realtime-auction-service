@@ -20,8 +20,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -38,6 +41,7 @@ import com.redis.testcontainers.RedisContainer;
  * Docker 미기동 환경에서는 전체 클래스가 비활성화된다.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import(IntegrationKafkaProducerConfig.class)
 @Testcontainers(disabledWithoutDocker = true)
 @ActiveProfiles("integration")
 @Tag("integration")
@@ -47,9 +51,17 @@ class NotificationIntegrationTest {
     private static final String TOPIC = "notification-events";
 
     @Container
-    @ServiceConnection
     static KafkaContainer kafka =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.7.0"));
+            new KafkaContainer(DockerImageName.parse("apache/kafka:4.1.0"));
+
+    /**
+     * Testcontainers Kafka 부트스트랩 서버를 {@code spring.kafka.bootstrap-servers}에 주입한다.
+     * {@code apache/kafka} 이미지용 KafkaContainer는 Spring Boot 4.0.6 {@code @ServiceConnection} 미지원이라 동적 프로퍼티로 연결한다.
+     */
+    @DynamicPropertySource
+    static void kafkaProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+    }
 
     @Container
     @ServiceConnection
