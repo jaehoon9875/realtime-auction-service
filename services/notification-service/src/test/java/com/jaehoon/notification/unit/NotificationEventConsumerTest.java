@@ -4,9 +4,12 @@ import static com.jaehoon.notification.kafka.NotificationTypes.AUCTION_CLOSED;
 import static com.jaehoon.notification.kafka.NotificationTypes.BID_REJECTED;
 import static com.jaehoon.notification.kafka.NotificationTypes.BID_UPDATED;
 import static com.jaehoon.notification.kafka.NotificationTypes.OUTBID;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,12 +17,15 @@ import com.jaehoon.auction.events.NotificationEvent;
 import com.jaehoon.notification.kafka.NotificationEventConsumer;
 import com.jaehoon.notification.kafka.NotificationMessageMapper;
 import com.jaehoon.notification.session.WebSocketSessionRegistry;
+import java.time.Duration;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.data.redis.core.ReactiveValueOperations;
 import reactor.core.publisher.Mono;
 
 /**
@@ -34,11 +40,21 @@ class NotificationEventConsumerTest {
     @Mock
     private NotificationMessageMapper messageMapper;
 
+    @Mock
+    private ReactiveStringRedisTemplate redisTemplate;
+
+    @Mock
+    private ReactiveValueOperations<String, String> valueOperations;
+
     private NotificationEventConsumer consumer;
 
     @BeforeEach
     void setUp() {
-        consumer = new NotificationEventConsumer(sessionRegistry, messageMapper);
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        // 기본값: 신규 이벤트(중복 아님)로 동작 — 개별 테스트에서 재정의 가능하도록 lenient 처리
+        lenient().when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class)))
+                .thenReturn(Mono.just(true));
+        consumer = new NotificationEventConsumer(sessionRegistry, messageMapper, redisTemplate);
     }
 
     @Test
@@ -113,6 +129,52 @@ class NotificationEventConsumerTest {
 
         verify(sessionRegistry, never()).sendToUser(anyString(), anyString());
         verify(messageMapper, never()).toWebSocketMessage(event);
+    }
+
+    @Test
+    void 동일_eventId_재수신_시_WebSocket_push를_스킵한다() {
+        // 첫 번째 수신: 신규, 두 번째 수신: 중복
+        when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class)))
+                .thenReturn(Mono.just(true))
+                .thenReturn(Mono.just(false));
+
+        NotificationEvent event = NotificationEvent.newBuilder()
+                .setEventId("dup-event-1")
+                .setNotificationType(BID_UPDATED)
+                .setTargetAuctionId("auction-1")
+                .setAuctionId("auction-1")
+                .setPayload(Map.of("currentPrice", "1000", "bidCount", "1"))
+                .setOccurredAt(1_736_947_200L)
+                .build();
+        when(messageMapper.toWebSocketMessage(event)).thenReturn("{\"type\":\"" + BID_UPDATED + "\"}");
+        when(sessionRegistry.sendToAuction(anyString(), anyString())).thenReturn(Mono.empty());
+
+        consumer.consume(event);
+        consumer.consume(event);
+
+        verify(sessionRegistry, times(1)).sendToAuction(anyString(), anyString());
+    }
+
+    @Test
+    void Redis_장애_시_이벤트를_정상_처리한다() {
+        // Redis 타임아웃 → 중복 허용(알림 유실 방지) 폴백 검증
+        when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class)))
+                .thenReturn(Mono.error(new RuntimeException("Redis timeout")));
+
+        NotificationEvent event = NotificationEvent.newBuilder()
+                .setEventId("redis-fail-event-1")
+                .setNotificationType(BID_UPDATED)
+                .setTargetAuctionId("auction-1")
+                .setAuctionId("auction-1")
+                .setPayload(Map.of("currentPrice", "1000", "bidCount", "1"))
+                .setOccurredAt(1_736_947_200L)
+                .build();
+        when(messageMapper.toWebSocketMessage(event)).thenReturn("{\"type\":\"" + BID_UPDATED + "\"}");
+        when(sessionRegistry.sendToAuction(anyString(), anyString())).thenReturn(Mono.empty());
+
+        consumer.consume(event);
+
+        verify(sessionRegistry).sendToAuction("auction-1", "{\"type\":\"" + BID_UPDATED + "\"}");
     }
 
     @Test

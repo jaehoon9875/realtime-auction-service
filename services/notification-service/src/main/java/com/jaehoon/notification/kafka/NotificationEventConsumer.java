@@ -6,6 +6,9 @@ import static com.jaehoon.notification.kafka.NotificationTypes.BID_REJECTED;
 import static com.jaehoon.notification.kafka.NotificationTypes.BID_UPDATED;
 import static com.jaehoon.notification.kafka.NotificationTypes.OUTBID;
 
+import java.time.Duration;
+
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -23,62 +26,90 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class NotificationEventConsumer {
 
+    private static final String IDEMPOTENT_KEY_PREFIX = "notification:idempotent:";
+    private static final Duration IDEMPOTENT_TTL = Duration.ofDays(1);
+
     private final WebSocketSessionRegistry sessionRegistry;
     private final NotificationMessageMapper messageMapper;
+    private final ReactiveStringRedisTemplate redisTemplate;
 
     /**
      * NotificationEventConsumer를 생성한다.
      * Kafka 소비와 WebSocket 라우팅에 필요한 의존성을 주입한다.
-     * 
+     *
      * @param sessionRegistry WebSocket 세션 조회/전송
      * @param messageMapper   NotificationEvent -> WebSocket JSON 변환
+     * @param redisTemplate   eventId 중복 체크용 Redis 클라이언트
      */
     public NotificationEventConsumer(
             WebSocketSessionRegistry sessionRegistry,
-            NotificationMessageMapper messageMapper) {
+            NotificationMessageMapper messageMapper,
+            ReactiveStringRedisTemplate redisTemplate) {
         this.sessionRegistry = sessionRegistry;
         this.messageMapper = messageMapper;
+        this.redisTemplate = redisTemplate;
     }
 
     /**
      * Kafka notification-events 이벤트를 수신해 타입별 WebSocket 라우팅을 수행한다.
+     * 동일 eventId 재수신 시 WebSocket push를 스킵한다.
      *
      * @param event NotificationEvent (Avro)
      */
     @KafkaListener(topics = "${app.kafka.topics.notification-events}")
     public void consume(NotificationEvent event) {
+        String eventId = event.getEventId().toString();
+        String idempotentKey = IDEMPOTENT_KEY_PREFIX + eventId;
+
+        // SET NX: 키가 없을 때만 저장 성공 → 이미 있으면 중복이므로 스킵
+        // Redis 장애 시 중복 허용(isNew=true)으로 폴백 — 알림 유실이 중복보다 더 나쁜 결과
+        Boolean isNew;
+        try {
+            isNew = redisTemplate.opsForValue()
+                    .setIfAbsent(idempotentKey, "1", IDEMPOTENT_TTL)
+                    .block(Duration.ofSeconds(2));
+        } catch (Exception e) {
+            log.warn("Redis 중복 체크 실패, 이벤트 처리 진행. eventId={}", eventId, e);
+            isNew = true;
+        }
+
+        if (!Boolean.TRUE.equals(isNew)) {
+            log.debug("중복 이벤트 스킵. eventId={}", eventId);
+            return;
+        }
+
         String notificationType = event.getNotificationType().toString();
         switch (notificationType) {
-            case BID_UPDATED -> handleBidUpdated(event);
-            case AUCTION_CLOSED -> handleAuctionClosed(event);
-            case AUCTION_WON, OUTBID, BID_REJECTED -> handlePersonal(event);
+            case BID_UPDATED -> handleBidUpdated(event, idempotentKey);
+            case AUCTION_CLOSED -> handleAuctionClosed(event, idempotentKey);
+            case AUCTION_WON, OUTBID, BID_REJECTED -> handlePersonal(event, idempotentKey);
             default -> log.warn("알 수 없는 notificationType, 건너뜀. type={}, eventId={}",
-                    notificationType, event.getEventId());
+                    notificationType, eventId);
         }
     }
 
     // BID_UPDATED는 /ws/auctions/{auctionId} 구독자 전체에 브로드캐스트
-    private void handleBidUpdated(NotificationEvent event) {
+    private void handleBidUpdated(NotificationEvent event, String idempotentKey) {
         String auctionId = resolveAuctionId(event);
         if (auctionId == null) {
             log.warn("BID_UPDATED 라우팅 실패: auctionId 없음. eventId={}", event.getEventId());
             return;
         }
-        pushToAuction(auctionId, event);
+        pushToAuction(auctionId, event, idempotentKey);
     }
 
     // AUCTION_CLOSED는 경매 마감 알림용 브로드캐스트 — Auction DB status와 별개(알림 파이프라인)
-    private void handleAuctionClosed(NotificationEvent event) {
+    private void handleAuctionClosed(NotificationEvent event, String idempotentKey) {
         String auctionId = resolveAuctionId(event);
         if (auctionId == null) {
             log.warn("AUCTION_CLOSED 라우팅 실패: auctionId 없음. eventId={}", event.getEventId());
             return;
         }
-        pushToAuction(auctionId, event);
+        pushToAuction(auctionId, event, idempotentKey);
     }
 
     // AUCTION_WON·OUTBID·BID_REJECTED는 targetUserId 기준 개인 알림
-    private void handlePersonal(NotificationEvent event) {
+    private void handlePersonal(NotificationEvent event, String idempotentKey) {
         if (event.getTargetUserId() == null) {
             log.warn("개인 알림 라우팅 실패: targetUserId 없음. type={}, eventId={}",
                     event.getNotificationType(), event.getEventId());
@@ -94,13 +125,17 @@ public class NotificationEventConsumer {
             return;
         }
         // WebFlux Mono — Kafka listener 스레드에서 fire-and-forget 전송
+        // 전송 실패 시 Redis 키 삭제 → Kafka 재시도 시 중복 판단 없이 재처리 가능
         sessionRegistry.sendToUser(userId, message)
                 .subscribe(
                         null,
-                        e -> log.error("WebSocket 전송 실패. userId={}, type={}", userId, event.getNotificationType(), e));
+                        e -> {
+                            log.error("WebSocket 전송 실패, 멱등 키 롤백. userId={}, type={}", userId, event.getNotificationType(), e);
+                            redisTemplate.delete(idempotentKey).subscribe();
+                        });
     }
 
-    private void pushToAuction(String auctionId, NotificationEvent event) {
+    private void pushToAuction(String auctionId, NotificationEvent event, String idempotentKey) {
         String message;
         try {
             message = messageMapper.toWebSocketMessage(event);
@@ -109,11 +144,14 @@ public class NotificationEventConsumer {
             log.warn("경매 알림 매핑 실패. type={}, eventId={}", event.getNotificationType(), event.getEventId(), e);
             return;
         }
+        // 전송 실패 시 Redis 키 삭제 → Kafka 재시도 시 중복 판단 없이 재처리 가능
         sessionRegistry.sendToAuction(auctionId, message)
                 .subscribe(
                         null,
-                        e -> log.error("WebSocket 전송 실패. auctionId={}, type={}", auctionId, event.getNotificationType(),
-                                e));
+                        e -> {
+                            log.error("WebSocket 전송 실패, 멱등 키 롤백. auctionId={}, type={}", auctionId, event.getNotificationType(), e);
+                            redisTemplate.delete(idempotentKey).subscribe();
+                        });
     }
 
     /**
