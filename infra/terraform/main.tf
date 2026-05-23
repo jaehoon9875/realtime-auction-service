@@ -52,4 +52,7 @@ module "iam" {
   registry_id          = module.artifact_registry.registry_id
   github_org           = var.github_org
   github_repo          = var.github_repo
+
+  # eso_wi_binding이 참조하는 {project}.svc.id.goog pool은 GKE 클러스터 생성 후 자동 생성됨
+  depends_on = [module.gke]
 }
