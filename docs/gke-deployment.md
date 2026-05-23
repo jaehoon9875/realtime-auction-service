@@ -304,24 +304,7 @@ gcloud secrets list --filter="name~auction OR name~bid OR name~user OR name~redi
 
 ## 8. K8s 매니페스트 배포 — 사전 설정
 
-### PROJECT_ID 치환
-
-`infra/k8s/base/` 내 ConfigMap에는 `PROJECT_ID` 플레이스홀더가 있습니다.
-배포 전 실제 GCP 프로젝트 ID로 일괄 치환합니다.
-
-```bash
-# PROJECT_ID 확인
-gcloud config get-value project
-
-# 일괄 치환 (macOS: sed -i '')
-find infra/k8s -name "*.yaml" -exec \
-  sed -i '' 's/PROJECT_ID/실제-프로젝트-ID/g' {} \;
-
-# 변경된 파일 확인 후 커밋
-git diff infra/k8s/
-git add infra/k8s/
-git commit -m "infra: dev overlay PROJECT_ID 설정"
-```
+GCP 프로젝트 ID(`realtime-auction-service`)는 Cloud SQL 연결명·Workload Identity·Artifact Registry 경로 등에 **매니페스트에 하드코딩**되어 있습니다 (`infra/k8s/`). ArgoCD sync 전 별도 치환은 필요 없습니다.
 
 ### Cloud SQL Auth Proxy 동작 방식
 

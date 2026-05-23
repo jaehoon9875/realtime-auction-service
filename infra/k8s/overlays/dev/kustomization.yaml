@@ -7,20 +7,20 @@ resources:
 # CD 파이프라인(cd.yml)이 이미지 태그를 SHORT_SHA로 갱신한다
 images:
   - name: api-gateway
-    newName: asia-northeast3-docker.pkg.dev/PROJECT_ID/auction-images/api-gateway
+    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/api-gateway
     newTag: init
   - name: auction-service
-    newName: asia-northeast3-docker.pkg.dev/PROJECT_ID/auction-images/auction-service
+    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-service
     newTag: init
   - name: bid-service
-    newName: asia-northeast3-docker.pkg.dev/PROJECT_ID/auction-images/bid-service
+    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/bid-service
     newTag: init
   - name: user-service
-    newName: asia-northeast3-docker.pkg.dev/PROJECT_ID/auction-images/user-service
+    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/user-service
     newTag: init
   - name: notification-service
-    newName: asia-northeast3-docker.pkg.dev/PROJECT_ID/auction-images/notification-service
+    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/notification-service
     newTag: init
   - name: auction-streams
-    newName: asia-northeast3-docker.pkg.dev/PROJECT_ID/auction-images/auction-streams
+    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-streams
     newTag: init

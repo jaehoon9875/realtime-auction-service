@@ -19,5 +19,5 @@ data:
   CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry-service:8085
   # 각 DB 에 대한 Cloud SQL Auth Proxy 연결 이름
   # auction-db 프록시: localhost:5432, bid-db 프록시: localhost:5433
-  AUCTION_CLOUD_SQL_CONNECTION_NAME: PROJECT_ID:asia-northeast3:auction-db
-  BID_CLOUD_SQL_CONNECTION_NAME: PROJECT_ID:asia-northeast3:bid-db
+  AUCTION_CLOUD_SQL_CONNECTION_NAME: realtime-auction-service:asia-northeast3:auction-db
+  BID_CLOUD_SQL_CONNECTION_NAME: realtime-auction-service:asia-northeast3:bid-db

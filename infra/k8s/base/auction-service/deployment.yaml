@@ -69,7 +69,7 @@ spec:
           args:
             - "--structured-logs"
             - "--port=5432"
-            # CLOUD_SQL_CONNECTION_NAME 은 configmap 에서 주입 (PROJECT_ID:REGION:INSTANCE)
+            # CLOUD_SQL_CONNECTION_NAME 은 configmap 에서 주입
             - "$(CLOUD_SQL_CONNECTION_NAME)"
           env:
             - name: CLOUD_SQL_CONNECTION_NAME

@@ -10,8 +10,8 @@ data:
   POSTGRES_AUCTION_PORT: "5432"
   POSTGRES_AUCTION_DB_NAME: auction_db
   POSTGRES_USER: auction_user
-  # 형식: PROJECT_ID:REGION:INSTANCE_NAME — 비밀 정보 아님, 커밋 가능
-  CLOUD_SQL_CONNECTION_NAME: PROJECT_ID:asia-northeast3:auction-db
+  # 형식: project:region:instance (Cloud SQL Auth Proxy)
+  CLOUD_SQL_CONNECTION_NAME: realtime-auction-service:asia-northeast3:auction-db
   JWK_SET_URI: http://user-service-service:8083/.well-known/jwks.json
   SWAGGER_ENABLED: "true"
   AUCTION_STREAMS_BASE_URL: http://auction-streams-service:8086
