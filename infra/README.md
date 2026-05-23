@@ -27,7 +27,7 @@ infra/
 | Debezium Connector 등록 | Kafka Connect REST API | [docs/debezium-connector.md](../docs/debezium-connector.md) |
 | Avro / Schema Registry | Confluent Schema Registry REST API | [docs/avro-schema.md](../docs/avro-schema.md) |
 | 운영 배포 | GKE + ArgoCD | [infra/k8s/](./k8s/) |
-| 인프라 프로비저닝 | Terraform | [infra/terraform/](./terraform/) |
+| 인프라 프로비저닝 | Terraform | [docs/gke-deployment.md](../docs/gke-deployment.md) |
 
 ---
 
