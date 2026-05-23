@@ -50,7 +50,7 @@ Terraform 상태 파일을 저장할 GCS 버킷을 생성합니다. **Terraform 
 버킷명은 GCS 전역에서 유일해야 합니다. 아래 `{TFSTATE_BUCKET}`을 본인 환경에 맞게 정한 뒤, 이후 `terraform init`의 `bucket` 값과 동일하게 맞춥니다.
 
 ```bash
-export TFSTATE_BUCKET="{PROJECT_ID}-tfstate"   # 예: realtime-auction-service-tfstate
+export TFSTATE_BUCKET="realtime-auction-service-tfstate"
 
 gcloud storage buckets create gs://${TFSTATE_BUCKET} \
   --project=realtime-auction-service \
@@ -153,8 +153,8 @@ GitHub Actions·External Secrets 연동에 필요한 값은 `artifact_registry_u
 `terraform.tfvars`에서 아래 두 변수가 올바르게 설정되어야 WIF 바인딩이 정상 생성됩니다.
 
 ```hcl
-github_org  = "{GITHUB_ORG}"
-github_repo = "{GITHUB_REPO}"
+github_org  = "jaehoon9875"
+github_repo = "realtime-auction-service"
 ```
 
 apply 후 생성 확인:
@@ -175,7 +175,7 @@ Terraform apply 완료 후 아래 명령어로 GitHub Secrets를 등록합니다
 
 ```bash
 cd infra/terraform
-gh secret set GCP_PROJECT_ID                  --body "{PROJECT_ID}"
+gh secret set GCP_PROJECT_ID                  --body "realtime-auction-service"
 gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER  --body "$(terraform output -raw workload_identity_provider)"
 gh secret set GCP_SERVICE_ACCOUNT             --body "$(terraform output -raw github_actions_sa_email)"
 ```
@@ -332,3 +332,89 @@ Pod 내부
 - `cloud-sql-proxy-bid` → `localhost:5433` (bid-db)
 
 Auth Proxy 사이드카는 각 서비스 Deployment에 이미 정의되어 있습니다 (`infra/k8s/base/{service}/deployment.yaml`).
+
+---
+
+## 9. 미들웨어 설치 — Helm
+
+GKE 클러스터에 kubectl context가 설정된 상태에서 순서대로 실행합니다 (4절 참고).
+각 설치는 1회성 작업입니다.
+
+### 9-1. Strimzi Operator (Kafka)
+
+```bash
+helm repo add strimzi https://strimzi.io/charts/
+helm repo update
+
+helm install strimzi-kafka-operator strimzi/strimzi-kafka-operator \
+  --namespace strimzi-system \
+  --create-namespace \
+  --set watchNamespaces="{auction}"
+```
+
+설치 확인:
+
+```bash
+kubectl -n strimzi-system rollout status deployment/strimzi-cluster-operator
+```
+
+### 9-2. External Secrets Operator
+
+```bash
+helm repo add external-secrets https://charts.external-secrets.io
+helm repo update
+
+helm install external-secrets external-secrets/external-secrets \
+  --namespace external-secrets-system \
+  --create-namespace
+```
+
+설치 확인:
+
+```bash
+kubectl -n external-secrets-system rollout status deployment/external-secrets
+```
+
+### 9-3. ArgoCD
+
+```bash
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+
+kubectl create namespace argocd
+
+helm install argocd argo/argo-cd \
+  --namespace argocd \
+  -f infra/argocd/values.yaml
+```
+
+초기 admin 패스워드 확인:
+
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath="{.data.password}" | base64 -d && echo
+```
+
+ArgoCD UI 접근 (LoadBalancer IP 확인):
+
+```bash
+kubectl -n argocd get svc argocd-server
+```
+
+### 9-4. kube-prometheus-stack (Prometheus + Grafana)
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --create-namespace
+```
+
+Grafana 초기 패스워드 확인:
+
+```bash
+kubectl -n monitoring get secret kube-prometheus-stack-grafana \
+  -o jsonpath="{.data.admin-password}" | base64 -d && echo
+```
