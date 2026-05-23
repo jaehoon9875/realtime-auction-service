@@ -31,7 +31,7 @@ jobs:
           sudo mv kustomize /usr/local/bin/
 
       - name: Update dev overlay image tags
-        working-directory: infra/k8s/overlays/dev
+        working-directory: infra/k8s/overlays/dev/images
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
@@ -57,6 +57,6 @@ jobs:
             exit 0
           fi
 
-          git add infra/k8s/overlays/dev/kustomization.yaml
+          git add infra/k8s/overlays/dev/images/kustomization.yaml
           git commit -m "chore(infra): update dev image tags to ${SHORT_SHA} [skip ci]"
           git push

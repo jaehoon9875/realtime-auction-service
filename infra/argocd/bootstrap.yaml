@@ -1,0 +1,24 @@
+# App of Apps: infra/argocd/apps/ 하위 Application CR 일괄 등록
+# 적용 순서: project.yaml → bootstrap.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: auction-bootstrap
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: auction-project
+  source:
+    repoURL: https://github.com/jaehoon9875/realtime-auction-service
+    targetRevision: main
+    path: infra/argocd/apps
+    directory:
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

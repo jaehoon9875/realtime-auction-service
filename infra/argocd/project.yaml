@@ -1,0 +1,20 @@
+# AppProject: auction 네임스페이스 GitOps 범위 정의
+# 적용: kubectl apply -f infra/argocd/project.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: auction-project
+  namespace: argocd
+spec:
+  description: realtime-auction-service dev 환경
+  sourceRepos:
+    - https://github.com/jaehoon9875/realtime-auction-service
+  destinations:
+    - namespace: auction
+      server: https://kubernetes.default.svc
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
