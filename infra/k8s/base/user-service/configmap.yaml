@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-configmap
+  namespace: auction
+data:
+  USER_SERVICE_PORT: "8083"
+  # Cloud SQL Auth Proxy 사이드카가 localhost:5432 로 Cloud SQL을 프록시한다
+  POSTGRES_HOST: localhost
+  POSTGRES_USER_PORT: "5432"
+  POSTGRES_USER_DB_NAME: user_db
+  POSTGRES_USER: user_user
+  # 형식: PROJECT_ID:REGION:INSTANCE_NAME — 비밀 정보 아님, 커밋 가능
+  CLOUD_SQL_CONNECTION_NAME: PROJECT_ID:asia-northeast3:user-db
+  # REDIS_HOST 는 ExternalSecret 으로 주입 (GCP Secret Manager: redis-host)
+  REDIS_PORT: "6379"
+  SWAGGER_ENABLED: "true"
+  JWT_ACCESS_TOKEN_EXPIRATION_MS: "900000"
+  JWT_REFRESH_TOKEN_EXPIRATION_MS: "604800000"

@@ -1,0 +1,13 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: notification-events
+  namespace: auction
+  labels:
+    strimzi.io/cluster: auction-kafka
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: "86400000"
+    cleanup.policy: delete

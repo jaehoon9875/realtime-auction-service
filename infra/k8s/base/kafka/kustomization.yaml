@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - topics/bid-events.yaml
+  - topics/auction-events.yaml
+  - topics/notification-events.yaml
+  - topics/bid-events-dlq.yaml

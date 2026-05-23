@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auction-service-deployment
+  namespace: auction
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auction-service
+  template:
+    metadata:
+      labels:
+        app: auction-service
+    spec:
+      serviceAccountName: auction-service-serviceaccount
+      tolerations:
+        - key: "spot"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      nodeSelector:
+        cloud.google.com/gke-spot: "true"
+      containers:
+        - name: auction-service
+          image: auction-service
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: auction-service-configmap
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: auction-service-secret
+                  key: POSTGRES_PASSWORD
+            - name: INTERNAL_REQUEST_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auction-service-secret
+                  key: INTERNAL_REQUEST_SECRET
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+
+        # Cloud SQL Auth Proxy 사이드카
+        # 앱이 localhost:5432 로 접속하면 이 프록시가 Cloud SQL 에 IAM 인증으로 터널링한다.
+        # IP/비밀번호 기반 직접 접속 대신 Workload Identity + IAM 으로 인증하므로 더 안전하다.
+        - name: cloud-sql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.0
+          args:
+            - "--structured-logs"
+            - "--port=5432"
+            # CLOUD_SQL_CONNECTION_NAME 은 configmap 에서 주입 (PROJECT_ID:REGION:INSTANCE)
+            - "$(CLOUD_SQL_CONNECTION_NAME)"
+          env:
+            - name: CLOUD_SQL_CONNECTION_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: auction-service-configmap
+                  key: CLOUD_SQL_CONNECTION_NAME
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "32Mi"
+            limits:
+              memory: "64Mi"

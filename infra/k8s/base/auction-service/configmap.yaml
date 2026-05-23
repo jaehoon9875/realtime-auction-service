@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auction-service-configmap
+  namespace: auction
+data:
+  AUCTION_SERVICE_PORT: "8081"
+  # Cloud SQL Auth Proxy 사이드카가 localhost:5432 로 Cloud SQL을 프록시한다
+  POSTGRES_HOST: localhost
+  POSTGRES_AUCTION_PORT: "5432"
+  POSTGRES_AUCTION_DB_NAME: auction_db
+  POSTGRES_USER: auction_user
+  # 형식: PROJECT_ID:REGION:INSTANCE_NAME — 비밀 정보 아님, 커밋 가능
+  CLOUD_SQL_CONNECTION_NAME: PROJECT_ID:asia-northeast3:auction-db
+  JWK_SET_URI: http://user-service-service:8083/.well-known/jwks.json
+  SWAGGER_ENABLED: "true"
+  AUCTION_STREAMS_BASE_URL: http://auction-streams-service:8086
+  AUCTION_STREAMS_CONNECT_TIMEOUT: "2000"
+  AUCTION_STREAMS_READ_TIMEOUT: "3000"
+  AUCTION_SCHEDULE_ENABLED: "true"
+  AUCTION_PENDING_TO_ONGOING_MS: "20000"
+  AUCTION_ONGOING_TO_CLOSED_MS: "30000"

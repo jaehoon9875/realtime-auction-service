@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auction-streams-deployment
+  namespace: auction
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auction-streams
+  template:
+    metadata:
+      labels:
+        app: auction-streams
+    spec:
+      serviceAccountName: auction-streams-serviceaccount
+      # Streams는 RocksDB State Store를 사용하므로 default 풀(안정 노드)에 배치
+      containers:
+        - name: auction-streams
+          image: auction-streams
+          ports:
+            - containerPort: 8086
+          envFrom:
+            - configMapRef:
+                name: auction-streams-configmap
+          env:
+            # Interactive Queries 멀티 인스턴스 라우팅용: Pod IP를 서버 주소로 사용
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: KAFKA_STREAMS_APPLICATION_SERVER
+              value: "$(POD_IP):8086"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8086
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8086
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - name: streams-state
+              mountPath: /var/lib/kafka-streams
+      volumes:
+        - name: streams-state
+          emptyDir: {}

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bid-service-configmap
+  namespace: auction
+data:
+  BID_SERVICE_PORT: "8082"
+  # Cloud SQL Auth Proxy 사이드카가 localhost:5432 로 Cloud SQL을 프록시한다
+  POSTGRES_HOST: localhost
+  POSTGRES_BID_PORT: "5432"
+  POSTGRES_BID_DB_NAME: bid_db
+  POSTGRES_USER: bid_user
+  # 형식: PROJECT_ID:REGION:INSTANCE_NAME — 비밀 정보 아님, 커밋 가능
+  CLOUD_SQL_CONNECTION_NAME: PROJECT_ID:asia-northeast3:bid-db
+  JWK_SET_URI: http://user-service-service:8083/.well-known/jwks.json
+  SWAGGER_ENABLED: "true"
+  AUCTION_SERVICE_BASE_URL: http://auction-service-service:8081
+  AUCTION_SERVICE_CONNECT_TIMEOUT: "2000"
+  AUCTION_SERVICE_READ_TIMEOUT: "3000"
+  AUCTION_STREAMS_BASE_URL: http://auction-streams-service:8086
+  AUCTION_STREAMS_CONNECT_TIMEOUT: "2000"
+  AUCTION_STREAMS_READ_TIMEOUT: "3000"

@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: debezium-deployment
+  namespace: auction
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: debezium
+  template:
+    metadata:
+      labels:
+        app: debezium
+    spec:
+      containers:
+        - name: debezium
+          image: quay.io/debezium/connect:2.7
+          ports:
+            - containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: debezium-configmap
+          env:
+            # Outbox 커넥터가 PostgreSQL 에 접근할 때 사용하는 공통 DB 자격증명
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: debezium-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: debezium-secret
+                  key: POSTGRES_PASSWORD
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /connectors
+              port: 8083
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /connectors
+              port: 8083
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 3
+
+        # Cloud SQL Auth Proxy — auction-db 전용 (localhost:5432)
+        # Debezium 은 auction·bid 두 DB 에 CDC 연결을 맺으므로 프록시 2개가 필요하다.
+        - name: cloud-sql-proxy-auction
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.0
+          args:
+            - "--structured-logs"
+            - "--port=5432"
+            - "$(AUCTION_CLOUD_SQL_CONNECTION_NAME)"
+          env:
+            - name: AUCTION_CLOUD_SQL_CONNECTION_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-configmap
+                  key: AUCTION_CLOUD_SQL_CONNECTION_NAME
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "32Mi"
+            limits:
+              memory: "64Mi"
+
+        # Cloud SQL Auth Proxy — bid-db 전용 (localhost:5433)
+        # auction-db 프록시와 포트가 겹치지 않도록 5433 을 사용한다.
+        - name: cloud-sql-proxy-bid
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.0
+          args:
+            - "--structured-logs"
+            - "--port=5433"
+            - "$(BID_CLOUD_SQL_CONNECTION_NAME)"
+          env:
+            - name: BID_CLOUD_SQL_CONNECTION_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-configmap
+                  key: BID_CLOUD_SQL_CONNECTION_NAME
+          securityContext:
+            runAsNonRoot: true
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "32Mi"
+            limits:
+              memory: "64Mi"
