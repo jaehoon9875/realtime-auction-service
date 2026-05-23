@@ -224,3 +224,128 @@ GitHub 레포지토리 **Settings → Branches → Add branch ruleset** (또는 
 **Classic Protection 사용 시**: Allow specified actors to bypass required pull requests → `github-actions[bot]` 추가
 
 > CD 커밋에는 `[skip ci]`가 포함되어 있어 CI가 재실행되지 않습니다.
+
+---
+
+## 7. GCP Secret Manager — 시크릿 등록
+
+K8s 매니페스트를 배포하기 전 GCP Secret Manager에 아래 시크릿을 등록해야 합니다.
+External Secrets Operator가 이 값들을 읽어 K8s Secret을 자동으로 생성합니다.
+
+> Terraform apply가 완료된 후 실행합니다. DB 패스워드는 `terraform.tfvars`에 설정한 값과 동일하게 입력합니다.
+
+### 등록 명령어
+
+```bash
+# 패스워드·키 값을 변수로 설정 (터미널 히스토리에 남지 않도록 read 사용)
+read -s APP_DB_PASSWORD       # terraform.tfvars의 app_db_password 와 동일
+read -s DEBEZIUM_DB_PASSWORD  # terraform.tfvars의 debezium_db_password 와 동일
+read -s REDIS_PASSWORD        # Memorystore 패스워드 (Terraform 출력 또는 직접 설정)
+read -s INTERNAL_SECRET       # 랜덤 문자열 (아래 생성 예시 참고)
+read -s JWT_PRIVATE_KEY       # RSA private key PEM
+read -s JWT_PUBLIC_KEY        # RSA public key PEM
+
+# ── DB 패스워드 ────────────────────────────────────────────────
+echo -n "$APP_DB_PASSWORD"      | gcloud secrets create auction-db-password    --data-file=-
+echo -n "$APP_DB_PASSWORD"      | gcloud secrets create bid-db-password         --data-file=-
+echo -n "$APP_DB_PASSWORD"      | gcloud secrets create user-db-password        --data-file=-
+echo -n "$DEBEZIUM_DB_PASSWORD" | gcloud secrets create debezium-postgres-password --data-file=-
+echo -n "debezium"              | gcloud secrets create debezium-postgres-user  --data-file=-
+
+# ── Redis ──────────────────────────────────────────────────────
+# Memorystore private IP 확인: terraform output redis_host
+REDIS_HOST=$(cd infra/terraform && terraform output -raw redis_host)
+echo -n "$REDIS_HOST"     | gcloud secrets create redis-host     --data-file=-
+echo -n "$REDIS_PASSWORD" | gcloud secrets create redis-password --data-file=-
+
+# ── 서비스 간 내부 인증 토큰 ────────────────────────────────────
+# api-gateway → auction/bid-service 요청에 붙이는 공유 시크릿
+echo -n "$INTERNAL_SECRET" | gcloud secrets create internal-request-secret --data-file=-
+
+# ── JWT 키 페어 ────────────────────────────────────────────────
+# user-service 가 발급, api-gateway 가 검증에 사용
+echo -n "$JWT_PRIVATE_KEY" | gcloud secrets create jwt-private-key --data-file=-
+echo -n "$JWT_PUBLIC_KEY"  | gcloud secrets create jwt-public-key  --data-file=-
+```
+
+### 값 생성 예시
+
+```bash
+# internal-request-secret 랜덤 생성
+openssl rand -base64 32
+
+# JWT RSA 키 페어 생성 (2048 bit)
+openssl genrsa -out jwt-private.pem 2048
+openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem
+```
+
+### 등록 확인
+
+```bash
+gcloud secrets list --filter="name~auction OR name~bid OR name~user OR name~redis OR name~jwt OR name~internal OR name~debezium"
+```
+
+### 전체 시크릿 목록
+
+| Secret 이름 | 용도 | 사용하는 서비스 |
+|---|---|---|
+| `auction-db-password` | Cloud SQL 패스워드 | auction-service |
+| `bid-db-password` | Cloud SQL 패스워드 | bid-service |
+| `user-db-password` | Cloud SQL 패스워드 | user-service |
+| `debezium-postgres-user` | CDC 전용 DB 계정명 | debezium |
+| `debezium-postgres-password` | CDC 전용 DB 패스워드 | debezium |
+| `redis-host` | Memorystore private IP | user-service, notification-service |
+| `redis-password` | Memorystore 패스워드 | user-service, notification-service |
+| `internal-request-secret` | 서비스 간 내부 토큰 | api-gateway, auction-service, bid-service |
+| `jwt-private-key` | JWT 서명 키 | user-service |
+| `jwt-public-key` | JWT 검증 키 | api-gateway, user-service |
+
+---
+
+## 8. K8s 매니페스트 배포 — 사전 설정
+
+### PROJECT_ID 치환
+
+`infra/k8s/base/` 내 ConfigMap에는 `PROJECT_ID` 플레이스홀더가 있습니다.
+배포 전 실제 GCP 프로젝트 ID로 일괄 치환합니다.
+
+```bash
+# PROJECT_ID 확인
+gcloud config get-value project
+
+# 일괄 치환 (macOS: sed -i '')
+find infra/k8s -name "*.yaml" -exec \
+  sed -i '' 's/PROJECT_ID/실제-프로젝트-ID/g' {} \;
+
+# 변경된 파일 확인 후 커밋
+git diff infra/k8s/
+git add infra/k8s/
+git commit -m "infra: dev overlay PROJECT_ID 설정"
+```
+
+### Cloud SQL Auth Proxy 동작 방식
+
+이 프로젝트는 Cloud SQL에 IP 직접 접속 대신 **Auth Proxy 사이드카 패턴**을 사용합니다.
+
+```
+Pod 내부
+┌───────────────────────────────────────┐
+│  app (auction-service 등)             │
+│    → localhost:5432 접속              │
+│                                       │
+│  cloud-sql-proxy (사이드카)            │
+│    ← GKE Workload Identity 로 IAM 인증 │
+│    → Cloud SQL 에 암호화 터널링        │
+└───────────────────────────────────────┘
+```
+
+**장점:**
+- DB 비밀번호 없이 IAM으로 인증 (Workload Identity)
+- DB private IP를 코드·설정 파일에 기재하지 않아도 됨
+- SSL/TLS 자동 처리
+
+**Debezium은 두 DB에 접속하므로 사이드카 2개:**
+- `cloud-sql-proxy-auction` → `localhost:5432` (auction-db)
+- `cloud-sql-proxy-bid` → `localhost:5433` (bid-db)
+
+Auth Proxy 사이드카는 각 서비스 Deployment에 이미 정의되어 있습니다 (`infra/k8s/base/{service}/deployment.yaml`).
