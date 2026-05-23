@@ -1,7 +1,6 @@
 # GKE 배포 가이드
 
 GCP 인프라 프로비저닝부터 GKE 클러스터 배포까지의 실행 순서를 기록합니다.
-전체 배포 계획 및 Phase별 설계 의도는 `temp/gke-deployment-plan.md`를 참고하세요.
 
 ---
 
