@@ -1,6 +1,8 @@
 # GKE 배포 가이드
 
-GCP API 활성화, Terraform 상태 버킷 생성, Terraform으로 GCP 인프라를 프로비저닝하는 실행 순서입니다.
+GCP API 활성화부터 Terraform 인프라 프로비저닝, Secret Manager·GitHub 설정, Helm 미들웨어 설치까지의 실행 순서입니다.
+
+> **범위:** 이 문서는 9절(Helm 미들웨어)까지입니다. 앱 매니페스트 ArgoCD Application 등록·sync는 별도 작업입니다.
 
 ---
 
@@ -129,12 +131,15 @@ cd infra/terraform
 terraform output
 ```
 
-kubectl context 설정:
+kubectl context 설정 (GKE는 Zonal 클러스터 — `terraform.tfvars`의 `zone`과 동일):
 
 ```bash
 gcloud container clusters get-credentials "$(terraform output -raw gke_cluster_name)" \
-  --region asia-northeast3 \
+  --zone asia-northeast3-a \
   --project realtime-auction-service
+
+kubectl config current-context   # ...asia-northeast3-a_auction-cluster 확인
+kubectl get nodes
 ```
 
 GitHub Actions·External Secrets 연동에 필요한 값은 `artifact_registry_url`, `github_actions_sa_email`, `workload_identity_provider` 출력을 참고합니다.
@@ -183,7 +188,7 @@ gh secret set GCP_SERVICE_ACCOUNT             --body "$(terraform output -raw gi
 등록 확인:
 
 ```bash
-gh secret list
+gh secret list -R jaehoon9875/realtime-auction-service
 ```
 
 ### 워크플로 동작
@@ -198,7 +203,17 @@ CD는 `SHORT_SHA`로 Kustomize overlay를 갱신하며, ArgoCD 자동 sync는 Ph
 
 ---
 
-## 6. Branch Protection Rules 설정
+## 6. GitHub 설정
+
+### 6-1. Actions Workflow permissions
+
+`cd.yml`이 main에 이미지 태그 커밋을 push하려면 write 권한이 필요합니다.
+
+**Settings → Actions → General → Workflow permissions** → **Read and write permissions** 선택
+
+(기본값 read-only이면 CD push가 거부됩니다.)
+
+### 6-2. Branch Protection Rules
 
 GitHub 레포지토리 **Settings → Branches → Add branch ruleset** (또는 classic protection rules)에서 `main` 브랜치에 아래 규칙을 적용합니다.
 
@@ -236,53 +251,54 @@ External Secrets Operator가 이 값들을 읽어 K8s Secret을 자동으로 생
 
 ### 등록 명령어
 
-```bash
-# 패스워드·키 값을 변수로 설정 (터미널 히스토리에 남지 않도록 read 사용)
-read -s APP_DB_PASSWORD       # terraform.tfvars의 app_db_password 와 동일
-read -s DEBEZIUM_DB_PASSWORD  # terraform.tfvars의 debezium_db_password 와 동일
-read -s REDIS_PASSWORD        # Memorystore 패스워드 (Terraform 출력 또는 직접 설정)
-read -s INTERNAL_SECRET       # 랜덤 문자열 (아래 생성 예시 참고)
-read -s JWT_PRIVATE_KEY       # RSA private key PEM
-read -s JWT_PUBLIC_KEY        # RSA public key PEM
-
-# ── DB 패스워드 ────────────────────────────────────────────────
-echo -n "$APP_DB_PASSWORD"      | gcloud secrets create auction-db-password    --data-file=-
-echo -n "$APP_DB_PASSWORD"      | gcloud secrets create bid-db-password         --data-file=-
-echo -n "$APP_DB_PASSWORD"      | gcloud secrets create user-db-password        --data-file=-
-echo -n "$DEBEZIUM_DB_PASSWORD" | gcloud secrets create debezium-postgres-password --data-file=-
-echo -n "debezium"              | gcloud secrets create debezium-postgres-user  --data-file=-
-
-# ── Redis ──────────────────────────────────────────────────────
-# Memorystore private IP 확인: terraform output redis_host
-REDIS_HOST=$(cd infra/terraform && terraform output -raw redis_host)
-echo -n "$REDIS_HOST"     | gcloud secrets create redis-host     --data-file=-
-echo -n "$REDIS_PASSWORD" | gcloud secrets create redis-password --data-file=-
-
-# ── 서비스 간 내부 인증 토큰 ────────────────────────────────────
-# api-gateway → auction/bid-service 요청에 붙이는 공유 시크릿
-echo -n "$INTERNAL_SECRET" | gcloud secrets create internal-request-secret --data-file=-
-
-# ── JWT 키 페어 ────────────────────────────────────────────────
-# user-service 가 발급, api-gateway 가 검증에 사용
-echo -n "$JWT_PRIVATE_KEY" | gcloud secrets create jwt-private-key --data-file=-
-echo -n "$JWT_PUBLIC_KEY"  | gcloud secrets create jwt-public-key  --data-file=-
-```
-
-### 값 생성 예시
+아래 `--project`는 `terraform.tfvars`의 `project_id`와 동일하게 맞춥니다.
 
 ```bash
-# internal-request-secret 랜덤 생성
-openssl rand -base64 32
+PROJECT_ID=realtime-auction-service
 
-# JWT RSA 키 페어 생성 (2048 bit)
+# ── 값 생성 (JWT·내부 시크릿) ──────────────────────────────────
+INTERNAL_SECRET=$(openssl rand -base64 32)
 openssl genrsa -out jwt-private.pem 2048
 openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem
+JWT_PRIVATE_KEY=$(cat jwt-private.pem)
+JWT_PUBLIC_KEY=$(cat jwt-public.pem)
+
+# ── 패스워드 입력 (터미널 히스토리에 남지 않도록 read 사용) ─────
+read -s APP_DB_PASSWORD       # terraform.tfvars의 app_db_password 와 동일
+read -s DEBEZIUM_DB_PASSWORD  # terraform.tfvars의 debezium_db_password 와 동일
+# Terraform Memorystore 모듈은 AUTH 미설정 → 빈 값(Enter)으로 등록
+read -s REDIS_PASSWORD && echo
+
+# ── DB 패스워드 ────────────────────────────────────────────────
+echo -n "$APP_DB_PASSWORD"      | gcloud secrets create auction-db-password         --project=$PROJECT_ID --data-file=-
+echo -n "$APP_DB_PASSWORD"      | gcloud secrets create bid-db-password              --project=$PROJECT_ID --data-file=-
+echo -n "$APP_DB_PASSWORD"      | gcloud secrets create user-db-password             --project=$PROJECT_ID --data-file=-
+echo -n "$DEBEZIUM_DB_PASSWORD" | gcloud secrets create debezium-postgres-password   --project=$PROJECT_ID --data-file=-
+echo -n "debezium"              | gcloud secrets create debezium-postgres-user       --project=$PROJECT_ID --data-file=-
+
+# ── Redis ──────────────────────────────────────────────────────
+REDIS_HOST=$(cd infra/terraform && terraform output -raw redis_host)
+echo -n "$REDIS_HOST"     | gcloud secrets create redis-host     --project=$PROJECT_ID --data-file=-
+echo -n "$REDIS_PASSWORD" | gcloud secrets create redis-password --project=$PROJECT_ID --data-file=-
+
+# ── 서비스 간 내부 인증 토큰 ────────────────────────────────────
+echo -n "$INTERNAL_SECRET" | gcloud secrets create internal-request-secret --project=$PROJECT_ID --data-file=-
+
+# ── JWT 키 페어 ────────────────────────────────────────────────
+echo -n "$JWT_PRIVATE_KEY" | gcloud secrets create jwt-private-key --project=$PROJECT_ID --data-file=-
+echo -n "$JWT_PUBLIC_KEY"  | gcloud secrets create jwt-public-key  --project=$PROJECT_ID --data-file=-
+
+# JWT PEM 파일은 등록 후 삭제 권장
+rm -f jwt-private.pem jwt-public.pem
 ```
+
+> JWT 키는 `read -s`로 입력하면 PEM 줄바꿈이 깨집니다. 위처럼 파일 생성 후 `cat`으로 변수에 담아 등록하세요.
 
 ### 등록 확인
 
 ```bash
-gcloud secrets list --filter="name~auction OR name~bid OR name~user OR name~redis OR name~jwt OR name~internal OR name~debezium"
+gcloud secrets list --project=realtime-auction-service
+# 10개 시크릿(auction/bid/user/debezium×2, redis×2, internal, jwt×2) 확인
 ```
 
 ### 전체 시크릿 목록
@@ -337,8 +353,16 @@ Auth Proxy 사이드카는 각 서비스 Deployment에 이미 정의되어 있�
 
 ## 9. 미들웨어 설치 — Helm
 
-GKE 클러스터에 kubectl context가 설정된 상태에서 순서대로 실행합니다 (4절 참고).
+GKE 클러스터에 kubectl context가 설정된 상태에서 **프로젝트 루트**에서 순서대로 실행합니다 (4절 참고).
 각 설치는 1회성 작업입니다.
+
+### 9-0. 앱 네임스페이스 생성
+
+Strimzi Operator는 `watchNamespaces`에 지정한 namespace가 **미리 존재**해야 설치됩니다.
+
+```bash
+kubectl create namespace auction
+```
 
 ### 9-1. Strimzi Operator (Kafka)
 
@@ -383,6 +407,7 @@ helm repo update
 
 kubectl create namespace argocd
 
+# 프로젝트 루트에서 실행 (values.yaml 경로)
 helm install argocd argo/argo-cd \
   --namespace argocd \
   -f infra/argocd/values.yaml
@@ -418,3 +443,13 @@ Grafana 초기 패스워드 확인:
 kubectl -n monitoring get secret kube-prometheus-stack-grafana \
   -o jsonpath="{.data.admin-password}" | base64 -d && echo
 ```
+
+---
+
+## 다음 단계
+
+이 문서까지 완료하면 GKE 인프라·시크릿·미들웨어 준비가 끝납니다. 이후:
+
+1. ArgoCD Application 등록 → `infra/k8s/overlays/dev` GitOps sync
+2. main merge 후 CI/CD로 Artifact Registry 이미지 push·태그 갱신 확인
+3. Pod 기동·Debezium Connector 등록 등 앱 레벨 검증
