@@ -1,6 +1,6 @@
 # GKE 배포 가이드
 
-GCP 인프라 프로비저닝부터 GKE 클러스터 배포까지의 실행 순서를 기록합니다.
+GCP API 활성화, Terraform 상태 버킷 생성, Terraform으로 GCP 인프라를 프로비저닝하는 실행 순서입니다.
 
 ---
 
@@ -24,7 +24,7 @@ gcloud config set project realtime-auction-service
 
 ---
 
-## Phase 1. GCP API 활성화
+## 1. GCP API 활성화
 
 ```bash
 gcloud services enable \
@@ -43,7 +43,7 @@ gcloud services enable \
 
 ---
 
-## Phase 2. Terraform 상태 버킷 생성
+## 2. Terraform 상태 버킷 생성
 
 Terraform 상태 파일을 저장할 GCS 버킷을 생성합니다. **Terraform 외부에서 수동으로 1회만 실행합니다.**
 
@@ -59,7 +59,7 @@ gcloud storage buckets update gs://realtime-auction-tfstate-jh9875 \
 
 ---
 
-## Phase 3. Terraform — GCP 인프라 프로비저닝
+## 3. Terraform — GCP 인프라 프로비저닝
 
 ### terraform.tfvars 설정
 
@@ -80,6 +80,7 @@ cp infra/terraform/terraform.tfvars.example infra/terraform/terraform.tfvars
 | `github_repo` | GitHub 레포지토리명 |
 
 패스워드 생성 예시:
+
 ```bash
 openssl rand -base64 24
 ```
@@ -114,21 +115,9 @@ terraform apply tfplan
 
 ---
 
-## Phase 4 이후
+## 4. apply 후 확인
 
-| Phase | 내용 | 상태 |
-|-------|------|------|
-| Phase 4 | Dockerfile 작성 (api-gateway, auction·bid·user-service, auction-streams) | 미완 |
-| Phase 5 | GitHub Actions CI/CD (ci.yml, cd.yml, Workload Identity 설정) | 미완 |
-| Phase 6 | K8s 매니페스트 (Kustomize base/overlays) | 미완 |
-| Phase 7 | 미들웨어 설치 (Strimzi, External Secrets, ArgoCD, Prometheus) | 미완 |
-| Phase 8 | ArgoCD GitOps 배포 | 미완 |
-
----
-
-## 주요 리소스 정보
-
-Terraform apply 완료 후 출력값 확인:
+Terraform 출력값 확인:
 
 ```bash
 cd infra/terraform
@@ -138,7 +127,9 @@ terraform output
 kubectl context 설정:
 
 ```bash
-gcloud container clusters get-credentials {CLUSTER_NAME} \
+gcloud container clusters get-credentials "$(terraform output -raw gke_cluster_name)" \
   --region asia-northeast3 \
   --project realtime-auction-service
 ```
+
+GitHub Actions·External Secrets 연동에 필요한 값은 `artifact_registry_url`, `github_actions_sa_email`, `workload_identity_provider` 출력을 참고합니다.
