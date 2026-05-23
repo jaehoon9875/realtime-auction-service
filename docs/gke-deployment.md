@@ -47,13 +47,17 @@ gcloud services enable \
 
 Terraform 상태 파일을 저장할 GCS 버킷을 생성합니다. **Terraform 외부에서 수동으로 1회만 실행합니다.**
 
+버킷명은 GCS 전역에서 유일해야 합니다. 아래 `{TFSTATE_BUCKET}`을 본인 환경에 맞게 정한 뒤, 이후 `terraform init`의 `bucket` 값과 동일하게 맞춥니다.
+
 ```bash
-gcloud storage buckets create gs://realtime-auction-tfstate-jh9875 \
+export TFSTATE_BUCKET="{PROJECT_ID}-tfstate"   # 예: realtime-auction-service-tfstate
+
+gcloud storage buckets create gs://${TFSTATE_BUCKET} \
   --project=realtime-auction-service \
   --location=asia-northeast3
 
 # 버전 관리 활성화 (상태 파일 롤백 대비)
-gcloud storage buckets update gs://realtime-auction-tfstate-jh9875 \
+gcloud storage buckets update gs://${TFSTATE_BUCKET} \
   --versioning
 ```
 
@@ -88,10 +92,11 @@ openssl rand -base64 24
 ### 실행
 
 ```bash
+# 2단계와 동일한 버킷명 (미설정 시 export TFSTATE_BUCKET=... 선행)
 cd infra/terraform
 
-# 1. 초기화 (버킷명 주입)
-terraform init -backend-config="bucket=realtime-auction-tfstate-jh9875"
+# 1. 초기화
+terraform init -backend-config="bucket=${TFSTATE_BUCKET}"
 
 # 2. 플랜 검토 (필수)
 terraform plan -out=tfplan

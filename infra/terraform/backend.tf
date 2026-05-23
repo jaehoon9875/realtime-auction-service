@@ -8,7 +8,7 @@ terraform {
     }
   }
 
-  # 실행: terraform init -backend-config="bucket=realtime-auction-tfstate-jh9875"
+  # 실행: terraform init -backend-config="bucket=${TFSTATE_BUCKET}"  # 예: {PROJECT_ID}-tfstate
   backend "gcs" {
     prefix = "terraform/state"
   }
