@@ -17,3 +17,7 @@ applicationSet:
 
 redis:
   enabled: true
+
+# SSO 미사용 — Dex 불필요
+dex:
+  enabled: false
