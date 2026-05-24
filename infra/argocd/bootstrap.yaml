@@ -11,8 +11,7 @@ spec:
   project: auction-project
   source:
     repoURL: https://github.com/jaehoon9875/realtime-auction-service
-    # TODO: main 브랜치로 변경. 현재는 임시로 feature/m8-gke-deployment 브랜치로 설정.
-    targetRevision: feature/m8-gke-deployment
+    targetRevision: main
     path: infra/argocd/apps
     directory:
       recurse: false

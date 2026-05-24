@@ -11,7 +11,7 @@ spec:
   project: auction-project
   source:
     repoURL: https://github.com/jaehoon9875/realtime-auction-service
-    targetRevision: feature/m8-gke-deployment
+    targetRevision: main
     path: infra/k8s/overlays/dev/api-gateway
   destination:
     server: https://kubernetes.default.svc
