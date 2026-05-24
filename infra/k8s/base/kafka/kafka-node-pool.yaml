@@ -1,7 +1,7 @@
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaNodePool
 metadata:
-  name: combined
+  name: kafka-node-pool
   namespace: auction
   labels:
     strimzi.io/cluster: auction-kafka
