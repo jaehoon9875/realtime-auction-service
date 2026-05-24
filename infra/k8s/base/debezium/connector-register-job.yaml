@@ -9,6 +9,7 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
 spec:
   backoffLimit: 5
+  activeDeadlineSeconds: 600  # backoffLimit 재시도 포함 전체 상한 — Debezium 장애 시 ArgoCD sync 무한 대기 방지
   template:
     spec:
       restartPolicy: OnFailure
@@ -66,11 +67,10 @@ spec:
             - |
               set -e
 
-              # Debezium REST API가 준비될 때까지 대기
-              until curl -sf "${DEBEZIUM_URL}/connectors"; do
-                echo "Debezium not ready, waiting..."
-                sleep 5
-              done
+              # deployment.yaml readinessProbe가 /connectors를 체크하므로
+              # ArgoCD는 Debezium Deployment가 Healthy 상태일 때만 PostSync Job을 실행한다.
+              # 이 시점에 REST API는 이미 응답 가능 → 별도 대기 루프 불필요.
+              # 일시적 장애는 backoffLimit(5회 재시도), 전체 상한은 activeDeadlineSeconds로 처리.
 
               # auction-service Outbox 커넥터 등록
               if curl -sf "${DEBEZIUM_URL}/connectors/auction-outbox-connector" > /dev/null 2>&1; then
