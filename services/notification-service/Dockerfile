@@ -18,9 +18,12 @@ COPY streams/auction-streams/build.gradle.kts streams/auction-streams/build.grad
 COPY services/notification-service/ services/notification-service/
 COPY infra/avro/ infra/avro/
 
+# bootJar 결과물이 정확히 1개인지 검증. 현재 JAR 통째 복사 방식이며, 추후 jarmode=tools 레이어 추출 방식으로 전환 예정.
 RUN chmod +x gradlew \
     && ./gradlew :services:notification-service:bootJar -x test --no-daemon \
-    && cp "$(find /workspace/services/notification-service/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' | head -n1)" /workspace/app.jar
+    && jar=$(find /workspace/services/notification-service/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar') \
+    && [ "$(echo "$jar" | grep -c .)" -eq 1 ] \
+    && cp "$jar" /workspace/app.jar
 
 FROM eclipse-temurin:21-jre-jammy AS runtime
 
