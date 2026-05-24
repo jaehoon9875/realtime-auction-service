@@ -1,5 +1,5 @@
 # AppProject: auction 네임스페이스 GitOps 범위 정의
-# 적용: kubectl apply -f infra/argocd/project.yaml
+# 초기 부트스트랩 절차: docs/gke-deployment.md 10절 참고
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
