@@ -4,8 +4,8 @@ metadata:
   name: notification-service-pdb
   namespace: auction
 spec:
-  # WebSocket 장기 연결 유지 중 노드 축출 시 최소 1개 Pod 보장
-  minAvailable: 1
+  # replica 1 — minAvailable: 1 은 drain/Spot 선점 시 deadlock 유발
+  maxUnavailable: 1
   selector:
     matchLabels:
       app: notification-service
