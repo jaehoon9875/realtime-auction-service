@@ -31,11 +31,13 @@ module "cloud_sql" {
 }
 
 module "memorystore" {
-  source                     = "./modules/memorystore"
-  project_id                 = var.project_id
-  region                     = var.region
-  network                    = module.vpc.network_self_link
-  private_network_connection = module.vpc.private_vpc_connection
+  source     = "./modules/memorystore"
+  project_id = var.project_id
+  region     = var.region
+  network    = module.vpc.network_self_link
+
+  # Private Service Access 완료 후 Redis 생성되도록 모듈 간 의존성을 루트에서 관리
+  depends_on = [module.vpc]
 }
 
 module "artifact_registry" {

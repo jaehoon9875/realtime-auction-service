@@ -9,6 +9,5 @@ resource "google_redis_instance" "cache" {
 
   authorized_network = var.network
   connect_mode       = "PRIVATE_SERVICE_ACCESS"
-
-  depends_on = [var.private_network_connection]
+  # depends_on은 모듈 간 의존성이므로 호출부(루트 main.tf)에서 관리
 }
