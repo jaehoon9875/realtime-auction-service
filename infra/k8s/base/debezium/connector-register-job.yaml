@@ -18,8 +18,6 @@ spec:
           env:
             - name: DEBEZIUM_URL
               value: http://debezium-service:8083
-            - name: POSTGRES_HOST
-              value: "$(AUCTION_POSTGRES_HOST)"
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
@@ -75,59 +73,65 @@ spec:
               done
 
               # auction-service Outbox 커넥터 등록
-              curl -sf -X POST "${DEBEZIUM_URL}/connectors" \
-                -H "Content-Type: application/json" \
-                -d "{
-                  \"name\": \"auction-outbox-connector\",
-                  \"config\": {
-                    \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
-                    \"plugin.name\": \"pgoutput\",
-                    \"database.hostname\": \"${AUCTION_POSTGRES_HOST}\",
-                    \"database.port\": \"${AUCTION_POSTGRES_PORT}\",
-                    \"database.user\": \"${POSTGRES_USER}\",
-                    \"database.password\": \"${POSTGRES_PASSWORD}\",
-                    \"database.dbname\": \"${AUCTION_POSTGRES_DB}\",
-                    \"database.server.name\": \"auction-db\",
-                    \"slot.name\": \"debezium_auction\",
-                    \"publication.name\": \"debezium_auction_pub\",
-                    \"table.include.list\": \"public.outbox_events\",
-                    \"transforms\": \"outbox\",
-                    \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
-                    \"transforms.outbox.route.by.field\": \"aggregate_type\",
-                    \"transforms.outbox.route.topic.replacement\": \"\${routeByValue}-events\",
-                    \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
-                    \"value.converter\": \"io.confluent.kafka.serializers.KafkaAvroConverter\",
-                    \"value.converter.schema.registry.url\": \"${SCHEMA_REGISTRY_URL}\"
-                  }
-                }"
-
-              echo "auction-outbox-connector registered."
+              if curl -sf "${DEBEZIUM_URL}/connectors/auction-outbox-connector" > /dev/null 2>&1; then
+                echo "auction-outbox-connector already exists, skipping."
+              else
+                curl -sf -X POST "${DEBEZIUM_URL}/connectors" \
+                  -H "Content-Type: application/json" \
+                  -d "{
+                    \"name\": \"auction-outbox-connector\",
+                    \"config\": {
+                      \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
+                      \"plugin.name\": \"pgoutput\",
+                      \"database.hostname\": \"${AUCTION_POSTGRES_HOST}\",
+                      \"database.port\": \"${AUCTION_POSTGRES_PORT}\",
+                      \"database.user\": \"${POSTGRES_USER}\",
+                      \"database.password\": \"${POSTGRES_PASSWORD}\",
+                      \"database.dbname\": \"${AUCTION_POSTGRES_DB}\",
+                      \"database.server.name\": \"auction-db\",
+                      \"slot.name\": \"debezium_auction\",
+                      \"publication.name\": \"debezium_auction_pub\",
+                      \"table.include.list\": \"public.outbox_events\",
+                      \"transforms\": \"outbox\",
+                      \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
+                      \"transforms.outbox.route.by.field\": \"aggregate_type\",
+                      \"transforms.outbox.route.topic.replacement\": \"\${routeByValue}-events\",
+                      \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
+                      \"value.converter\": \"io.confluent.kafka.serializers.KafkaAvroConverter\",
+                      \"value.converter.schema.registry.url\": \"${SCHEMA_REGISTRY_URL}\"
+                    }
+                  }"
+                echo "auction-outbox-connector registered."
+              fi
 
               # bid-service Outbox 커넥터 등록
-              curl -sf -X POST "${DEBEZIUM_URL}/connectors" \
-                -H "Content-Type: application/json" \
-                -d "{
-                  \"name\": \"bid-outbox-connector\",
-                  \"config\": {
-                    \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
-                    \"plugin.name\": \"pgoutput\",
-                    \"database.hostname\": \"${BID_POSTGRES_HOST}\",
-                    \"database.port\": \"${BID_POSTGRES_PORT}\",
-                    \"database.user\": \"${POSTGRES_USER}\",
-                    \"database.password\": \"${POSTGRES_PASSWORD}\",
-                    \"database.dbname\": \"${BID_POSTGRES_DB}\",
-                    \"database.server.name\": \"bid-db\",
-                    \"slot.name\": \"debezium_bid\",
-                    \"publication.name\": \"debezium_bid_pub\",
-                    \"table.include.list\": \"public.outbox_events\",
-                    \"transforms\": \"outbox\",
-                    \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
-                    \"transforms.outbox.route.by.field\": \"aggregate_type\",
-                    \"transforms.outbox.route.topic.replacement\": \"\${routeByValue}-events\",
-                    \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
-                    \"value.converter\": \"io.confluent.kafka.serializers.KafkaAvroConverter\",
-                    \"value.converter.schema.registry.url\": \"${SCHEMA_REGISTRY_URL}\"
-                  }
-                }"
-
-              echo "bid-outbox-connector registered."
+              if curl -sf "${DEBEZIUM_URL}/connectors/bid-outbox-connector" > /dev/null 2>&1; then
+                echo "bid-outbox-connector already exists, skipping."
+              else
+                curl -sf -X POST "${DEBEZIUM_URL}/connectors" \
+                  -H "Content-Type: application/json" \
+                  -d "{
+                    \"name\": \"bid-outbox-connector\",
+                    \"config\": {
+                      \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
+                      \"plugin.name\": \"pgoutput\",
+                      \"database.hostname\": \"${BID_POSTGRES_HOST}\",
+                      \"database.port\": \"${BID_POSTGRES_PORT}\",
+                      \"database.user\": \"${POSTGRES_USER}\",
+                      \"database.password\": \"${POSTGRES_PASSWORD}\",
+                      \"database.dbname\": \"${BID_POSTGRES_DB}\",
+                      \"database.server.name\": \"bid-db\",
+                      \"slot.name\": \"debezium_bid\",
+                      \"publication.name\": \"debezium_bid_pub\",
+                      \"table.include.list\": \"public.outbox_events\",
+                      \"transforms\": \"outbox\",
+                      \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
+                      \"transforms.outbox.route.by.field\": \"aggregate_type\",
+                      \"transforms.outbox.route.topic.replacement\": \"\${routeByValue}-events\",
+                      \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
+                      \"value.converter\": \"io.confluent.kafka.serializers.KafkaAvroConverter\",
+                      \"value.converter.schema.registry.url\": \"${SCHEMA_REGISTRY_URL}\"
+                    }
+                  }"
+                echo "bid-outbox-connector registered."
+              fi

@@ -88,3 +88,24 @@ resource "google_service_account_iam_member" "eso_wi_binding" {
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[external-secrets-system/external-secrets]"
 }
+
+# ──────────────────────────────────────────────────────────────
+# Debezium — Cloud SQL Auth Proxy Workload Identity
+# ──────────────────────────────────────────────────────────────
+resource "google_service_account" "debezium" {
+  account_id   = "debezium"
+  display_name = "Debezium Service Account"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "debezium_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.debezium.email}"
+}
+
+resource "google_service_account_iam_member" "debezium_wi_binding" {
+  service_account_id = google_service_account.debezium.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[auction/debezium-serviceaccount]"
+}

@@ -13,6 +13,7 @@ spec:
       labels:
         app: debezium
     spec:
+      serviceAccountName: debezium-serviceaccount
       containers:
         - name: debezium
           image: quay.io/debezium/connect:2.7
