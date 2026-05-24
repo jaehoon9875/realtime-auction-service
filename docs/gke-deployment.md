@@ -17,11 +17,29 @@ helm version
 gcloud version
 ```
 
+### 이 가이드에서 사용하는 변수
+
+아래 값을 본인 환경에 맞게 설정한 뒤 터미널에 export하면, 이후 명령어를 그대로 복붙할 수 있습니다.
+
+| 변수 | 설명 |
+|---|---|
+| `GCP_PROJECT_ID` | GCP 프로젝트 ID |
+| `GITHUB_USER` | GitHub 사용자명 또는 조직명 |
+| `GITHUB_REPO` | GitHub 리포지토리명 |
+| `TFSTATE_BUCKET` | Terraform 상태 GCS 버킷명 (GCS 전역 유일) |
+
+```bash
+export GCP_PROJECT_ID="your-gcp-project-id"
+export GITHUB_USER="your-github-username"
+export GITHUB_REPO="your-repo-name"
+export TFSTATE_BUCKET="${GCP_PROJECT_ID}-tfstate"
+```
+
 ### GCP 인증
 
 ```bash
 gcloud auth application-default login
-gcloud config set project realtime-auction-service
+gcloud config set project ${GCP_PROJECT_ID}
 ```
 
 ---
@@ -38,7 +56,7 @@ gcloud services enable \
   secretmanager.googleapis.com \
   servicenetworking.googleapis.com \
   iam.googleapis.com \
-  --project=realtime-auction-service
+  --project=${GCP_PROJECT_ID}
 ```
 
 활성화 후 propagation에 1~2분 소요될 수 있습니다.
@@ -49,13 +67,13 @@ gcloud services enable \
 
 Terraform 상태 파일을 저장할 GCS 버킷을 생성합니다. **Terraform 외부에서 수동으로 1회만 실행합니다.**
 
-버킷명은 GCS 전역에서 유일해야 합니다. 아래 `{TFSTATE_BUCKET}`을 본인 환경에 맞게 정한 뒤, 이후 `terraform init`의 `bucket` 값과 동일하게 맞춥니다.
+버킷명은 GCS 전역에서 유일해야 합니다. 사전 준비의 변수 블록에서 `TFSTATE_BUCKET`을 export했다면 아래 export는 생략합니다.
 
 ```bash
-export TFSTATE_BUCKET="realtime-auction-service-tfstate"
+export TFSTATE_BUCKET="${GCP_PROJECT_ID}-tfstate"  # 사전 준비에서 이미 export했다면 생략
 
 gcloud storage buckets create gs://${TFSTATE_BUCKET} \
-  --project=realtime-auction-service \
+  --project=${GCP_PROJECT_ID} \
   --location=asia-northeast3
 
 # 버전 관리 활성화 (상태 파일 롤백 대비)
@@ -136,7 +154,7 @@ kubectl context 설정 (GKE는 Zonal 클러스터 — `terraform.tfvars`의 `zon
 ```bash
 gcloud container clusters get-credentials "$(terraform output -raw gke_cluster_name)" \
   --zone asia-northeast3-a \
-  --project realtime-auction-service
+  --project ${GCP_PROJECT_ID}
 
 kubectl config current-context   # ...asia-northeast3-a_auction-cluster 확인
 kubectl get nodes
@@ -158,8 +176,8 @@ GitHub Actions·External Secrets 연동에 필요한 값은 `artifact_registry_u
 `terraform.tfvars`에서 아래 두 변수가 올바르게 설정되어야 WIF 바인딩이 정상 생성됩니다.
 
 ```hcl
-github_org  = "jaehoon9875"
-github_repo = "realtime-auction-service"
+github_org  = "your-github-username"
+github_repo = "your-repo-name"
 ```
 
 apply 후 생성 확인:
@@ -180,7 +198,7 @@ Terraform apply 완료 후 아래 명령어로 GitHub Secrets를 등록합니다
 
 ```bash
 cd infra/terraform
-gh secret set GCP_PROJECT_ID                  --body "realtime-auction-service"
+gh secret set GCP_PROJECT_ID                  --body "${GCP_PROJECT_ID}"
 gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER  --body "$(terraform output -raw workload_identity_provider)"
 gh secret set GCP_SERVICE_ACCOUNT             --body "$(terraform output -raw github_actions_sa_email)"
 ```
@@ -188,7 +206,7 @@ gh secret set GCP_SERVICE_ACCOUNT             --body "$(terraform output -raw gi
 등록 확인:
 
 ```bash
-gh secret list -R jaehoon9875/realtime-auction-service
+gh secret list -R ${GITHUB_USER}/${GITHUB_REPO}
 ```
 
 ### 워크플로 동작
@@ -207,11 +225,14 @@ CD는 `SHORT_SHA`로 Kustomize overlay를 갱신하며, ArgoCD 자동 sync는 Ph
 
 ### 6-1. Actions Workflow permissions
 
-`cd.yml`이 main에 이미지 태그 커밋을 push하려면 write 권한이 필요합니다.
+`cd.yml`이 main에 이미지 태그 커밋을 push하려면 write 권한이 필요합니다. (기본값 read-only이면 CD push가 거부됩니다.)
 
-**Settings → Actions → General → Workflow permissions** → **Read and write permissions** 선택
-
-(기본값 read-only이면 CD push가 거부됩니다.)
+```bash
+gh api repos/${GITHUB_USER}/${GITHUB_REPO}/actions/permissions/workflow \
+  -X PUT \
+  -F default_workflow_permissions=write \
+  -F can_approve_pull_request_reviews=false
+```
 
 ### 6-2. Branch Protection Rules
 
@@ -254,7 +275,7 @@ External Secrets Operator가 이 값들을 읽어 K8s Secret을 자동으로 생
 아래 `--project`는 `terraform.tfvars`의 `project_id`와 동일하게 맞춥니다.
 
 ```bash
-PROJECT_ID=realtime-auction-service
+PROJECT_ID=${GCP_PROJECT_ID}  # 사전 준비의 변수 블록에서 export했다면 그대로 사용 가능
 
 # ── 값 생성 (JWT·내부 시크릿) ──────────────────────────────────
 INTERNAL_SECRET=$(openssl rand -base64 32)
@@ -297,7 +318,7 @@ rm -f jwt-private.pem jwt-public.pem
 ### 등록 확인
 
 ```bash
-gcloud secrets list --project=realtime-auction-service
+gcloud secrets list --project=$PROJECT_ID
 # 10개 시크릿(auction/bid/user/debezium×2, redis×2, internal, jwt×2) 확인
 ```
 
@@ -320,7 +341,7 @@ gcloud secrets list --project=realtime-auction-service
 
 ## 8. K8s 매니페스트 배포 — 사전 설정
 
-GCP 프로젝트 ID(`realtime-auction-service`)는 Cloud SQL 연결명·Workload Identity·Artifact Registry 경로 등에 **매니페스트에 하드코딩**되어 있습니다 (`infra/k8s/`). ArgoCD sync 전 별도 치환은 필요 없습니다.
+GCP 프로젝트 ID는 Cloud SQL 연결명·Workload Identity·Artifact Registry 경로 등에 **매니페스트에 하드코딩**되어 있습니다 (`infra/k8s/`). ArgoCD sync 전 별도 치환은 필요 없습니다.
 
 ### Cloud SQL Auth Proxy 동작 방식
 
@@ -399,6 +420,8 @@ helm install external-secrets external-secrets/external-secrets \
 kubectl -n external-secrets-system rollout status deployment/external-secrets
 ```
 
+> `ClusterSecretStore`(`gcp-secret-manager`)는 10절의 App-of-Apps sync로 자동 적용됩니다. 서비스 Pod보다 먼저 적용되도록 sync-wave: "1"로 설정되어 있습니다.
+
 ### 9-3. ArgoCD
 
 ```bash
@@ -425,6 +448,33 @@ ArgoCD UI 접근 (LoadBalancer IP 확인):
 ```bash
 kubectl -n argocd get svc argocd-server
 ```
+
+### 9-3-1. ArgoCD GitHub 저장소 등록
+
+ArgoCD가 `infra/` 매니페스트를 읽으려면 GitHub 저장소를 등록해야 합니다. public 레포는 자격증명 없이 URL만 등록합니다.
+
+```bash
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: auction-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://github.com/${GITHUB_USER}/${GITHUB_REPO}
+EOF
+```
+
+등록 확인:
+
+```bash
+kubectl -n argocd get secret -l argocd.argoproj.io/secret-type=repository
+```
+
+> private 레포의 경우 `stringData`에 `username`(GitHub 계정)과 `password`(Personal Access Token)를 추가합니다.
 
 ### 9-4. kube-prometheus-stack (Prometheus + Grafana)
 
