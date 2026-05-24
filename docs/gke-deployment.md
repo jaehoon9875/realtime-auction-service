@@ -2,7 +2,7 @@
 
 GCP API 활성화부터 Terraform 인프라 프로비저닝, Secret Manager·GitHub 설정, Helm 미들웨어 설치까지의 실행 순서입니다.
 
-> **범위:** 이 문서는 9절(Helm 미들웨어)까지입니다. 앱 매니페스트 ArgoCD Application 등록·sync는 별도 작업입니다.
+> **범위:** 이 문서는 10절(ArgoCD App-of-Apps 등록)까지입니다. Pod 기동 후 앱 레벨 검증(Debezium Connector 등록 등)은 별도 작업입니다.
 
 ---
 
@@ -446,10 +446,45 @@ kubectl -n monitoring get secret kube-prometheus-stack-grafana \
 
 ---
 
+## 10. App-of-Apps 등록 — ArgoCD GitOps 시작
+
+9절까지 완료하면 미들웨어가 준비된 상태입니다. 이 단계에서 ArgoCD가 `infra/argocd/apps/` 하위 Application CR을 자동으로 관리하도록 등록합니다.
+
+> **주의:** `bootstrap.yaml`은 `main` 브랜치를 바라봅니다. 아래 명령어 실행 전 반드시 `feature/*` 브랜치가 main에 merge되어 있어야 합니다.
+
+```bash
+# AppProject 등록 (auction-project)
+kubectl apply -f infra/argocd/project.yaml
+
+# App-of-Apps 부트스트랩 등록
+kubectl apply -f infra/argocd/bootstrap.yaml
+```
+
+등록 후 확인:
+
+```bash
+# bootstrap Application이 argocd ns에 생성되는지 확인
+kubectl -n argocd get application auction-bootstrap
+
+# apps/ 하위 Application CR들이 자동 생성되는지 확인 (수십 초 소요)
+kubectl -n argocd get applications
+```
+
+ArgoCD UI에서 각 Application이 `Synced` 상태가 되면 완료입니다.
+
+### 동작하지 않을 경우 체크리스트
+
+| 항목 | 확인 방법 |
+|---|---|
+| AppProject destination에 `argocd` ns가 없는지 | `kubectl -n argocd get appproject auction-project -o yaml` |
+| bootstrap이 바라보는 브랜치가 main에 merge됐는지 | `git log main --oneline -5` |
+| ArgoCD가 GitHub repo에 접근 가능한지 | ArgoCD UI → Settings → Repositories |
+
+---
+
 ## 다음 단계
 
-이 문서까지 완료하면 GKE 인프라·시크릿·미들웨어 준비가 끝납니다. 이후:
+10절까지 완료하면 GitOps 파이프라인이 준비됩니다. 이후:
 
-1. ArgoCD Application 등록 → `infra/k8s/overlays/dev` GitOps sync
-2. main merge 후 CI/CD로 Artifact Registry 이미지 push·태그 갱신 확인
-3. Pod 기동·Debezium Connector 등록 등 앱 레벨 검증
+1. main merge 후 CI/CD로 Artifact Registry 이미지 push·태그 갱신 확인
+2. Pod 기동·Debezium Connector 등록 등 앱 레벨 검증
