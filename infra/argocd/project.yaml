@@ -46,6 +46,8 @@ spec:
     - group: argoproj.io
       kind: Application
   clusterResourceWhitelist:
-    # ClusterSecretStore만 클러스터 스코프 — Strimzi/Namespace는 네임스페이스 스코프이거나 미배포
+    # Namespace는 클러스터 스코프 리소스이지만 각 앱 overlay가 공통 namespace를 포함한다.
+    - group: ""
+      kind: "Namespace"
     - group: "external-secrets.io"
       kind: "ClusterSecretStore"
