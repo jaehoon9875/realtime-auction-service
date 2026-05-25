@@ -4,3 +4,5 @@ resources:
   - ../../../base/notification-service
 components:
   - ../images
+patches:
+  - path: configmap-patch.yaml

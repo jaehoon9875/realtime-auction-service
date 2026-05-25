@@ -5,3 +5,6 @@ resources:
 images:
   - name: quay.io/debezium/connect
     newTag: "2.7"
+patches:
+  - path: configmap-patch.yaml
+  - path: connector-configmap-patch.yaml

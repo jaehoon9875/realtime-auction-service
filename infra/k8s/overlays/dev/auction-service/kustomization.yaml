@@ -4,3 +4,5 @@ resources:
   - ../../../base/auction-service
 components:
   - ../images
+patches:
+  - path: configmap-patch.yaml

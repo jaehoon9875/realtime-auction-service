@@ -1,0 +1,16 @@
+# dev 환경 ConfigMap 실제 값 (base placeholder 대체)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auction-streams-configmap
+  namespace: auction
+data:
+  AUCTION_STREAMS_PORT: "8086"
+  KAFKA_BOOTSTRAP_SERVERS: auction-kafka-kafka-bootstrap:9092
+  KAFKA_STREAMS_APPLICATION_ID: auction-streams
+  SCHEMA_REGISTRY_URL: http://schema-registry-service:8085
+  KAFKA_STREAMS_STATE_DIR: /var/lib/kafka-streams
+  AUCTION_STREAMS_PUNCTUATOR_INTERVAL_SECONDS: "30"
+  AUCTION_STREAMS_MAX_FAILURES: "5"
+  AUCTION_STREAMS_IQ_PEER_CONNECT_TIMEOUT_MS: "2000"
+  AUCTION_STREAMS_IQ_PEER_READ_TIMEOUT_MS: "3000"

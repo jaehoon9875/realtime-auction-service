@@ -4,10 +4,10 @@ metadata:
   name: notification-service-configmap
   namespace: auction
 data:
-  SERVER_PORT: "8084"
+  SERVER_PORT: "PLACEHOLDER"
   # REDIS_HOST 는 ExternalSecret 으로 주입 (GCP Secret Manager: redis-host)
-  REDIS_PORT: "6379"
-  KAFKA_BOOTSTRAP_SERVERS: auction-kafka-kafka-bootstrap:9092
-  SCHEMA_REGISTRY_URL: http://schema-registry-service:8085
-  JWK_SET_URI: http://user-service-service:8083/.well-known/jwks.json
-  KAFKA_NOTIFICATION_EVENTS_TOPIC: notification-events
+  REDIS_PORT: "PLACEHOLDER"
+  KAFKA_BOOTSTRAP_SERVERS: PLACEHOLDER
+  SCHEMA_REGISTRY_URL: PLACEHOLDER
+  JWK_SET_URI: PLACEHOLDER
+  KAFKA_NOTIFICATION_EVENTS_TOPIC: PLACEHOLDER
