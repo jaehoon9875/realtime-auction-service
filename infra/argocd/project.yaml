@@ -29,6 +29,9 @@ spec:
       kind: Job
     - group: policy
       kind: PodDisruptionBudget
+    # Namespace RBAC
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
     # External Secrets
     - group: external-secrets.io
       kind: ExternalSecret
