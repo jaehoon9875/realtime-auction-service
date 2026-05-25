@@ -34,9 +34,10 @@ resource "google_sql_database_instance" "auction" {
       value = "10"
     }
 
-    # 개인 프로젝트 — 비용 절감을 위해 자동 백업 비활성화 (의도적)
     backup_configuration {
-      enabled = false
+      enabled                        = true
+      point_in_time_recovery_enabled = false
+      start_time                     = "03:00"
     }
   }
 
@@ -99,9 +100,10 @@ resource "google_sql_database_instance" "bid" {
       value = "10"
     }
 
-    # 개인 프로젝트 — 비용 절감을 위해 자동 백업 비활성화 (의도적)
     backup_configuration {
-      enabled = false
+      enabled                        = true
+      point_in_time_recovery_enabled = false
+      start_time                     = "03:00"
     }
   }
 
@@ -148,9 +150,10 @@ resource "google_sql_database_instance" "user" {
       private_network = var.network
     }
 
-    # 개인 프로젝트 — 비용 절감을 위해 자동 백업 비활성화 (의도적)
     backup_configuration {
-      enabled = false
+      enabled                        = true
+      point_in_time_recovery_enabled = false
+      start_time                     = "03:00"
     }
   }
 
