@@ -1,0 +1,13 @@
+# dev 환경 Connector ConfigMap 실제 값 (base placeholder 대체)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: debezium-connector-configmap
+  namespace: auction
+data:
+  AUCTION_POSTGRES_HOST: localhost
+  AUCTION_POSTGRES_PORT: "5432"
+  AUCTION_POSTGRES_DB: auction_db
+  BID_POSTGRES_HOST: localhost
+  BID_POSTGRES_PORT: "5433"
+  BID_POSTGRES_DB: bid_db

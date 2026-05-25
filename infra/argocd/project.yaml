@@ -1,0 +1,48 @@
+# AppProject: auction 네임스페이스 GitOps 범위 정의
+# 초기 부트스트랩 절차: docs/gke-deployment.md 10절 참고
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: auction-project
+  namespace: argocd
+spec:
+  description: realtime-auction-service dev 환경
+  sourceRepos:
+    - https://github.com/jaehoon9875/realtime-auction-service
+  destinations:
+    - namespace: auction
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  namespaceResourceWhitelist:
+    # Core API
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    # Workloads
+    - group: apps
+      kind: Deployment
+    - group: batch
+      kind: Job
+    - group: policy
+      kind: PodDisruptionBudget
+    # External Secrets
+    - group: external-secrets.io
+      kind: ExternalSecret
+    # Strimzi Kafka (네임스페이스 스코프)
+    - group: kafka.strimzi.io
+      kind: Kafka
+    - group: kafka.strimzi.io
+      kind: KafkaNodePool
+    - group: kafka.strimzi.io
+      kind: KafkaTopic
+    # ArgoCD Application (argocd 네임스페이스 destination용)
+    - group: argoproj.io
+      kind: Application
+  clusterResourceWhitelist:
+    # ClusterSecretStore만 클러스터 스코프 — Strimzi/Namespace는 네임스페이스 스코프이거나 미배포
+    - group: "external-secrets.io"
+      kind: "ClusterSecretStore"

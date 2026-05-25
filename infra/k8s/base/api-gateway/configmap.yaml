@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-configmap
+  namespace: auction
+data:
+  API_GATEWAY_PORT: "PLACEHOLDER"
+  USER_SERVICE_URI: PLACEHOLDER
+  AUCTION_SERVICE_URI: PLACEHOLDER
+  BID_SERVICE_URI: PLACEHOLDER
+  NOTIFICATION_SERVICE_URI: PLACEHOLDER

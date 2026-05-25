@@ -1,6 +1,5 @@
 # syntax=docker/dockerfile:1
 # 빌드 컨텍스트: 저장소 루트 (infra/docker-compose.yml의 build.context: ..)
-# Avro 생성(infra/avro) 포함 — notification-service/build.gradle.kts의 generateAvro 태스크
 
 FROM eclipse-temurin:21-jdk-jammy AS build
 WORKDIR /workspace
@@ -10,18 +9,17 @@ COPY gradle/ gradle/
 
 # settings.gradle.kts에 등록된 모듈 — Gradle 구성 단계용 build 스크립트
 COPY services/api-gateway/build.gradle.kts services/api-gateway/build.gradle.kts
-COPY services/user-service/build.gradle.kts services/user-service/build.gradle.kts
 COPY services/auction-service/build.gradle.kts services/auction-service/build.gradle.kts
 COPY services/bid-service/build.gradle.kts services/bid-service/build.gradle.kts
+COPY services/notification-service/build.gradle.kts services/notification-service/build.gradle.kts
 COPY streams/auction-streams/build.gradle.kts streams/auction-streams/build.gradle.kts
 
-COPY services/notification-service/ services/notification-service/
-COPY infra/avro/ infra/avro/
+COPY services/user-service/ services/user-service/
 
 # bootJar 결과물이 정확히 1개인지 검증. 현재 JAR 통째 복사 방식이며, 추후 jarmode=tools 레이어 추출 방식으로 전환 예정.
 RUN chmod +x gradlew \
-    && ./gradlew :services:notification-service:bootJar -x test --no-daemon \
-    && jar=$(find /workspace/services/notification-service/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar') \
+    && ./gradlew :services:user-service:bootJar -x test --no-daemon \
+    && jar=$(find /workspace/services/user-service/build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar') \
     && [ "$(echo "$jar" | grep -c .)" -eq 1 ] \
     && cp "$jar" /workspace/app.jar
 
@@ -34,7 +32,6 @@ COPY --from=build /workspace/app.jar app.jar
 RUN chown app:app app.jar
 
 USER app
-EXPOSE 8084
+EXPOSE 8083
 
-# Spring Boot 4 / Java 21 — 컨테이너 메모리 인식은 JDK 21 기본 동작
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

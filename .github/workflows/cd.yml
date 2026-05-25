@@ -1,0 +1,61 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+env:
+  GCP_REGION: asia-northeast3
+  AR_REPO: auction-images
+
+jobs:
+  update-dev-images:
+    if: |
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: imranismail/setup-kustomize@53f941b41dca13ed61874bbc6b4b6e1562877530  # v3.0.0
+        with:
+          kustomize-version: "5.8.1"
+
+      - name: Update dev overlay image tags
+        working-directory: infra/k8s/overlays/dev/images
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          SHORT_SHA="${HEAD_SHA:0:7}"
+          REGISTRY="${GCP_REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${AR_REPO}"
+
+          for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
+            kustomize edit set image "${svc}=${REGISTRY}/${svc}:${SHORT_SHA}"
+          done
+
+          echo "Updated image tags to ${SHORT_SHA}"
+
+      - name: Commit and push
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          SHORT_SHA="${HEAD_SHA:0:7}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "No image tag changes to commit"
+            exit 0
+          fi
+
+          git add infra/k8s/overlays/dev/images/kustomization.yaml
+          git commit -m "chore(infra): update dev image tags to ${SHORT_SHA} [skip ci]"
+          git push

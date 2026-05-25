@@ -16,6 +16,19 @@
 - 앱 리소스 네임스페이스는 `auction` 고정
 - 리소스명은 `{service-name}-{resource-type}` 형식 사용 (예: `auction-service-deployment`)
 
+## ArgoCD Sync Wave 순서
+
+리소스 간 기동 의존성을 sync-wave 어노테이션으로 명시. ArgoCD는 각 wave가 Healthy 상태가 된 후 다음 wave를 진행한다.
+
+| Wave | 리소스 | 파일 |
+|------|--------|------|
+| 1 | Kafka (Strimzi CR) | kafka/kafka-cluster.yaml |
+| 2 | Debezium Deployment | debezium/deployment.yaml |
+| (PostSync) | connector-register-job | debezium/connector-register-job.yaml |
+
+Debezium readinessProbe가 `/connectors`를 체크하므로 Wave 2 Healthy = REST API 응답 가능.
+PostSync Job은 이 순서가 보장된 후 실행되어 별도 대기 루프 없이 커넥터를 즉시 등록할 수 있다.
+
 ## Strimzi Kafka
 
 GKE 클러스터 Kafka는 Strimzi Operator 관리. Operator 자체는 cloud-sre-platform에서 설치.

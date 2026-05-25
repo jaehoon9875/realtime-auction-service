@@ -1,0 +1,137 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: debezium-connector-register-job
+  namespace: auction
+  annotations:
+    # ArgoCD hook: 앱 Sync 완료 후 1회 실행
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  backoffLimit: 5
+  activeDeadlineSeconds: 600  # backoffLimit 재시도 포함 전체 상한 — Debezium 장애 시 ArgoCD sync 무한 대기 방지
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: register-connectors
+          image: curlimages/curl:8.7.1
+          env:
+            - name: DEBEZIUM_URL
+              value: http://debezium-service:8083
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: debezium-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: debezium-secret
+                  key: POSTGRES_PASSWORD
+            - name: AUCTION_POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connector-configmap
+                  key: AUCTION_POSTGRES_HOST
+            - name: AUCTION_POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connector-configmap
+                  key: AUCTION_POSTGRES_PORT
+            - name: AUCTION_POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connector-configmap
+                  key: AUCTION_POSTGRES_DB
+            - name: BID_POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connector-configmap
+                  key: BID_POSTGRES_HOST
+            - name: BID_POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connector-configmap
+                  key: BID_POSTGRES_PORT
+            - name: BID_POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: debezium-connector-configmap
+                  key: BID_POSTGRES_DB
+            - name: SCHEMA_REGISTRY_URL
+              value: http://schema-registry-service:8085
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              # deployment.yaml readinessProbe가 /connectors를 체크하므로
+              # ArgoCD는 Debezium Deployment가 Healthy 상태일 때만 PostSync Job을 실행한다.
+              # 이 시점에 REST API는 이미 응답 가능 → 별도 대기 루프 불필요.
+              # 일시적 장애는 backoffLimit(5회 재시도), 전체 상한은 activeDeadlineSeconds로 처리.
+
+              # auction-service Outbox 커넥터 등록
+              if curl -sf "${DEBEZIUM_URL}/connectors/auction-outbox-connector" > /dev/null 2>&1; then
+                echo "auction-outbox-connector already exists, skipping."
+              else
+                curl -sf -X POST "${DEBEZIUM_URL}/connectors" \
+                  -H "Content-Type: application/json" \
+                  -d "{
+                    \"name\": \"auction-outbox-connector\",
+                    \"config\": {
+                      \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
+                      \"plugin.name\": \"pgoutput\",
+                      \"database.hostname\": \"${AUCTION_POSTGRES_HOST}\",
+                      \"database.port\": \"${AUCTION_POSTGRES_PORT}\",
+                      \"database.user\": \"${POSTGRES_USER}\",
+                      \"database.password\": \"${POSTGRES_PASSWORD}\",
+                      \"database.dbname\": \"${AUCTION_POSTGRES_DB}\",
+                      \"database.server.name\": \"auction-db\",
+                      \"slot.name\": \"debezium_auction\",
+                      \"publication.name\": \"debezium_auction_pub\",
+                      \"table.include.list\": \"public.outbox_events\",
+                      \"transforms\": \"outbox\",
+                      \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
+                      \"transforms.outbox.route.by.field\": \"aggregate_type\",
+                      \"transforms.outbox.route.topic.replacement\": \"\${routeByValue}-events\",
+                      \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
+                      \"value.converter\": \"io.confluent.kafka.serializers.KafkaAvroConverter\",
+                      \"value.converter.schema.registry.url\": \"${SCHEMA_REGISTRY_URL}\"
+                    }
+                  }"
+                echo "auction-outbox-connector registered."
+              fi
+
+              # bid-service Outbox 커넥터 등록
+              if curl -sf "${DEBEZIUM_URL}/connectors/bid-outbox-connector" > /dev/null 2>&1; then
+                echo "bid-outbox-connector already exists, skipping."
+              else
+                curl -sf -X POST "${DEBEZIUM_URL}/connectors" \
+                  -H "Content-Type: application/json" \
+                  -d "{
+                    \"name\": \"bid-outbox-connector\",
+                    \"config\": {
+                      \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
+                      \"plugin.name\": \"pgoutput\",
+                      \"database.hostname\": \"${BID_POSTGRES_HOST}\",
+                      \"database.port\": \"${BID_POSTGRES_PORT}\",
+                      \"database.user\": \"${POSTGRES_USER}\",
+                      \"database.password\": \"${POSTGRES_PASSWORD}\",
+                      \"database.dbname\": \"${BID_POSTGRES_DB}\",
+                      \"database.server.name\": \"bid-db\",
+                      \"slot.name\": \"debezium_bid\",
+                      \"publication.name\": \"debezium_bid_pub\",
+                      \"table.include.list\": \"public.outbox_events\",
+                      \"transforms\": \"outbox\",
+                      \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
+                      \"transforms.outbox.route.by.field\": \"aggregate_type\",
+                      \"transforms.outbox.route.topic.replacement\": \"\${routeByValue}-events\",
+                      \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
+                      \"value.converter\": \"io.confluent.kafka.serializers.KafkaAvroConverter\",
+                      \"value.converter.schema.registry.url\": \"${SCHEMA_REGISTRY_URL}\"
+                    }
+                  }"
+                echo "bid-outbox-connector registered."
+              fi

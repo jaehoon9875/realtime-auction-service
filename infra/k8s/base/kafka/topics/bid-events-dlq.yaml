@@ -1,0 +1,13 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: bid-events-dlq
+  namespace: auction
+  labels:
+    strimzi.io/cluster: auction-kafka
+spec:
+  partitions: 1
+  replicas: 2
+  config:
+    retention.ms: "2592000000"
+    cleanup.policy: delete

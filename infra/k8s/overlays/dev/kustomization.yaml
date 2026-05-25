@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+components:
+  - images
+
+patches:
+  - path: api-gateway/configmap-patch.yaml
+  - path: auction-service/configmap-patch.yaml
+  - path: auction-streams/configmap-patch.yaml
+  - path: bid-service/configmap-patch.yaml
+  - path: debezium/configmap-patch.yaml
+  - path: debezium/connector-configmap-patch.yaml
+  - path: notification-service/configmap-patch.yaml
+  - path: user-service/configmap-patch.yaml
+  - path: schema-registry/configmap-patch.yaml

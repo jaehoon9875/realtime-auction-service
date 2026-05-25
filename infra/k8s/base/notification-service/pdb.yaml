@@ -1,0 +1,11 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: notification-service-pdb
+  namespace: auction
+spec:
+  # replica 1 — minAvailable: 1 은 drain/Spot 선점 시 deadlock 유발
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: notification-service

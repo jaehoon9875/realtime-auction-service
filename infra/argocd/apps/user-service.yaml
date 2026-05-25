@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: user-service
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: auction-project
+  source:
+    repoURL: https://github.com/jaehoon9875/realtime-auction-service
+    targetRevision: main
+    path: infra/k8s/overlays/dev/user-service
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: auction
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

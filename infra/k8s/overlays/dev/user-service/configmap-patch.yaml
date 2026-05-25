@@ -1,0 +1,17 @@
+# dev 환경 ConfigMap 실제 값 (base placeholder 대체)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-configmap
+  namespace: auction
+data:
+  USER_SERVICE_PORT: "8083"
+  POSTGRES_HOST: localhost
+  POSTGRES_USER_PORT: "5432"
+  POSTGRES_USER_DB_NAME: user_db
+  POSTGRES_USER: user_user
+  CLOUD_SQL_CONNECTION_NAME: realtime-auction-service:asia-northeast3:user-db
+  REDIS_PORT: "6379"
+  SWAGGER_ENABLED: "true"
+  JWT_ACCESS_TOKEN_EXPIRATION_MS: "900000"
+  JWT_REFRESH_TOKEN_EXPIRATION_MS: "604800000"

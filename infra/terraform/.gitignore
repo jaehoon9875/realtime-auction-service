@@ -1,0 +1,14 @@
+# 실제 변수값 (민감 정보 포함)
+terraform.tfvars
+
+# Terraform 작업 디렉토리
+.terraform/
+.terraform.lock.hcl
+
+# Plan 결과물
+*.tfplan
+tfplan
+
+# 로컬 상태 (GCS remote state 사용)
+terraform.tfstate
+terraform.tfstate.backup

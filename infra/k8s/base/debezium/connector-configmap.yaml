@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: debezium-connector-configmap
+  namespace: auction
+data:
+  # Cloud SQL Auth Proxy 사이드카가 각 DB 를 로컬 포트로 프록시한다.
+  # auction-db → localhost:5432 (cloud-sql-proxy-auction)
+  # bid-db    → localhost:5433 (cloud-sql-proxy-bid)
+  AUCTION_POSTGRES_HOST: PLACEHOLDER
+  AUCTION_POSTGRES_PORT: "PLACEHOLDER"
+  AUCTION_POSTGRES_DB: PLACEHOLDER
+  BID_POSTGRES_HOST: PLACEHOLDER
+  BID_POSTGRES_PORT: "PLACEHOLDER"
+  BID_POSTGRES_DB: PLACEHOLDER

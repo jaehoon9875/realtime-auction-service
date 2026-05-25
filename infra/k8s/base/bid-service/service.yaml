@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bid-service-service
+  namespace: auction
+spec:
+  selector:
+    app: bid-service
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082

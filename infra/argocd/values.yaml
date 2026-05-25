@@ -1,0 +1,23 @@
+# ArgoCD Helm values — dev 환경
+# GKE LoadBalancer가 TLS를 종료하므로 ArgoCD 서버는 insecure 모드로 운영
+configs:
+  params:
+    server.insecure: true
+
+server:
+  service:
+    type: LoadBalancer
+
+# dev 환경 리소스 절약: 각 컴포넌트 단일 레플리카
+controller:
+  replicas: 1
+
+applicationSet:
+  replicaCount: 1
+
+redis:
+  enabled: true
+
+# SSO 미사용 — Dex 불필요
+dex:
+  enabled: false
