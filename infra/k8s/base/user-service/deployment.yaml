@@ -41,11 +41,6 @@ spec:
                 secretKeyRef:
                   name: user-service-secret
                   key: REDIS_HOST
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: user-service-secret
-                  key: REDIS_PASSWORD
             - name: JWT_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:

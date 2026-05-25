@@ -36,11 +36,6 @@ spec:
                 secretKeyRef:
                   name: notification-service-secret
                   key: REDIS_HOST
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: notification-service-secret
-                  key: REDIS_PASSWORD
           resources:
             requests:
               cpu: "100m"
