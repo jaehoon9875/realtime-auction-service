@@ -66,3 +66,33 @@ jobs:
           git add infra/k8s/overlays/dev/images/kustomization.yaml
           git commit -m "chore(infra): update dev image tags to ${SHORT_SHA} [skip ci]"
           git push
+
+  smoke-test:
+    needs: update-dev-images
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+
+      - name: Wait for gateway to be ready
+        env:
+          BASE_URL: ${{ vars.SMOKE_TEST_BASE_URL }}
+        run: |
+          echo "ArgoCD sync + rollout 대기 (최대 5분)..."
+          for i in $(seq 1 30); do
+            if curl -sf "${BASE_URL}/actuator/health" | grep -q '"status":"UP"'; then
+              echo "Gateway ready (attempt ${i})"
+              exit 0
+            fi
+            echo "  대기 중... ${i}/30"
+            sleep 10
+          done
+          echo "Gateway가 5분 내에 응답하지 않았습니다"
+          exit 1
+
+      - name: Run smoke tests
+        env:
+          BASE_URL: ${{ vars.SMOKE_TEST_BASE_URL }}
+        run: |
+          chmod +x e2e/smoke.sh
+          e2e/smoke.sh
