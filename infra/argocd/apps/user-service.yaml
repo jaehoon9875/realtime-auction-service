@@ -11,7 +11,7 @@ spec:
   project: auction-project
   source:
     repoURL: https://github.com/jaehoon9875/realtime-auction-service
-    targetRevision: main
+    targetRevision: feature/e2e-smoke-test
     path: infra/k8s/overlays/dev/user-service
   destination:
     server: https://kubernetes.default.svc
