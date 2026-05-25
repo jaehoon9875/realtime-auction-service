@@ -13,6 +13,7 @@
 - kafka.md: Kafka 토픽 목록, 이벤트 스키마 (Avro), 파티셔닝 전략
 - avro-schema.md: Schema Registry 등록 절차, `infra/avro` 스크립트와의 관계
 - adr/: MADR 형식 아키텍처 의사결정 기록. 각 결정의 Context·선택 근거·고려한 대안 포함 (adr/README.md 참고)
+- e2e-smoke-test.md: E2E Smoke Test 설명, 로컬 실행 방법, GitHub Secrets/Variables 전체 등록 가이드
 - ai-workflows.md: AI 자동화 워크플로우 목록 및 구현 계획 (M7 도입 예정)
 - ../CHANGELOG.md: 마일스톤별 변경 이력 (Keep a Changelog 형식, 루트에 위치)
 
