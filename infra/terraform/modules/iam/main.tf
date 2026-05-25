@@ -59,13 +59,6 @@ resource "google_artifact_registry_repository_iam_member" "github_actions_ar_wri
   member     = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
-# kustomize 이미지 태그 업데이트 후 GKE 연결 (cd.yml)
-resource "google_project_iam_member" "github_actions_gke_developer" {
-  project = var.project_id
-  role    = "roles/container.developer"
-  member  = "serviceAccount:${google_service_account.github_actions.email}"
-}
-
 # ──────────────────────────────────────────────────────────────
 # External Secrets Operator — Secret Manager 접근
 # ESO K8s SA → GCP SA 위임 (Workload Identity)
