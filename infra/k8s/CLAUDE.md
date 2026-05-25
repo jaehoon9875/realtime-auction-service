@@ -33,4 +33,4 @@ PostSync Job은 이 순서가 보장된 후 실행되어 별도 대기 루프 �
 
 GKE 클러스터 Kafka는 Strimzi Operator 관리. Operator 자체는 cloud-sre-platform에서 설치.
 이 레포에서는 KafkaTopic CR만 정의.
-- KafkaTopic CR의 apiVersion은 `kafka.strimzi.io/v1beta2` 사용
+- KafkaTopic CR의 apiVersion은 `kafka.strimzi.io/v1` 사용 (Strimzi Operator 1.0.0+, v1beta2 제거됨)
