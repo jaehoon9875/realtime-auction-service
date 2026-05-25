@@ -102,3 +102,24 @@ resource "google_service_account_iam_member" "debezium_wi_binding" {
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[auction/debezium-serviceaccount]"
 }
+
+# ──────────────────────────────────────────────────────────────
+# User Service — Cloud SQL Auth Proxy Workload Identity
+# ──────────────────────────────────────────────────────────────
+resource "google_service_account" "user_service" {
+  account_id   = "user-service"
+  display_name = "User Service Account"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "user_service_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.user_service.email}"
+}
+
+resource "google_service_account_iam_member" "user_service_wi_binding" {
+  service_account_id = google_service_account.user_service.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[auction/user-service-serviceaccount]"
+}
