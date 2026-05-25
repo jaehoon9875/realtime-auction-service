@@ -2,21 +2,21 @@
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 images:
-  - name: api-gateway
-    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/api-gateway
-    newTag: init
-  - name: auction-service
-    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-service
-    newTag: init
-  - name: bid-service
-    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/bid-service
-    newTag: init
-  - name: user-service
-    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/user-service
-    newTag: init
-  - name: notification-service
-    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/notification-service
-    newTag: init
-  - name: auction-streams
-    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-streams
-    newTag: init
+- name: api-gateway
+  newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/api-gateway
+  newTag: 21cb402
+- name: auction-service
+  newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-service
+  newTag: 21cb402
+- name: auction-streams
+  newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-streams
+  newTag: 21cb402
+- name: bid-service
+  newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/bid-service
+  newTag: 21cb402
+- name: notification-service
+  newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/notification-service
+  newTag: 21cb402
+- name: user-service
+  newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/user-service
+  newTag: 21cb402
