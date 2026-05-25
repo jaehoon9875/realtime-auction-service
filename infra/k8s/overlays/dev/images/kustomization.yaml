@@ -4,19 +4,19 @@ kind: Component
 images:
 - name: api-gateway
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/api-gateway
-  newTag: ddd8b62
+  newTag: f673077
 - name: auction-service
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-service
-  newTag: ddd8b62
+  newTag: f673077
 - name: auction-streams
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-streams
-  newTag: ddd8b62
+  newTag: f673077
 - name: bid-service
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/bid-service
-  newTag: ddd8b62
+  newTag: f673077
 - name: notification-service
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/notification-service
-  newTag: ddd8b62
+  newTag: f673077
 - name: user-service
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/user-service
-  newTag: ddd8b62
+  newTag: f673077
