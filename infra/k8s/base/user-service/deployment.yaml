@@ -24,6 +24,7 @@ spec:
       containers:
         - name: user-service
           image: user-service
+          imagePullPolicy: Always
           ports:
             - containerPort: 8083
           envFrom:
