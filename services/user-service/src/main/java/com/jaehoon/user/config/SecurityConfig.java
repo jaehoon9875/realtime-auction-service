@@ -27,6 +27,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final String MSG_UNAUTHORIZED = "인증이 필요합니다";
+    private static final String[] HEALTH_ENDPOINTS = { "/actuator/health", "/actuator/health/**" };
 
     private final JwtDecoder jwtDecoder;
     private final SecurityProperties securityProperties;
@@ -48,6 +49,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 인증 요청 권한 설정
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HEALTH_ENDPOINTS).permitAll()
                         .requestMatchers(publicEndpoints).permitAll()
                         .anyRequest().authenticated())
                 // 미인증 요청(토큰 없음·만료·위조)에 대해 JSON 형식으로 401 반환

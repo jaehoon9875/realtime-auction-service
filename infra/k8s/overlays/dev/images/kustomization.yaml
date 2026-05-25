@@ -19,4 +19,4 @@ images:
   newTag: c4d4041
 - name: user-service
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/user-service
-  newTag: 91c9bbc
+  newTag: 191444f
