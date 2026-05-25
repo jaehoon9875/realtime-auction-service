@@ -15,12 +15,34 @@ spec:
     - namespace: argocd
       server: https://kubernetes.default.svc
   namespaceResourceWhitelist:
-    - group: "*"
-      kind: "*"
+    # Core API
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    # Workloads
+    - group: apps
+      kind: Deployment
+    - group: batch
+      kind: Job
+    - group: policy
+      kind: PodDisruptionBudget
+    # External Secrets
+    - group: external-secrets.io
+      kind: ExternalSecret
+    # Strimzi Kafka (네임스페이스 스코프)
+    - group: kafka.strimzi.io
+      kind: Kafka
+    - group: kafka.strimzi.io
+      kind: KafkaNodePool
+    - group: kafka.strimzi.io
+      kind: KafkaTopic
+    # ArgoCD Application (argocd 네임스페이스 destination용)
+    - group: argoproj.io
+      kind: Application
   clusterResourceWhitelist:
-    - group: "kafka.strimzi.io"
-      kind: "*"
+    # ClusterSecretStore만 클러스터 스코프 — Strimzi/Namespace는 네임스페이스 스코프이거나 미배포
     - group: "external-secrets.io"
       kind: "ClusterSecretStore"
-    - group: ""
-      kind: "Namespace"
