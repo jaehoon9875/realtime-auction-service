@@ -34,12 +34,14 @@ resource "google_sql_database_instance" "auction" {
       value = "10"
     }
 
+    # 개인 프로젝트 — 비용 절감을 위해 자동 백업 비활성화 (의도적)
     backup_configuration {
       enabled = false
     }
   }
 
-  deletion_protection = false
+  # 실수에 의한 삭제 방지. 삭제 시 false로 변경 후 apply → destroy 순서로 진행
+  deletion_protection = true
 }
 
 resource "google_sql_database" "auction_db" {
@@ -97,12 +99,14 @@ resource "google_sql_database_instance" "bid" {
       value = "10"
     }
 
+    # 개인 프로젝트 — 비용 절감을 위해 자동 백업 비활성화 (의도적)
     backup_configuration {
       enabled = false
     }
   }
 
-  deletion_protection = false
+  # 실수에 의한 삭제 방지. 삭제 시 false로 변경 후 apply → destroy 순서로 진행
+  deletion_protection = true
 }
 
 resource "google_sql_database" "bid_db" {
@@ -144,12 +148,14 @@ resource "google_sql_database_instance" "user" {
       private_network = var.network
     }
 
+    # 개인 프로젝트 — 비용 절감을 위해 자동 백업 비활성화 (의도적)
     backup_configuration {
       enabled = false
     }
   }
 
-  deletion_protection = false
+  # 실수에 의한 삭제 방지. 삭제 시 false로 변경 후 apply → destroy 순서로 진행
+  deletion_protection = true
 }
 
 resource "google_sql_database" "user_db" {
