@@ -16,7 +16,7 @@ public class JacksonConfig {
      * State Store 내부 상태(AuctionBidState, AuctionMetadata) JSON 직렬화에 사용한다.
      */
     @Bean
-    public ObjectMapper objectMapper() {
+    ObjectMapper objectMapper() {
         return new ObjectMapper();
     }
 }

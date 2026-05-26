@@ -10,7 +10,7 @@ images:
   newTag: c4d4041
 - name: auction-streams
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-streams
-  newTag: 883ab31
+  newTag: 7ab0a8a
 - name: bid-service
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/bid-service
   newTag: c4d4041

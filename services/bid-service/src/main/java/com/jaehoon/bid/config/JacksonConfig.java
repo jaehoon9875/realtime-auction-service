@@ -1,4 +1,4 @@
-package com.jaehoon.user.config;
+package com.jaehoon.bid.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
