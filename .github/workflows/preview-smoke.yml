@@ -160,7 +160,7 @@ jobs:
       - name: Configure kubectl for GKE
         run: |
           gcloud container clusters get-credentials auction-cluster \
-            --region ${{ env.GCP_REGION }} \
+            --zone ${{ env.GCP_REGION }}-a \
             --project ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Port-forward ArgoCD server
