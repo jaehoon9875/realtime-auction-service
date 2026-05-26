@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: github-actions-port-forward
+  namespace: argocd
+rules:
+  - apiGroups: [""]
+    resources: ["services", "pods", "endpoints"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/portforward"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: github-actions-port-forward
+  namespace: argocd
+subjects:
+  - kind: User
+    name: github-actions-sa@realtime-auction-service.iam.gserviceaccount.com
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: github-actions-port-forward
+  apiGroup: rbac.authorization.k8s.io
