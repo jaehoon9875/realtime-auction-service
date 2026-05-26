@@ -70,6 +70,8 @@ jobs:
   smoke-test:
     needs: update-dev-images
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
@@ -83,7 +85,7 @@ jobs:
           : "${BASE_URL:?SMOKE_TEST_BASE_URL Repository Variable이 필요합니다}"
           echo "ArgoCD sync + rollout 대기 (최대 5분)..."
           for i in $(seq 1 30); do
-            if curl -sf "${BASE_URL}/actuator/health" | grep -q '"status":"UP"'; then
+            if curl -sf "${BASE_URL}/actuator/health" | grep -qE '"status"[[:space:]]*:[[:space:]]*"UP"'; then
               echo "Gateway ready (attempt ${i})"
               exit 0
             fi
