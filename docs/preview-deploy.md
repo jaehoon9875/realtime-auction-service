@@ -8,7 +8,7 @@ feature 브랜치 코드를 main 머지 없이 GKE dev 환경에서 바로 검�
 
 기본 CD 파이프라인은 main 브랜치에만 작동한다.
 
-```
+```text
 기존 흐름: 코드 변경 → PR → main 머지 → CI → CD → ArgoCD sync → smoke test
 ```
 
@@ -25,7 +25,7 @@ smoke test까지 실행한 뒤 자동으로 main 상태로 복구한다.
 
 ### 전체 흐름
 
-```
+```text
 workflow_dispatch (브랜치 선택)
     │
     ▼
@@ -60,7 +60,7 @@ workflow_dispatch (브랜치 선택)
 ArgoCD는 Application 오브젝트의 `targetRevision` 필드를 기준으로 어떤 브랜치의 매니페스트를 배포할지 결정한다.
 이 워크플로는 git 파일을 수정하지 않고, **클러스터 내 오브젝트만 직접 변경**한다.
 
-```
+```text
 평상시
   git(main) ←selfHeal→ 클러스터(main)
 
@@ -78,7 +78,7 @@ ArgoCD는 Application 오브젝트의 `targetRevision` 필드를 기준으로 �
 
 ArgoCD는 계층 구조로 동작한다.
 
-```
+```text
 auction-bootstrap (App of Apps)
   selfHeal: true → main의 infra/argocd/apps/*.yaml 감시
        ↓
