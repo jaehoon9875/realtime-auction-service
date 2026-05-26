@@ -18,3 +18,5 @@
 | [kafka.md](kafka.md) | Kafka 토픽 목록, 이벤트 스키마 (Avro), 파티셔닝 전략 |
 | [internal-service-auth.md](internal-service-auth.md) | Gateway ↔ 내부 서비스 간 Pre-shared Secret 인증 설정 가이드 |
 | [ai-workflows.md](ai-workflows.md) | AI 자동화 워크플로우 목록 및 구현 계획 (M7 도입 예정) |
+| [e2e-smoke-test.md](e2e-smoke-test.md) | E2E Smoke Test 시나리오, 파일 구조, CD 파이프라인 연동 가이드 |
+| [preview-deploy.md](preview-deploy.md) | feature 브랜치를 main 머지 없이 GKE dev 환경에서 검증하는 워크플로 가이드 |
