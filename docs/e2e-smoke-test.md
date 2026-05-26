@@ -101,6 +101,19 @@ UP 응답이 오면 즉시 smoke test를 실행하고, 5분(30회) 안에 응답
 
 ---
 
+## 수동 실행
+
+`SMOKE_TEST_BASE_URL` Variable 미설정, 배포 없이 재검증 등 필요 시 수동으로 실행할 수 있다.
+
+**GitHub Actions UI에서 실행:**
+
+1. GitHub 저장소 → **Actions** → **Smoke Test** 워크플로 선택
+2. **Run workflow** 버튼 클릭 → **Run workflow** 확인
+
+`SMOKE_TEST_BASE_URL` Repository Variable이 등록되어 있어야 한다 (등록 방법은 위 [GitHub Secrets & Variables 등록](#github-secrets--variables-등록) 섹션 참고).
+
+---
+
 ## GitHub Secrets & Variables 등록
 
 ### Secrets vs Variables 차이

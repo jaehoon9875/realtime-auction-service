@@ -1,0 +1,39 @@
+name: Smoke Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Wait for gateway to be ready
+        env:
+          BASE_URL: ${{ vars.SMOKE_TEST_BASE_URL }}
+        run: |
+          : "${BASE_URL:?SMOKE_TEST_BASE_URL Repository Variable이 필요합니다}"
+          echo "Gateway 응답 대기 (최대 5분)..."
+          for i in $(seq 1 30); do
+            if curl -sf "${BASE_URL}/actuator/health" | grep -qE '"status"[[:space:]]*:[[:space:]]*"UP"'; then
+              echo "Gateway ready (attempt ${i})"
+              exit 0
+            fi
+            echo "  대기 중... ${i}/30"
+            sleep 10
+          done
+          echo "Gateway가 5분 내에 응답하지 않았습니다"
+          exit 1
+
+      - name: Run smoke tests
+        env:
+          BASE_URL: ${{ vars.SMOKE_TEST_BASE_URL }}
+        run: |
+          chmod +x e2e/smoke.sh
+          e2e/smoke.sh
