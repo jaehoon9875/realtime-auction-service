@@ -3,4 +3,4 @@
 
 http_get "/actuator/health"
 assert_status "Gateway /actuator/health 응답" 200 "$HTTP_STATUS"
-assert_contains "Gateway status UP" '"status":"UP"' "$HTTP_BODY"
+assert_contains "Gateway status UP" '"status"[[:space:]]*:[[:space:]]*"UP"' "$HTTP_BODY"
