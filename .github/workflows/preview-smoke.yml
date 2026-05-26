@@ -131,10 +131,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write  # GCP Workload Identity 인증에 필요
     env:
-      ARGOCD_SERVER: ${{ vars.ARGOCD_SERVER }}
+      ARGOCD_SERVER: localhost:8080
       ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      ARGOCD_OPTS: --insecure --grpc-web
+      ARGOCD_OPTS: --insecure
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
@@ -149,6 +150,32 @@ jobs:
           chmod +x argocd
           sudo mv argocd /usr/local/bin/
           argocd version --client
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials auction-cluster \
+            --region ${{ env.GCP_REGION }} \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Port-forward ArgoCD server
+        run: |
+          # LoadBalancer를 우회하여 클러스터 내부로 직접 터널링
+          kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+          for i in $(seq 1 10); do
+            if nc -z localhost 8080 2>/dev/null; then
+              echo "Port-forward ready (attempt ${i})"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Port-forward가 10초 내에 준비되지 않았습니다"
+          exit 1
 
       - name: Switch ArgoCD apps to branch '${{ github.ref_name }}'
         id: switch
@@ -231,7 +258,7 @@ jobs:
 
           for app in $SERVICE_APPS; do
             # kustomize 이미지 오버라이드 해제 후 main으로 복구
-            argocd app unset "$app" --kustomize-images 2>/dev/null || true
+            argocd app unset "$app" --kustomize-image "$app" 2>/dev/null || true
             argocd app set "$app" --revision main --self-heal=true
           done
 
