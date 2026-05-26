@@ -1,6 +1,6 @@
 package com.jaehoon.user.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.jaehoon.user.config.JwtProvider;
 import com.jaehoon.user.dto.LoginRequest;
 import com.jaehoon.user.dto.SignupRequest;
@@ -87,7 +87,7 @@ class UserIntegrationTest {
     @Autowired MockMvc mockMvc;
     @Autowired JwtProvider jwtProvider;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
     private String testEmail;
 
@@ -140,7 +140,7 @@ class UserIntegrationTest {
 
         mockMvc.perform(post("/users/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
+                        .content(jsonMapper.writeValueAsString(
                                 new SignupRequest(testEmail, "password123", "닉네임2"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists());
@@ -184,7 +184,7 @@ class UserIntegrationTest {
 
         mockMvc.perform(post("/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
+                        .content(jsonMapper.writeValueAsString(
                                 new LoginRequest(testEmail, "wrongpassword"))))
                 .andExpect(status().isBadRequest());
     }
@@ -215,7 +215,7 @@ class UserIntegrationTest {
     private void signup(String email, String password, String nickname) throws Exception {
         mockMvc.perform(post("/users/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
+                        .content(jsonMapper.writeValueAsString(
                                 new SignupRequest(email, password, nickname))))
                 .andExpect(status().isCreated());
     }
@@ -223,11 +223,11 @@ class UserIntegrationTest {
     private TokenResponse login(String email, String password) throws Exception {
         MvcResult result = mockMvc.perform(post("/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
+                        .content(jsonMapper.writeValueAsString(
                                 new LoginRequest(email, password))))
                 .andExpect(status().isOk())
                 .andReturn();
-        return objectMapper.readValue(result.getResponse().getContentAsString(), TokenResponse.class);
+        return jsonMapper.readValue(result.getResponse().getContentAsString(), TokenResponse.class);
     }
 
     private TokenResponse refresh(String refreshToken) throws Exception {
@@ -236,6 +236,6 @@ class UserIntegrationTest {
                         .header("Authorization", "Bearer " + refreshToken))
                 .andExpect(status().isOk())
                 .andReturn();
-        return objectMapper.readValue(result.getResponse().getContentAsString(), TokenResponse.class);
+        return jsonMapper.readValue(result.getResponse().getContentAsString(), TokenResponse.class);
     }
 }

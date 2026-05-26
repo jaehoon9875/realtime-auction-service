@@ -1,6 +1,6 @@
 package com.jaehoon.user.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.jaehoon.user.config.SecurityConfig;
 import com.jaehoon.user.dto.LoginRequest;
 import com.jaehoon.user.dto.SignupRequest;
@@ -47,7 +47,7 @@ class UserControllerTest {
 
     @Autowired MockMvc mockMvc;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
     @Autowired UserService userService;
 
@@ -70,10 +70,10 @@ class UserControllerTest {
             return token -> { throw new BadJwtException("테스트용 JwtDecoder"); };
         }
 
-        // SecurityConfig 생성자가 ObjectMapper를 주입받으므로 슬라이스 컨텍스트에 명시 등록한다.
+        // SecurityConfig 생성자가 JsonMapper를 주입받으므로 슬라이스 컨텍스트에 명시 등록한다.
         @Bean
-        ObjectMapper objectMapper() {
-            return new ObjectMapper();
+        JsonMapper jsonMapper() {
+            return JsonMapper.builder().build();
         }
     }
 
@@ -89,7 +89,7 @@ class UserControllerTest {
 
         mockMvc.perform(post("/users/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+                        .content(jsonMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated());
     }
 
@@ -100,7 +100,7 @@ class UserControllerTest {
 
         mockMvc.perform(post("/users/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+                        .content(jsonMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -111,7 +111,7 @@ class UserControllerTest {
 
         mockMvc.perform(post("/users/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+                        .content(jsonMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -122,7 +122,7 @@ class UserControllerTest {
 
         mockMvc.perform(post("/users/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+                        .content(jsonMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -135,7 +135,7 @@ class UserControllerTest {
 
         mockMvc.perform(post("/users/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+                        .content(jsonMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists());
     }
@@ -153,7 +153,7 @@ class UserControllerTest {
 
         mockMvc.perform(post("/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+                        .content(jsonMapper.writeValueAsString(body)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("access-jwt"))
                 .andExpect(jsonPath("$.refreshToken").value("refresh-jwt"));
@@ -167,7 +167,7 @@ class UserControllerTest {
 
         mockMvc.perform(post("/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+                        .content(jsonMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists());
     }
@@ -179,7 +179,7 @@ class UserControllerTest {
 
         mockMvc.perform(post("/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(body)))
+                        .content(jsonMapper.writeValueAsString(body)))
                 .andExpect(status().isBadRequest());
     }
 
@@ -259,7 +259,8 @@ class UserControllerTest {
     @DisplayName("me Authorization 헤더 없음 - 401 Unauthorized (미인증)")
     void me_인증없음_401() throws Exception {
         mockMvc.perform(get("/users/me"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("인증이 필요합니다"));
     }
 
     @Test

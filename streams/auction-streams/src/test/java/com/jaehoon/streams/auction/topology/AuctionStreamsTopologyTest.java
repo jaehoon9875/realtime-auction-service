@@ -1,6 +1,6 @@
 package com.jaehoon.streams.auction.topology;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.jaehoon.auction.events.AuctionEvent;
 import com.jaehoon.auction.events.NotificationEvent;
 import com.jaehoon.streams.auction.config.AuctionStreamsProperties;
@@ -63,7 +63,7 @@ class AuctionStreamsTopologyTest {
         SpecificAvroSerde<NotificationEvent> notificationSerde = new SpecificAvroSerde<>(mockRegistry);
         notificationSerde.configure(schemaConf, false);
 
-        ObjectMapper mapper = new ObjectMapper();
+        JsonMapper mapper = JsonMapper.builder().build();
         Serde<AuctionMetadata> metadataSerde = jsonSerde(mapper, AuctionMetadata.class);
         Serde<AuctionBidState> bidStateSerde = jsonSerde(mapper, AuctionBidState.class);
 
@@ -226,7 +226,7 @@ class AuctionStreamsTopologyTest {
                 .build();
     }
 
-    private <T> Serde<T> jsonSerde(ObjectMapper mapper, Class<T> type) {
+    private <T> Serde<T> jsonSerde(JsonMapper mapper, Class<T> type) {
         return Serdes.serdeFrom(
                 (topic, data) -> {
                     try { return mapper.writeValueAsBytes(data); }

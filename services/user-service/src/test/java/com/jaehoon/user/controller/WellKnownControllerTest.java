@@ -1,6 +1,6 @@
 package com.jaehoon.user.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.jaehoon.user.config.JwtProvider;
 import com.jaehoon.user.config.SecurityConfig;
 import com.jaehoon.user.config.SecurityProperties;
@@ -78,10 +78,10 @@ class WellKnownControllerTest {
             return NimbusJwtDecoder.withPublicKey((RSAPublicKey) keyPair.getPublic()).build();
         }
 
-        // SecurityConfig 생성자가 ObjectMapper를 주입받으므로 슬라이스 컨텍스트에 명시 등록한다.
+        // SecurityConfig 생성자가 JsonMapper를 주입받으므로 슬라이스 컨텍스트에 명시 등록한다.
         @Bean
-        ObjectMapper objectMapper() {
-            return new ObjectMapper();
+        JsonMapper jsonMapper() {
+            return JsonMapper.builder().build();
         }
     }
 

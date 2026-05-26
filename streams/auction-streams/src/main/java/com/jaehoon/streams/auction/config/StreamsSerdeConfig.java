@@ -1,6 +1,5 @@
 package com.jaehoon.streams.auction.config;
 
-import java.io.IOException;
 import java.util.Map;
 
 import org.apache.avro.specific.SpecificRecord;
@@ -13,7 +12,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.StreamsBuilderFactoryBeanConfigurer;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
+
 import com.jaehoon.auction.avro.BidDeadLetterEvent;
 import com.jaehoon.auction.avro.BidEvent;
 import com.jaehoon.auction.events.AuctionEvent;
@@ -35,7 +36,7 @@ public class StreamsSerdeConfig {
     @Value("${spring.kafka.streams.properties.schema.registry.url:http://localhost:${SCHEMA_REGISTRY_PORT:8085}}")
     private String schemaRegistryUrl;
 
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     // Kafka 토픽 이벤트는 Avro + Schema Registry 기반으로 직렬화/역직렬화한다.
     @Bean
@@ -98,8 +99,8 @@ public class StreamsSerdeConfig {
             return null;
         }
         try {
-            return objectMapper.writeValueAsBytes(data);
-        } catch (IOException e) {
+            return jsonMapper.writeValueAsBytes(data);
+        } catch (JacksonException e) {
             throw new SerializationException("State Store value JSON serialization failed", e);
         }
     }
@@ -109,8 +110,8 @@ public class StreamsSerdeConfig {
             return null;
         }
         try {
-            return objectMapper.readValue(data, targetType);
-        } catch (IOException e) {
+            return jsonMapper.readValue(data, targetType);
+        } catch (JacksonException e) {
             throw new SerializationException("State Store value JSON deserialization failed", e);
         }
     }

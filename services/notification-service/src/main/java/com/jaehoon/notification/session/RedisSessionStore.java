@@ -1,6 +1,6 @@
 package com.jaehoon.notification.session;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import java.time.Duration;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -29,15 +29,15 @@ public class RedisSessionStore {
   private static final Duration SESSION_TTL = Duration.ofHours(24);
 
   private final ReactiveStringRedisTemplate redis;
-  private final ObjectMapper objectMapper;
+  private final JsonMapper jsonMapper;
   private final String instanceId;
 
   public RedisSessionStore(
       ReactiveStringRedisTemplate redis,
-      ObjectMapper objectMapper,
+      JsonMapper jsonMapper,
       @Value("${app.instance-id}") String instanceId) {
     this.redis = redis;
-    this.objectMapper = objectMapper;
+    this.jsonMapper = jsonMapper;
     this.instanceId = instanceId;
   }
 
@@ -148,7 +148,7 @@ public class RedisSessionStore {
    */
   public Mono<Void> publishNotify(String targetInstanceId, String sessionId, String message) {
     String channel = NOTIFY_CHANNEL.formatted(targetInstanceId);
-    return Mono.fromCallable(() -> objectMapper.writeValueAsString(new NotifyPayload(sessionId, message)))
+    return Mono.fromCallable(() -> jsonMapper.writeValueAsString(new NotifyPayload(sessionId, message)))
         .flatMap(payload -> redis.convertAndSend(channel, payload))
         .then();
   }
@@ -160,7 +160,7 @@ public class RedisSessionStore {
 
   /** NotifyPayload JSON 역직렬화 */
   public Mono<NotifyPayload> readNotifyPayload(String json) {
-    return Mono.fromCallable(() -> objectMapper.readValue(json, NotifyPayload.class));
+    return Mono.fromCallable(() -> jsonMapper.readValue(json, NotifyPayload.class));
   }
 
   private String sessionRef(String sessionId) {

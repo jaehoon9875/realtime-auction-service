@@ -7,8 +7,8 @@ import static com.jaehoon.notification.kafka.NotificationTypes.OUTBID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import com.jaehoon.auction.events.NotificationEvent;
 import com.jaehoon.notification.kafka.NotificationMappingException;
 import com.jaehoon.notification.kafka.NotificationMessageMapper;
@@ -23,12 +23,12 @@ import org.junit.jupiter.api.Test;
 class NotificationMessageMapperTest {
 
     private NotificationMessageMapper mapper;
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @BeforeEach
     void setUp() {
-        objectMapper = new ObjectMapper();
-        mapper = new NotificationMessageMapper(objectMapper);
+        jsonMapper = JsonMapper.builder().build();
+        mapper = new NotificationMessageMapper(jsonMapper);
     }
 
     @Test
@@ -120,6 +120,6 @@ class NotificationMessageMapperTest {
     }
 
     private JsonNode readJson(String json) throws Exception {
-        return objectMapper.readTree(json);
+        return jsonMapper.readTree(json);
     }
 }

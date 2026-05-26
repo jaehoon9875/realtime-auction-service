@@ -17,7 +17,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
- * 운영과 동일한 main 컨텍스트(SecurityConfig + JacksonConfig + JwtProvider)가
+ * 운영과 동일한 main 컨텍스트(SecurityConfig + JsonMapper auto-config + JwtProvider)가
  * Testcontainers 환경에서 기동되는지 검증한다.
  */
 @SpringBootTest
@@ -51,7 +51,7 @@ class UserServiceApplicationContextTest {
     }
 
     @Test
-    @DisplayName("Spring Boot main 컨텍스트가 ObjectMapper·JWT·DB 설정으로 기동된다")
+    @DisplayName("Spring Boot main 컨텍스트가 JsonMapper·JWT·DB 설정으로 기동된다")
     void contextLoads() {
         // 컨텍스트 기동 실패 시 테스트 프레임워크가 예외를 던진다.
     }

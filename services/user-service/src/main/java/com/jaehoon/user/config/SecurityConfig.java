@@ -1,6 +1,6 @@
 package com.jaehoon.user.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.jaehoon.user.exception.ErrorResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +31,7 @@ public class SecurityConfig {
 
     private final JwtDecoder jwtDecoder;
     private final SecurityProperties securityProperties;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     /**
      * JWT 기반 Stateless 인증 필터 체인을 구성한다.
@@ -57,7 +57,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint((req, res, e) -> {
                             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             res.setContentType("application/json;charset=UTF-8");
-                            res.getWriter().write(objectMapper.writeValueAsString(new ErrorResponse(MSG_UNAUTHORIZED)));
+                            res.getWriter().write(jsonMapper.writeValueAsString(new ErrorResponse(MSG_UNAUTHORIZED)));
                         }))
                 // JWT 토큰 기반 인증 설정
                 .oauth2ResourceServer(oauth2 -> oauth2
