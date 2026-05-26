@@ -134,7 +134,7 @@ jobs:
     env:
       ARGOCD_SERVER: ${{ vars.ARGOCD_SERVER }}
       ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      ARGOCD_OPTS: --insecure
+      ARGOCD_OPTS: --insecure --grpc-web
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
