@@ -123,3 +123,45 @@ resource "google_service_account_iam_member" "user_service_wi_binding" {
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[auction/user-service-serviceaccount]"
 }
+
+# ──────────────────────────────────────────────────────────────
+# Auction Service — Cloud SQL Auth Proxy Workload Identity
+# ──────────────────────────────────────────────────────────────
+resource "google_service_account" "auction_service" {
+  account_id   = "auction-service"
+  display_name = "Auction Service Account"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "auction_service_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.auction_service.email}"
+}
+
+resource "google_service_account_iam_member" "auction_service_wi_binding" {
+  service_account_id = google_service_account.auction_service.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[auction/auction-service-serviceaccount]"
+}
+
+# ──────────────────────────────────────────────────────────────
+# Bid Service — Cloud SQL Auth Proxy Workload Identity
+# ──────────────────────────────────────────────────────────────
+resource "google_service_account" "bid_service" {
+  account_id   = "bid-service"
+  display_name = "Bid Service Account"
+  project      = var.project_id
+}
+
+resource "google_project_iam_member" "bid_service_cloudsql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.bid_service.email}"
+}
+
+resource "google_service_account_iam_member" "bid_service_wi_binding" {
+  service_account_id = google_service_account.bid_service.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[auction/bid-service-serviceaccount]"
+}

@@ -11,11 +11,11 @@ USER_B_PASSWORD="SmokeTest2!"
 # ── 회원가입 ──────────────────────────────────────────────────────────────────
 
 http_post "/api/users/signup" \
-  "{\"email\":\"${USER_A_EMAIL}\",\"password\":\"${USER_A_PASSWORD}\"}"
+  "{\"email\":\"${USER_A_EMAIL}\",\"password\":\"${USER_A_PASSWORD}\",\"nickname\":\"SmokeUserA\"}"
 assert_status "User A 회원가입" 201 "$HTTP_STATUS"
 
 http_post "/api/users/signup" \
-  "{\"email\":\"${USER_B_EMAIL}\",\"password\":\"${USER_B_PASSWORD}\"}"
+  "{\"email\":\"${USER_B_EMAIL}\",\"password\":\"${USER_B_PASSWORD}\",\"nickname\":\"SmokeUserB\"}"
 assert_status "User B 회원가입" 201 "$HTTP_STATUS"
 
 # ── 로그인 → JWT 추출 ─────────────────────────────────────────────────────────
