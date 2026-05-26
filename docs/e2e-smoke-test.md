@@ -24,7 +24,7 @@ Smoke Test는 "배포 후 서비스가 살아있는가"를 확인한다.
 ### S2. Happy Path
 전체 서비스 간 연결을 검증하는 메인 시나리오.
 
-```
+```text
 User A 회원가입 + 로그인 → JWT
 User B 회원가입 + 로그인 → JWT
 User A → 경매 생성 → auctionId 반환 확인
@@ -38,7 +38,7 @@ User B → 경매 조회 → currentPrice = 입찰가 확인
 
 ## 파일 구조
 
-```
+```text
 e2e/
 ├── smoke.sh              # 진입점
 ├── lib/
@@ -58,7 +58,7 @@ BASE_URL=http://<gateway-loadbalancer-ip> ./e2e/smoke.sh
 ```
 
 실행 결과 예시:
-```
+```text
 ========================================
  Smoke Test  →  http://34.x.x.x
 ========================================
@@ -86,7 +86,7 @@ BASE_URL=http://<gateway-loadbalancer-ip> ./e2e/smoke.sh
 
 `main` 브랜치 push → CI 통과 → CD 실행 순서:
 
-```
+```text
 1. update-dev-images  이미지 태그를 infra/k8s/overlays/dev/images에 커밋·푸시
 2. smoke-test         ArgoCD sync + rollout 대기 (최대 5분 폴링) → smoke.sh 실행
 ```
@@ -165,7 +165,7 @@ Workload Identity Federation을 사용하면 GCP 서비스 계정 키 파일 없
 설정 방법은 `infra/terraform/` 또는 cloud-sre-platform 저장소 README 참고.
 발급된 값 형식:
 
-```
+```text
 GCP_WORKLOAD_IDENTITY_PROVIDER: projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider
 GCP_SERVICE_ACCOUNT: github-actions@my-project.iam.gserviceaccount.com
 ```
