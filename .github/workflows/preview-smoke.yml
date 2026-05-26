@@ -152,8 +152,9 @@ jobs:
 
       - name: Switch ArgoCD apps to branch '${{ github.ref_name }}'
         id: switch
+        env:
+          BRANCH: ${{ github.ref_name }}
         run: |
-          BRANCH="${{ github.ref_name }}"
           SERVICE_APPS="api-gateway auction-service bid-service user-service notification-service auction-streams"
 
           # bootstrap이 자식 앱을 되돌리지 못하도록 먼저 selfHeal을 끈다
