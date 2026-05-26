@@ -26,7 +26,8 @@ public class KafkaStreamsDefaultConfig {
             @Value("${spring.kafka.streams.properties.default.key.serde:org.apache.kafka.common.serialization.Serdes$StringSerde}") String defaultKeySerde,
             @Value("${spring.kafka.streams.properties.state.dir:/tmp/kafka-streams}") String stateDir,
             @Value("${spring.kafka.streams.properties.application.server}") String applicationServer,
-            @Value("${spring.kafka.streams.properties.default.deserialization.exception.handler}") String deserializationExceptionHandler) {
+            @Value("${spring.kafka.streams.properties.default.deserialization.exception.handler}") String deserializationExceptionHandler,
+            @Value("${spring.kafka.streams.properties.default.production.exception.handler}") String productionExceptionHandler) {
 
         Map<String, Object> props = new HashMap<>();
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -36,7 +37,8 @@ public class KafkaStreamsDefaultConfig {
         props.put(StreamsConfig.APPLICATION_SERVER_CONFIG, applicationServer);
         props.put("processing.guarantee", processingGuarantee);
         props.put("schema.registry.url", schemaRegistryUrl);
-        props.put("default.deserialization.exception.handler", deserializationExceptionHandler);
+        props.put(StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, deserializationExceptionHandler);
+        props.put(StreamsConfig.DEFAULT_PRODUCTION_EXCEPTION_HANDLER_CLASS_CONFIG, productionExceptionHandler);
         return new KafkaStreamsConfiguration(props);
     }
 }

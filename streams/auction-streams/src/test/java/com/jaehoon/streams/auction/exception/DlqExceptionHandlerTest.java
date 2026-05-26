@@ -4,6 +4,9 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.streams.errors.DeserializationExceptionHandler.DeserializationHandlerResponse;
+import org.apache.kafka.streams.errors.ErrorHandlerContext;
+import org.apache.kafka.streams.errors.ProductionExceptionHandler.ProductionExceptionHandlerResponse;
+import org.apache.kafka.streams.errors.ProductionExceptionHandler.SerializationExceptionOrigin;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -18,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * DlqExceptionHandler는 configure()에서 KafkaProducer를 직접 생성하므로
@@ -103,6 +107,44 @@ class DlqExceptionHandlerTest {
         }
     }
 
+    @Test
+    void notification_프로듀스_실패는_dead_letter_토픽으로_라우팅된다() {
+        try (MockedConstruction<KafkaProducer> mocked = Mockito.mockConstruction(KafkaProducer.class)) {
+            DlqExceptionHandler handler = createAndConfigure();
+
+            handleProductionFailure(handler, TOPIC_NOTIFICATION_EVENTS);
+
+            assertSentToDlqTopic(mocked, TOPIC_DEAD_LETTER);
+        }
+    }
+
+    @Test
+    void 프로듀스_실패_후_항상_CONTINUE를_반환한다() {
+        try (MockedConstruction<KafkaProducer> ignored = Mockito.mockConstruction(KafkaProducer.class)) {
+            DlqExceptionHandler handler = createAndConfigure();
+
+            ProductionExceptionHandlerResponse response = handleProductionFailure(handler, TOPIC_NOTIFICATION_EVENTS);
+
+            assertThat(response).isEqualTo(ProductionExceptionHandlerResponse.CONTINUE);
+        }
+    }
+
+    @Test
+    void 프로듀스_직렬화_실패_후_항상_CONTINUE를_반환한다() {
+        try (MockedConstruction<KafkaProducer> ignored = Mockito.mockConstruction(KafkaProducer.class)) {
+            DlqExceptionHandler handler = createAndConfigure();
+
+            ProductionExceptionHandlerResponse response = handler.handleSerializationException(
+                    errorHandlerContext("bid-events", 0, 42L),
+                    producerRecord(TOPIC_NOTIFICATION_EVENTS),
+                    new RuntimeException("serialization failed"),
+                    SerializationExceptionOrigin.VALUE
+            );
+
+            assertThat(response).isEqualTo(ProductionExceptionHandlerResponse.CONTINUE);
+        }
+    }
+
     private DlqExceptionHandler createAndConfigure() {
         DlqExceptionHandler handler = new DlqExceptionHandler();
         handler.configure(Map.of("bootstrap.servers", "dummy:1234"));
@@ -114,6 +156,30 @@ class DlqExceptionHandlerTest {
                 mock(ProcessorContext.class),
                 consumerRecord(sourceTopic),
                 new RuntimeException("bad data")
+        );
+    }
+
+    private ProductionExceptionHandlerResponse handleProductionFailure(DlqExceptionHandler handler, String targetTopic) {
+        return handler.handle(
+                errorHandlerContext("bid-events", 0, 42L),
+                producerRecord(targetTopic),
+                new RuntimeException("produce failed")
+        );
+    }
+
+    private ErrorHandlerContext errorHandlerContext(String sourceTopic, int partition, long offset) {
+        ErrorHandlerContext context = mock(ErrorHandlerContext.class);
+        when(context.topic()).thenReturn(sourceTopic);
+        when(context.partition()).thenReturn(partition);
+        when(context.offset()).thenReturn(offset);
+        return context;
+    }
+
+    private ProducerRecord<byte[], byte[]> producerRecord(String topic) {
+        return new ProducerRecord<>(
+                topic,
+                "key".getBytes(StandardCharsets.UTF_8),
+                "value".getBytes(StandardCharsets.UTF_8)
         );
     }
 
