@@ -18,6 +18,7 @@ spring:
         # 운영/멀티 인스턴스 환경에서는 반드시 접근 가능한 주소를 명시해야 한다.
         application.server: ${KAFKA_STREAMS_APPLICATION_SERVER}
         default.deserialization.exception.handler: com.jaehoon.streams.auction.exception.DlqExceptionHandler
+        default.production.exception.handler: com.jaehoon.streams.auction.exception.DlqExceptionHandler
 
 auction:
   streams:

@@ -1,6 +1,6 @@
 package com.jaehoon.user.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.jaehoon.user.config.JwtProvider;
 import com.jaehoon.user.dto.LoginRequest;
 import com.jaehoon.user.dto.SignupRequest;
@@ -11,10 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -43,18 +40,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("integration-test")
-@Import(UserIntegrationTest.JacksonTestConfig.class)
 @Testcontainers
 class UserIntegrationTest {
-
-    @TestConfiguration
-    static class JacksonTestConfig {
-        // Boot 4 webmvc 단독 구성에서는 ObjectMapper 빈이 없을 수 있어 SecurityConfig 주입용으로 등록
-        @Bean
-        ObjectMapper objectMapper() {
-            return new ObjectMapper();
-        }
-    }
 
     // RSA 키 쌍은 클래스 로딩 시 정적 초기화 (DynamicPropertySource가 BeforeAll보다 먼저 실행됨)
     private static final KeyPair KEY_PAIR = generateKeyPair();
@@ -100,7 +87,7 @@ class UserIntegrationTest {
     @Autowired MockMvc mockMvc;
     @Autowired JwtProvider jwtProvider;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
     private String testEmail;
 
@@ -153,7 +140,7 @@ class UserIntegrationTest {
 
         mockMvc.perform(post("/users/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
+                        .content(jsonMapper.writeValueAsString(
                                 new SignupRequest(testEmail, "password123", "닉네임2"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").exists());
@@ -197,7 +184,7 @@ class UserIntegrationTest {
 
         mockMvc.perform(post("/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
+                        .content(jsonMapper.writeValueAsString(
                                 new LoginRequest(testEmail, "wrongpassword"))))
                 .andExpect(status().isBadRequest());
     }
@@ -228,7 +215,7 @@ class UserIntegrationTest {
     private void signup(String email, String password, String nickname) throws Exception {
         mockMvc.perform(post("/users/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
+                        .content(jsonMapper.writeValueAsString(
                                 new SignupRequest(email, password, nickname))))
                 .andExpect(status().isCreated());
     }
@@ -236,11 +223,11 @@ class UserIntegrationTest {
     private TokenResponse login(String email, String password) throws Exception {
         MvcResult result = mockMvc.perform(post("/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(
+                        .content(jsonMapper.writeValueAsString(
                                 new LoginRequest(email, password))))
                 .andExpect(status().isOk())
                 .andReturn();
-        return objectMapper.readValue(result.getResponse().getContentAsString(), TokenResponse.class);
+        return jsonMapper.readValue(result.getResponse().getContentAsString(), TokenResponse.class);
     }
 
     private TokenResponse refresh(String refreshToken) throws Exception {
@@ -249,6 +236,6 @@ class UserIntegrationTest {
                         .header("Authorization", "Bearer " + refreshToken))
                 .andExpect(status().isOk())
                 .andReturn();
-        return objectMapper.readValue(result.getResponse().getContentAsString(), TokenResponse.class);
+        return jsonMapper.readValue(result.getResponse().getContentAsString(), TokenResponse.class);
     }
 }

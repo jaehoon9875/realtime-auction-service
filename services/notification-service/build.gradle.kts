@@ -16,6 +16,7 @@ val confluentVersion = "8.1.0"
 dependencies {
     // --- Spring Boot Starters ---
     implementation("org.springframework.boot:spring-boot-starter-webflux")
+    implementation("org.springframework.boot:spring-boot-starter-json")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 

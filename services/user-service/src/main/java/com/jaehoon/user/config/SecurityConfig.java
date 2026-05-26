@@ -1,6 +1,6 @@
 package com.jaehoon.user.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import com.jaehoon.user.exception.ErrorResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -27,10 +27,11 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final String MSG_UNAUTHORIZED = "인증이 필요합니다";
+    private static final String[] HEALTH_ENDPOINTS = { "/actuator/health", "/actuator/health/**" };
 
     private final JwtDecoder jwtDecoder;
     private final SecurityProperties securityProperties;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     /**
      * JWT 기반 Stateless 인증 필터 체인을 구성한다.
@@ -48,6 +49,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 인증 요청 권한 설정
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HEALTH_ENDPOINTS).permitAll()
                         .requestMatchers(publicEndpoints).permitAll()
                         .anyRequest().authenticated())
                 // 미인증 요청(토큰 없음·만료·위조)에 대해 JSON 형식으로 401 반환
@@ -55,7 +57,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint((req, res, e) -> {
                             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             res.setContentType("application/json;charset=UTF-8");
-                            res.getWriter().write(objectMapper.writeValueAsString(new ErrorResponse(MSG_UNAUTHORIZED)));
+                            res.getWriter().write(jsonMapper.writeValueAsString(new ErrorResponse(MSG_UNAUTHORIZED)));
                         }))
                 // JWT 토큰 기반 인증 설정
                 .oauth2ResourceServer(oauth2 -> oauth2

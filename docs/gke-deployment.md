@@ -280,15 +280,13 @@ PROJECT_ID=${GCP_PROJECT_ID}  # 사전 준비의 변수 블록에서 export했�
 # ── 값 생성 (JWT·내부 시크릿) ──────────────────────────────────
 INTERNAL_SECRET=$(openssl rand -base64 32)
 openssl genrsa -out jwt-private.pem 2048
-openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem
-JWT_PRIVATE_KEY=$(cat jwt-private.pem)
-JWT_PUBLIC_KEY=$(cat jwt-public.pem)
+# 앱(JwtProvider)은 Base64(DER) 형식 기대 — PEM 그대로 등록 시 `Illegal base64 character 2d` 오류
+JWT_PRIVATE_KEY=$(openssl pkcs8 -topk8 -inform PEM -outform DER -nocrypt -in jwt-private.pem | base64 | tr -d '\n')
+JWT_PUBLIC_KEY=$(openssl rsa -in jwt-private.pem -pubout -outform DER | base64 | tr -d '\n')
 
 # ── 패스워드 입력 (터미널 히스토리에 남지 않도록 read 사용) ─────
 read -s APP_DB_PASSWORD       # terraform.tfvars의 app_db_password 와 동일
 read -s DEBEZIUM_DB_PASSWORD  # terraform.tfvars의 debezium_db_password 와 동일
-# Terraform Memorystore 모듈은 AUTH 미설정 → 빈 값(Enter)으로 등록
-read -s REDIS_PASSWORD && echo
 
 # ── DB 패스워드 ────────────────────────────────────────────────
 echo -n "$APP_DB_PASSWORD"      | gcloud secrets create auction-db-password         --project=$PROJECT_ID --data-file=-
@@ -297,10 +295,9 @@ echo -n "$APP_DB_PASSWORD"      | gcloud secrets create user-db-password        
 echo -n "$DEBEZIUM_DB_PASSWORD" | gcloud secrets create debezium-postgres-password   --project=$PROJECT_ID --data-file=-
 echo -n "debezium"              | gcloud secrets create debezium-postgres-user       --project=$PROJECT_ID --data-file=-
 
-# ── Redis ──────────────────────────────────────────────────────
+# ── Redis (AUTH 미사용 — redis-host만 등록) ────────────────────
 REDIS_HOST=$(cd infra/terraform && terraform output -raw redis_host)
-echo -n "$REDIS_HOST"     | gcloud secrets create redis-host     --project=$PROJECT_ID --data-file=-
-echo -n "$REDIS_PASSWORD" | gcloud secrets create redis-password --project=$PROJECT_ID --data-file=-
+echo -n "$REDIS_HOST" | gcloud secrets create redis-host --project=$PROJECT_ID --data-file=-
 
 # ── 서비스 간 내부 인증 토큰 ────────────────────────────────────
 echo -n "$INTERNAL_SECRET" | gcloud secrets create internal-request-secret --project=$PROJECT_ID --data-file=-
@@ -310,16 +307,16 @@ echo -n "$JWT_PRIVATE_KEY" | gcloud secrets create jwt-private-key --project=$PR
 echo -n "$JWT_PUBLIC_KEY"  | gcloud secrets create jwt-public-key  --project=$PROJECT_ID --data-file=-
 
 # JWT PEM 파일은 등록 후 삭제 권장
-rm -f jwt-private.pem jwt-public.pem
+rm -f jwt-private.pem
 ```
 
-> JWT 키는 `read -s`로 입력하면 PEM 줄바꿈이 깨집니다. 위처럼 파일 생성 후 `cat`으로 변수에 담아 등록하세요.
+> JWT 키는 PEM 그대로 등록하면 앱 기동 시 `Illegal base64 character 2d` 오류가 납니다. 위처럼 `openssl ... -outform DER | base64`로 변환한 값을 등록해야 합니다.
 
 ### 등록 확인
 
 ```bash
 gcloud secrets list --project=$PROJECT_ID
-# 10개 시크릿(auction/bid/user/debezium×2, redis×2, internal, jwt×2) 확인
+# 9개 시크릿(auction/bid/user/debezium×2, redis-host, internal, jwt×2) 확인
 ```
 
 ### 전체 시크릿 목록
@@ -332,7 +329,6 @@ gcloud secrets list --project=$PROJECT_ID
 | `debezium-postgres-user` | CDC 전용 DB 계정명 | debezium |
 | `debezium-postgres-password` | CDC 전용 DB 패스워드 | debezium |
 | `redis-host` | Memorystore private IP | user-service, notification-service |
-| `redis-password` | Memorystore 패스워드 | user-service, notification-service |
 | `internal-request-secret` | 서비스 간 내부 토큰 | api-gateway, auction-service, bid-service |
 | `jwt-private-key` | JWT 서명 키 | user-service |
 | `jwt-public-key` | JWT 검증 키 | api-gateway, user-service |

@@ -6,9 +6,9 @@ import static com.jaehoon.notification.kafka.NotificationTypes.BID_REJECTED;
 import static com.jaehoon.notification.kafka.NotificationTypes.BID_UPDATED;
 import static com.jaehoon.notification.kafka.NotificationTypes.OUTBID;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.jaehoon.auction.events.NotificationEvent;
 import org.springframework.stereotype.Component;
 
@@ -26,16 +26,16 @@ public class NotificationMessageMapper {
     private static final DateTimeFormatter ISO_LOCAL = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
             .withZone(ZoneOffset.UTC);
 
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     /**
      * NotificationMessageMapper를 생성한다.
-     * WebSocket 메시지 직렬화에 사용할 ObjectMapper를 주입한다.
-     * 
-     * @param objectMapper Spring Bean으로 등록된 ObjectMapper
+     * WebSocket 메시지 직렬화에 사용할 JsonMapper를 주입한다.
+     *
+     * @param jsonMapper Spring Boot가 auto-config한 JsonMapper
      */
-    public NotificationMessageMapper(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public NotificationMessageMapper(JsonMapper jsonMapper) {
+        this.jsonMapper = jsonMapper;
     }
 
     /**
@@ -116,7 +116,7 @@ public class NotificationMessageMapper {
     }
 
     private ObjectNode baseNode(String type, NotificationEvent event) {
-        ObjectNode node = objectMapper.createObjectNode();
+        ObjectNode node = jsonMapper.createObjectNode();
         node.put("type", type);
         String auctionId = resolveAuctionId(event);
         if (auctionId == null) {
@@ -179,8 +179,8 @@ public class NotificationMessageMapper {
 
     private String toJson(ObjectNode node) {
         try {
-            return objectMapper.writeValueAsString(node);
-        } catch (JsonProcessingException e) {
+            return jsonMapper.writeValueAsString(node);
+        } catch (JacksonException e) {
             // ObjectNode는 Jackson 내부 구조라 직렬화 실패가 거의 불가능하지만,
             // 커스텀 직렬화기 등 예외 케이스를 대비해 명시적으로 변환한다.
             throw new NotificationMappingException("WebSocket 메시지 JSON 직렬화 실패", e);

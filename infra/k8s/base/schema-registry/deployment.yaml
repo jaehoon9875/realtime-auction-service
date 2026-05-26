@@ -5,6 +5,8 @@ metadata:
   namespace: auction
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: schema-registry
@@ -15,7 +17,7 @@ spec:
     spec:
       containers:
         - name: schema-registry
-          image: confluentinc/cp-schema-registry:7.6.0
+          image: confluentinc/cp-schema-registry:8.1.0
           ports:
             - containerPort: 8085
           envFrom:
