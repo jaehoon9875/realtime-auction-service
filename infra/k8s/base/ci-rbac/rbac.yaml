@@ -1,20 +1,17 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: github-actions-port-forward
+  name: github-actions-argocd
   namespace: argocd
 rules:
-  - apiGroups: [""]
-    resources: ["services", "pods", "endpoints"]
-    verbs: ["get", "list"]
-  - apiGroups: [""]
-    resources: ["pods/portforward"]
-    verbs: ["create"]
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list", "patch", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: github-actions-port-forward
+  name: github-actions-argocd
   namespace: argocd
 subjects:
   - kind: User
@@ -22,5 +19,5 @@ subjects:
     apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: Role
-  name: github-actions-port-forward
+  name: github-actions-argocd
   apiGroup: rbac.authorization.k8s.io

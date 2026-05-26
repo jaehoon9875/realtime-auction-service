@@ -131,25 +131,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write  # GCP Workload Identity 인증에 필요
-    env:
-      ARGOCD_SERVER: localhost:8080
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      ARGOCD_OPTS: --insecure
+      id-token: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
           persist-credentials: false
-
-      - name: Install ArgoCD CLI
-        run: |
-          # 클러스터의 ArgoCD 버전과 맞춰야 호환성 문제가 없다 (현재 클러스터: v3.4.2)
-          ARGOCD_VERSION="v3.4.2"
-          curl -sSL -o argocd \
-            "https://github.com/argoproj/argo-cd/releases/download/${ARGOCD_VERSION}/argocd-linux-amd64"
-          chmod +x argocd
-          sudo mv argocd /usr/local/bin/
-          argocd version --client
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
@@ -164,20 +150,6 @@ jobs:
           location: ${{ env.GCP_REGION }}-a
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Port-forward ArgoCD server
-        run: |
-          # LoadBalancer를 우회하여 클러스터 내부로 직접 터널링
-          kubectl port-forward svc/argocd-server -n argocd 8080:443 &
-          for i in $(seq 1 10); do
-            if nc -z localhost 8080 2>/dev/null; then
-              echo "Port-forward ready (attempt ${i})"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "Port-forward가 10초 내에 준비되지 않았습니다"
-          exit 1
-
       - name: Switch ArgoCD apps to branch '${{ github.ref_name }}'
         id: switch
         env:
@@ -185,13 +157,15 @@ jobs:
         run: |
           SERVICE_APPS="api-gateway auction-service bid-service user-service notification-service auction-streams"
 
-          # bootstrap이 자식 앱을 되돌리지 못하도록 먼저 selfHeal을 끈다
-          argocd app set auction-bootstrap --self-heal=false --sync-policy none
+          # bootstrap이 자식 앱을 되돌리지 못하도록 먼저 auto-sync를 끈다
+          kubectl patch app auction-bootstrap -n argocd --type merge \
+            -p '{"spec":{"syncPolicy":null}}'
 
           for app in $SERVICE_APPS; do
-            argocd app set "$app" --revision "$BRANCH" --self-heal=false
+            kubectl patch app "$app" -n argocd --type merge \
+              -p "{\"spec\":{\"source\":{\"targetRevision\":\"${BRANCH}\"},\"syncPolicy\":{\"automated\":{\"selfHeal\":false}}}}"
           done
-          echo "ArgoCD 앱 → 브랜치 '$BRANCH' 전환 완료"
+          echo "ArgoCD 앱 → 브랜치 '${BRANCH}' 전환 완료"
 
       - name: Override images for changed services
         if: needs.detect-changes.outputs.has_service_changes == 'true'
@@ -207,7 +181,8 @@ jobs:
               print(item['service'])
           " | while read -r svc; do
             echo "이미지 오버라이드: ${svc}:${TAG}"
-            argocd app set "$svc" --kustomize-image "${svc}=${REGISTRY}/${svc}:${TAG}"
+            kubectl patch app "$svc" -n argocd --type merge \
+              -p "{\"spec\":{\"source\":{\"kustomize\":{\"images\":[\"${svc}=${REGISTRY}/${svc}:${TAG}\"]}}}}"
           done
 
       - name: Sync and wait for changed services
@@ -220,11 +195,35 @@ jobs:
           print(' '.join(item['service'] for item in data['include']))
           ")
 
-          echo "Sync 대상: $APPS"
-          # shellcheck disable=SC2086
-          argocd app sync $APPS
-          # shellcheck disable=SC2086
-          argocd app wait $APPS --health --timeout 300
+          # 각 앱에 sync operation 트리거 (ArgoCD operator가 operation 필드를 감지하여 sync 실행)
+          for app in $APPS; do
+            kubectl patch app "$app" -n argocd --type merge \
+              -p '{"operation":{"initiatedBy":{"username":"github-actions"},"sync":{"syncStrategy":{"apply":{"force":false}}}}}'
+            echo "Sync 트리거: $app"
+          done
+
+          # Healthy + Synced 대기 (최대 300초)
+          TIMEOUT=300
+          INTERVAL=10
+          for app in $APPS; do
+            elapsed=0
+            echo "$app 헬스 대기 중..."
+            while [ "$elapsed" -lt "$TIMEOUT" ]; do
+              health=$(kubectl get app "$app" -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null)
+              sync_status=$(kubectl get app "$app" -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null)
+              if [ "$health" = "Healthy" ] && [ "$sync_status" = "Synced" ]; then
+                echo "$app: Healthy + Synced (${elapsed}s)"
+                break
+              fi
+              echo "  $app: health=${health}, sync=${sync_status} (${elapsed}s)"
+              sleep "$INTERVAL"
+              elapsed=$((elapsed + INTERVAL))
+            done
+            if [ "$elapsed" -ge "$TIMEOUT" ]; then
+              echo "$app이 ${TIMEOUT}초 내에 Healthy+Synced 상태가 되지 않았습니다"
+              exit 1
+            fi
+          done
 
       - name: Wait for Gateway to be ready
         env:
@@ -258,12 +257,17 @@ jobs:
           SERVICE_APPS="api-gateway auction-service bid-service user-service notification-service auction-streams"
 
           for app in $SERVICE_APPS; do
-            # kustomize 이미지 오버라이드 해제 후 main으로 복구
-            argocd app unset "$app" --kustomize-image "$app" 2>/dev/null || true
-            argocd app set "$app" --revision main --self-heal=true
+            # kustomize 이미지 오버라이드 제거 (없으면 무시)
+            kubectl patch app "$app" -n argocd --type json \
+              -p '[{"op":"remove","path":"/spec/source/kustomize/images"}]' 2>/dev/null || true
+            # targetRevision main 복구 + selfHeal 재활성화
+            kubectl patch app "$app" -n argocd --type merge \
+              -p '{"spec":{"source":{"targetRevision":"main"},"syncPolicy":{"automated":{"selfHeal":true}}}}'
           done
 
-          # bootstrap 복구 및 sync → 자식 앱 전체를 git 상태(main)로 정리
-          argocd app set auction-bootstrap --self-heal=true --sync-policy automated
-          argocd app sync auction-bootstrap
+          # bootstrap auto-sync 복구 후 sync 트리거 → 자식 앱 전체를 git 상태(main)로 정리
+          kubectl patch app auction-bootstrap -n argocd --type merge \
+            -p '{"spec":{"syncPolicy":{"automated":{"selfHeal":true,"prune":true}}}}'
+          kubectl patch app auction-bootstrap -n argocd --type merge \
+            -p '{"operation":{"initiatedBy":{"username":"github-actions"},"sync":{"syncStrategy":{"apply":{"force":false}}}}}'
           echo "ArgoCD 복구 완료 → main"
