@@ -39,7 +39,7 @@ ENDS_AT=$(date -u -d "+90 seconds" "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
           || date -u -v+90S "+%Y-%m-%dT%H:%M:%SZ")  # macOS 폴백
 
 http_post "/api/auctions" \
-  "{\"title\":\"Smoke Test Auction ${TS}\",\"startingPrice\":10000,\"endsAt\":\"${ENDS_AT}\"}" \
+  "{\"title\":\"Smoke Test Auction ${TS}\",\"startPrice\":10000,\"endsAt\":\"${ENDS_AT}\"}" \
   "$JWT_A"
 assert_status "경매 생성" 201 "$HTTP_STATUS"
 AUCTION_ID=$(json_field "id" "$HTTP_BODY")
