@@ -158,10 +158,11 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Configure kubectl for GKE
-        run: |
-          gcloud container clusters get-credentials auction-cluster \
-            --zone ${{ env.GCP_REGION }}-a \
-            --project ${{ secrets.GCP_PROJECT_ID }}
+        uses: google-github-actions/get-gke-credentials@64bc7249bbcf78056bb92f14d3cedc2da193946c  # v2
+        with:
+          cluster_name: auction-cluster
+          location: ${{ env.GCP_REGION }}-a
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Port-forward ArgoCD server
         run: |
