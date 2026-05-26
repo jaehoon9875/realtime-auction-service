@@ -1,0 +1,241 @@
+name: Preview Deploy & Smoke Test
+
+# 사용법: Actions 탭 → Preview Deploy & Smoke Test → Run workflow → 테스트할 브랜치 선택
+# 흐름: 변경된 서비스만 이미지 빌드 → ArgoCD를 해당 브랜치로 임시 전환 → smoke test → main으로 복구
+
+on:
+  workflow_dispatch:
+
+env:
+  GCP_REGION: asia-northeast3
+  AR_REPO: auction-images
+
+jobs:
+  # main 대비 변경된 서비스만 골라낸다
+  detect-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_service_changes: ${{ steps.set-matrix.outputs.has_service_changes }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect changed services vs main
+        id: set-matrix
+        run: |
+          git fetch origin main --quiet
+          CHANGED=$(git diff --name-only origin/main...HEAD)
+
+          ROOT_CHANGED=false
+          if echo "$CHANGED" | grep -qE '^(.*\.gradle\.kts|settings\.gradle\.kts|gradle/|infra/avro/)'; then
+            ROOT_CHANGED=true
+          fi
+
+          matrix='{"include":['
+          first=true
+          add() {
+            [ "$first" = false ] && matrix+=','
+            matrix+="{\"service\":\"$1\",\"dockerfile\":\"$2\"}"
+            first=false
+          }
+
+          if [ "$ROOT_CHANGED" = "true" ]; then
+            add "api-gateway"         "services/api-gateway/Dockerfile"
+            add "auction-service"     "services/auction-service/Dockerfile"
+            add "bid-service"         "services/bid-service/Dockerfile"
+            add "user-service"        "services/user-service/Dockerfile"
+            add "notification-service" "services/notification-service/Dockerfile"
+            add "auction-streams"     "streams/auction-streams/Dockerfile"
+          else
+            echo "$CHANGED" | grep -q "^services/api-gateway/"         && add "api-gateway"         "services/api-gateway/Dockerfile"
+            echo "$CHANGED" | grep -q "^services/auction-service/"     && add "auction-service"     "services/auction-service/Dockerfile"
+            echo "$CHANGED" | grep -q "^services/bid-service/"         && add "bid-service"         "services/bid-service/Dockerfile"
+            echo "$CHANGED" | grep -q "^services/user-service/"        && add "user-service"        "services/user-service/Dockerfile"
+            echo "$CHANGED" | grep -q "^services/notification-service/" && add "notification-service" "services/notification-service/Dockerfile"
+            echo "$CHANGED" | grep -q "^streams/auction-streams/"      && add "auction-streams"     "streams/auction-streams/Dockerfile"
+          fi
+
+          matrix+=']}'
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+          count=$(echo "$matrix" | python3 -c "import sys,json; print(len(json.load(sys.stdin)['include']))")
+          if [ "$count" -gt 0 ]; then
+            echo "has_service_changes=true" >> $GITHUB_OUTPUT
+            echo "변경된 서비스: $(echo "$matrix" | python3 -c "import sys,json; print(', '.join(s['service'] for s in json.load(sys.stdin)['include']))")"
+          else
+            echo "has_service_changes=false" >> $GITHUB_OUTPUT
+            echo "서비스 코드 변경 없음 — 기존 이미지로 smoke test 실행"
+          fi
+
+  # 변경된 서비스만 preview 태그로 빌드 & push
+  build-push:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_service_changes == 'true'
+    name: build-${{ matrix.service }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee  # v4
+        with:
+          registry: ${{ env.GCP_REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3
+
+      - name: Set short SHA
+        id: sha
+        run: echo "short=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ matrix.service }}:preview-${{ steps.sha.outputs.short }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # ArgoCD 전환 → 배포 → smoke test → 복구 (항상 실행)
+  deploy-and-test:
+    needs: [detect-changes, build-push]
+    if: |
+      always() &&
+      needs.detect-changes.result == 'success' &&
+      (needs.build-push.result == 'success' || needs.build-push.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      ARGOCD_SERVER: ${{ vars.ARGOCD_SERVER }}
+      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+      ARGOCD_OPTS: --insecure
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Install ArgoCD CLI
+        run: |
+          # 클러스터의 ArgoCD 버전과 맞춰야 호환성 문제가 없다 (현재 클러스터: v3.4.2)
+          ARGOCD_VERSION="v3.4.2"
+          curl -sSL -o argocd \
+            "https://github.com/argoproj/argo-cd/releases/download/${ARGOCD_VERSION}/argocd-linux-amd64"
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/
+          argocd version --client
+
+      - name: Switch ArgoCD apps to branch '${{ github.ref_name }}'
+        id: switch
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          SERVICE_APPS="api-gateway auction-service bid-service user-service notification-service auction-streams"
+
+          # bootstrap이 자식 앱을 되돌리지 못하도록 먼저 selfHeal을 끈다
+          argocd app set auction-bootstrap --self-heal=false --sync-policy none
+
+          for app in $SERVICE_APPS; do
+            argocd app set "$app" --revision "$BRANCH" --self-heal=false
+          done
+          echo "ArgoCD 앱 → 브랜치 '$BRANCH' 전환 완료"
+
+      - name: Override images for changed services
+        if: needs.detect-changes.outputs.has_service_changes == 'true'
+        run: |
+          REGISTRY="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}"
+          TAG="preview-${GITHUB_SHA:0:7}"
+          MATRIX='${{ needs.detect-changes.outputs.matrix }}'
+
+          echo "$MATRIX" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for item in data['include']:
+              print(item['service'])
+          " | while read -r svc; do
+            echo "이미지 오버라이드: ${svc}:${TAG}"
+            argocd app set "$svc" --kustomize-image "${svc}=${REGISTRY}/${svc}:${TAG}"
+          done
+
+      - name: Sync and wait for changed services
+        if: needs.detect-changes.outputs.has_service_changes == 'true'
+        run: |
+          MATRIX='${{ needs.detect-changes.outputs.matrix }}'
+          APPS=$(echo "$MATRIX" | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          print(' '.join(item['service'] for item in data['include']))
+          ")
+
+          echo "Sync 대상: $APPS"
+          # shellcheck disable=SC2086
+          argocd app sync $APPS
+          # shellcheck disable=SC2086
+          argocd app wait $APPS --health --timeout 300
+
+      - name: Wait for Gateway to be ready
+        env:
+          BASE_URL: ${{ vars.SMOKE_TEST_BASE_URL }}
+        run: |
+          : "${BASE_URL:?SMOKE_TEST_BASE_URL Repository Variable이 필요합니다}"
+          echo "Gateway 응답 대기 (최대 3분)..."
+          for i in $(seq 1 18); do
+            if curl -sf --connect-timeout 3 --max-time 5 "${BASE_URL}/actuator/health" \
+                | grep -qE '"status"[[:space:]]*:[[:space:]]*"UP"'; then
+              echo "Gateway ready (attempt ${i})"
+              exit 0
+            fi
+            echo "  대기 중... ${i}/18"
+            sleep 10
+          done
+          echo "Gateway가 3분 내에 응답하지 않았습니다"
+          exit 1
+
+      - name: Run smoke tests
+        env:
+          BASE_URL: ${{ vars.SMOKE_TEST_BASE_URL }}
+        run: |
+          chmod +x e2e/smoke.sh
+          e2e/smoke.sh
+
+      # smoke test 성공/실패 관계없이 반드시 실행 — ArgoCD를 main 상태로 복구
+      - name: Restore ArgoCD to main
+        if: always() && steps.switch.outcome != 'skipped'
+        run: |
+          SERVICE_APPS="api-gateway auction-service bid-service user-service notification-service auction-streams"
+
+          for app in $SERVICE_APPS; do
+            # kustomize 이미지 오버라이드 해제 후 main으로 복구
+            argocd app unset "$app" --kustomize-images 2>/dev/null || true
+            argocd app set "$app" --revision main --self-heal=true
+          done
+
+          # bootstrap 복구 및 sync → 자식 앱 전체를 git 상태(main)로 정리
+          argocd app set auction-bootstrap --self-heal=true --sync-policy automated
+          argocd app sync auction-bootstrap
+          echo "ArgoCD 복구 완료 → main"
