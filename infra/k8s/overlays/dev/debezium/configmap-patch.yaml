@@ -5,18 +5,25 @@ metadata:
   name: debezium-configmap
   namespace: auction
 data:
-  BOOTSTRAP_SERVERS: auction-kafka-kafka-bootstrap:9092
-  GROUP_ID: debezium-connect
-  CONFIG_STORAGE_TOPIC: debezium-configs
-  OFFSET_STORAGE_TOPIC: debezium-offsets
-  STATUS_STORAGE_TOPIC: debezium-status
-  CONFIG_STORAGE_REPLICATION_FACTOR: "2"
-  OFFSET_STORAGE_REPLICATION_FACTOR: "2"
-  STATUS_STORAGE_REPLICATION_FACTOR: "2"
+  # Confluent cp-kafka-connect 이미지는 모든 설정에 CONNECT_ 접두사가 필요하다
+  CONNECT_BOOTSTRAP_SERVERS: auction-kafka-kafka-bootstrap:9092
+  CONNECT_GROUP_ID: debezium-connect
+  CONNECT_CONFIG_STORAGE_TOPIC: debezium-configs
+  CONNECT_OFFSET_STORAGE_TOPIC: debezium-offsets
+  CONNECT_STATUS_STORAGE_TOPIC: debezium-status
+  CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: "2"
+  CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: "2"
+  CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: "2"
   CONNECT_REST_PORT: "8083"
   CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
-  CONNECT_VALUE_CONVERTER: io.confluent.kafka.serializers.KafkaAvroConverter
+  # KafkaAvroConverter는 존재하지 않는 클래스. Kafka Connect용 Avro Converter의 정확한 클래스명은 AvroConverter.
+  CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
   CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
   CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry-service:8085
+  CONNECT_PLUGIN_PATH: /usr/share/confluent-hub-components
+  # CP 7.7(Kafka Connect 3.7+)에서 plugin.discovery 기본값이 service_load로 변경됐다.
+  # service_load 모드는 ServiceLoader manifest가 없는 플러그인을 로드하지 않는다.
+  # Confluent KafkaAvroConverter는 ServiceLoader manifest가 없으므로 hybrid_warn으로 레거시 스캔 병용.
+  CONNECT_PLUGIN_DISCOVERY: hybrid_warn
   AUCTION_CLOUD_SQL_CONNECTION_NAME: realtime-auction-service:asia-northeast3:auction-db
   BID_CLOUD_SQL_CONNECTION_NAME: realtime-auction-service:asia-northeast3:bid-db

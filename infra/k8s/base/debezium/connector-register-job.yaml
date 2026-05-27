@@ -88,7 +88,7 @@ spec:
                       \"database.user\": \"${POSTGRES_USER}\",
                       \"database.password\": \"${POSTGRES_PASSWORD}\",
                       \"database.dbname\": \"${AUCTION_POSTGRES_DB}\",
-                      \"database.server.name\": \"auction-db\",
+                      \"topic.prefix\": \"auction-db\",
                       \"slot.name\": \"debezium_auction\",
                       \"publication.name\": \"debezium_auction_pub\",
                       \"table.include.list\": \"public.outbox_events\",
@@ -97,7 +97,7 @@ spec:
                       \"transforms.outbox.route.by.field\": \"aggregate_type\",
                       \"transforms.outbox.route.topic.replacement\": \"\${routeByValue}-events\",
                       \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
-                      \"value.converter\": \"io.confluent.kafka.serializers.KafkaAvroConverter\",
+                      \"value.converter\": \"io.confluent.connect.avro.AvroConverter\",
                       \"value.converter.schema.registry.url\": \"${SCHEMA_REGISTRY_URL}\"
                     }
                   }"
@@ -120,7 +120,7 @@ spec:
                       \"database.user\": \"${POSTGRES_USER}\",
                       \"database.password\": \"${POSTGRES_PASSWORD}\",
                       \"database.dbname\": \"${BID_POSTGRES_DB}\",
-                      \"database.server.name\": \"bid-db\",
+                      \"topic.prefix\": \"bid-db\",
                       \"slot.name\": \"debezium_bid\",
                       \"publication.name\": \"debezium_bid_pub\",
                       \"table.include.list\": \"public.outbox_events\",
@@ -129,7 +129,7 @@ spec:
                       \"transforms.outbox.route.by.field\": \"aggregate_type\",
                       \"transforms.outbox.route.topic.replacement\": \"\${routeByValue}-events\",
                       \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
-                      \"value.converter\": \"io.confluent.kafka.serializers.KafkaAvroConverter\",
+                      \"value.converter\": \"io.confluent.connect.avro.AvroConverter\",
                       \"value.converter.schema.registry.url\": \"${SCHEMA_REGISTRY_URL}\"
                     }
                   }"
