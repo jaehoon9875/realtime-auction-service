@@ -2,5 +2,6 @@
 # 각 서비스의 이미지 태그는 overlays/dev/{service}/kustomization.yaml의 images 섹션에서 직접 관리합니다.
 # ArgoCD kustomize.images 오버라이드가 component를 통하면 순서 문제로 오버라이드가 무시되므로,
 # overlay에 직접 정의하는 방식으로 변경되었습니다.
+# (main의 구 images 목록은 CD가 중앙 component에 5f3bd97을 쓴 잔여물 — merge 시 제거)
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
