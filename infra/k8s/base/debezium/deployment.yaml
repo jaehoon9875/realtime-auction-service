@@ -18,13 +18,18 @@ spec:
       serviceAccountName: debezium-serviceaccount
       containers:
         - name: debezium
-          image: quay.io/debezium/connect:2.7
+          image: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/debezium-connect:latest
           ports:
             - containerPort: 8083
           envFrom:
             - configMapRef:
                 name: debezium-configmap
           env:
+            # Confluent cp-kafka-connect: Pod IP를 REST 광고 주소로 사용 (Downward API)
+            - name: CONNECT_REST_ADVERTISED_HOST_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             # Outbox 커넥터가 PostgreSQL 에 접근할 때 사용하는 공통 DB 자격증명
             - name: POSTGRES_USER
               valueFrom:
@@ -38,11 +43,11 @@ spec:
                   key: POSTGRES_PASSWORD
           resources:
             requests:
-              cpu: "200m"
-              memory: "512Mi"
-            limits:
-              cpu: "1000m"
+              cpu: "500m"
               memory: "1Gi"
+            limits:
+              cpu: "1500m"
+              memory: "2Gi"
           livenessProbe:
             httpGet:
               path: /connectors
@@ -64,6 +69,7 @@ spec:
           image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.0
           args:
             - "--structured-logs"
+            - "--private-ip"
             - "--port=5432"
             - "$(AUCTION_CLOUD_SQL_CONNECTION_NAME)"
           env:
@@ -88,6 +94,7 @@ spec:
           image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.0
           args:
             - "--structured-logs"
+            - "--private-ip"
             - "--port=5433"
             - "$(BID_CLOUD_SQL_CONNECTION_NAME)"
           env:

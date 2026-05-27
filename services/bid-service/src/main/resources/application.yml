@@ -38,6 +38,8 @@ springdoc:
     enabled: ${SWAGGER_ENABLED}
 
 app:
+  outbox:
+    schema-registry-url: ${SCHEMA_REGISTRY_URL:http://localhost:8085}
   # Gateway가 붙여 보내는 내부 요청 토큰 검증용 설정.
   security:
     internal-request-header-name: ${INTERNAL_REQUEST_HEADER_NAME:X-Internal-Request-Token}

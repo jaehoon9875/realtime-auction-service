@@ -14,6 +14,7 @@ COPY services/auction-service/build.gradle.kts services/auction-service/build.gr
 COPY services/notification-service/build.gradle.kts services/notification-service/build.gradle.kts
 COPY streams/auction-streams/build.gradle.kts streams/auction-streams/build.gradle.kts
 
+COPY infra/avro/ infra/avro/
 COPY services/bid-service/ services/bid-service/
 
 # bootJar 결과물이 정확히 1개인지 검증. 현재 JAR 통째 복사 방식이며, 추후 jarmode=tools 레이어 추출 방식으로 전환 예정.

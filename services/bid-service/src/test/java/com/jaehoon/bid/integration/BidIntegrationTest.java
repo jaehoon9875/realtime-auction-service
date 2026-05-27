@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -21,6 +22,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import com.jaehoon.auction.avro.BidEvent;
 import com.jaehoon.bid.dto.BidResponse;
 import com.jaehoon.bid.entity.OutboxEvent;
 import com.jaehoon.bid.repository.BidRepository;
@@ -28,11 +30,15 @@ import com.jaehoon.bid.repository.OutboxEventRepository;
 import com.jaehoon.bid.service.AuctionServiceClient;
 import com.jaehoon.bid.service.AuctionServiceClient.AuctionSnapshot;
 import com.jaehoon.bid.service.AuctionStreamsClient;
+import com.jaehoon.bid.outbox.OutboxAvroSerializer;
 import com.jaehoon.bid.service.BidService;
+
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Testcontainers
 @ActiveProfiles("integration")
+@Import(OutboxAvroIntegrationTestConfig.class)
 class BidIntegrationTest {
 
     @Container
@@ -57,6 +63,9 @@ class BidIntegrationTest {
 
     @Autowired
     OutboxEventRepository outboxEventRepository;
+
+    @Autowired
+    KafkaAvroDeserializer outboxAvroDeserializer;
 
     @BeforeEach
     void cleanDatabase() {
@@ -86,7 +95,14 @@ class BidIntegrationTest {
         assertThat(outboxEvents).hasSize(1);
         assertThat(outboxEvents.get(0).getEventType()).isEqualTo("BID_PLACED");
         assertThat(outboxEvents.get(0).getAggregateType()).isEqualTo("BID");
-        assertThat(outboxEvents.get(0).getPayload()).containsKeys("auctionId", "bidderId", "amount", "occurredAt");
+
+        BidEvent payload = (BidEvent) outboxAvroDeserializer.deserialize(
+                OutboxAvroSerializer.BID_EVENTS_TOPIC,
+                outboxEvents.get(0).getPayload());
+        assertThat(payload.getAuctionId()).isEqualTo(auctionId.toString());
+        assertThat(payload.getBidderId()).isEqualTo(bidderId.toString());
+        assertThat(payload.getAmount()).isEqualTo(12_000L);
+        assertThat(payload.getOccurredAt()).isPositive();
     }
 
     @Test

@@ -11,13 +11,14 @@ env:
   AR_REPO: auction-images
 
 jobs:
-  update-dev-images:
+  update-and-deploy:
     if: |
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
 
     steps:
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
@@ -36,8 +37,41 @@ jobs:
         with:
           kustomize-version: "5.8.1"
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure kubectl for GKE
+        uses: google-github-actions/get-gke-credentials@64bc7249bbcf78056bb92f14d3cedc2da193946c  # v2
+        with:
+          cluster_name: auction-cluster
+          location: ${{ env.GCP_REGION }}-a
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Verify images exist in Artifact Registry
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          SHORT_SHA="${HEAD_SHA:0:7}"
+          REGISTRY="${GCP_REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${AR_REPO}"
+          MISSING=()
+
+          for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
+            if ! gcloud artifacts docker images describe "${REGISTRY}/${svc}:${SHORT_SHA}" --quiet 2>/dev/null; then
+              MISSING+=("${svc}:${SHORT_SHA}")
+            fi
+          done
+
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "이미지 푸시가 확인되지 않은 서비스가 있습니다. 배포를 중단합니다."
+            echo "누락 이미지: ${MISSING[*]}"
+            exit 1
+          fi
+          echo "모든 이미지 확인 완료: ${SHORT_SHA}"
+
       - name: Update dev overlay image tags
-        working-directory: infra/k8s/overlays/dev/images
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
@@ -45,12 +79,13 @@ jobs:
           REGISTRY="${GCP_REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${AR_REPO}"
 
           for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
-            kustomize edit set image "${svc}=${REGISTRY}/${svc}:${SHORT_SHA}"
+            (cd "infra/k8s/overlays/dev/${svc}" && \
+              kustomize edit set image "${svc}=${REGISTRY}/${svc}:${SHORT_SHA}")
           done
 
           echo "Updated image tags to ${SHORT_SHA}"
 
-      - name: Commit and push
+      - name: Commit and push image tag update
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
@@ -60,15 +95,35 @@ jobs:
 
           if git diff --quiet; then
             echo "No image tag changes to commit"
-            exit 0
+          else
+            git add infra/k8s/overlays/dev/
+            git commit -m "chore(infra): update dev image tags to ${SHORT_SHA} [skip ci]"
+            git push
           fi
 
-          git add infra/k8s/overlays/dev/images/kustomization.yaml
-          git commit -m "chore(infra): update dev image tags to ${SHORT_SHA} [skip ci]"
-          git push
+      - name: Deploy to GKE (kubectl set image)
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          SHORT_SHA="${HEAD_SHA:0:7}"
+          REGISTRY="${GCP_REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${AR_REPO}"
+
+          for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
+            echo "배포 중: ${svc}:${SHORT_SHA}"
+            kubectl set image deployment/${svc}-deployment \
+              ${svc}=${REGISTRY}/${svc}:${SHORT_SHA} \
+              -n auction
+          done
+
+      - name: Wait for rollout
+        run: |
+          for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
+            echo "${svc} rollout 대기 중..."
+            kubectl rollout status deployment/${svc}-deployment -n auction --timeout=300s
+          done
 
   smoke-test:
-    needs: update-dev-images
+    needs: update-and-deploy
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -83,7 +138,7 @@ jobs:
           BASE_URL: ${{ vars.SMOKE_TEST_BASE_URL }}
         run: |
           : "${BASE_URL:?SMOKE_TEST_BASE_URL Repository Variable이 필요합니다}"
-          echo "ArgoCD sync + rollout 대기 (최대 5분)..."
+          echo "Gateway 응답 대기 (최대 5분)..."
           for i in $(seq 1 30); do
             if curl -sf --connect-timeout 3 --max-time 5 "${BASE_URL}/actuator/health" | grep -qE '"status"[[:space:]]*:[[:space:]]*"UP"'; then
               echo "Gateway ready (attempt ${i})"

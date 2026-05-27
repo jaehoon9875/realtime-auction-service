@@ -2,7 +2,10 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../../base/auction-service
-components:
-  - ../images
+images:
+  # CD 파이프라인(cd.yml)이 newTag를 SHORT_SHA로 갱신한다
+  - name: auction-service
+    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-service
+    newTag: 1ad4511
 patches:
   - path: configmap-patch.yaml

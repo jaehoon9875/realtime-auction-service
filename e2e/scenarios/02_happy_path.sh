@@ -11,11 +11,11 @@ USER_B_PASSWORD="SmokeTest2!"
 # ── 회원가입 ──────────────────────────────────────────────────────────────────
 
 http_post "/api/users/signup" \
-  "{\"email\":\"${USER_A_EMAIL}\",\"password\":\"${USER_A_PASSWORD}\"}"
+  "{\"email\":\"${USER_A_EMAIL}\",\"password\":\"${USER_A_PASSWORD}\",\"nickname\":\"SmokeUserA\"}"
 assert_status "User A 회원가입" 201 "$HTTP_STATUS"
 
 http_post "/api/users/signup" \
-  "{\"email\":\"${USER_B_EMAIL}\",\"password\":\"${USER_B_PASSWORD}\"}"
+  "{\"email\":\"${USER_B_EMAIL}\",\"password\":\"${USER_B_PASSWORD}\",\"nickname\":\"SmokeUserB\"}"
 assert_status "User B 회원가입" 201 "$HTTP_STATUS"
 
 # ── 로그인 → JWT 추출 ─────────────────────────────────────────────────────────
@@ -70,11 +70,23 @@ else
   assert_status "입찰 성공 (3회 시도 모두 실패)" 201 "$HTTP_STATUS"
 fi
 
-# State Store 갱신 대기
-sleep 3
+# State Store 갱신 대기 (Debezium CDC → Kafka Streams 파이프라인 반영)
+PRICE_OK=false
+for i in 1 2 3 4 5 6; do
+  http_get "/api/auctions/${AUCTION_ID}" "$JWT_B"
+  if [ "$HTTP_STATUS" -eq 200 ] && echo "$HTTP_BODY" | grep -q '"currentPrice":15000'; then
+    PRICE_OK=true
+    break
+  fi
+  echo "  currentPrice 대기 ${i}/6 (HTTP ${HTTP_STATUS})..."
+  sleep 3
+done
 
-# ── currentPrice 검증 ─────────────────────────────────────────────────────────
-
-http_get "/api/auctions/${AUCTION_ID}" "$JWT_B"
-assert_status "경매 조회" 200 "$HTTP_STATUS"
-assert_contains "currentPrice=15000 반영" '"currentPrice":15000' "$HTTP_BODY"
+if $PRICE_OK; then
+  assert_status "경매 조회" 200 "$HTTP_STATUS"
+  assert_contains "currentPrice=15000 반영" '"currentPrice":15000' "$HTTP_BODY"
+else
+  http_get "/api/auctions/${AUCTION_ID}" "$JWT_B"
+  assert_status "경매 조회" 200 "$HTTP_STATUS"
+  assert_contains "currentPrice=15000 반영 (6회 대기 후)" '"currentPrice":15000' "$HTTP_BODY"
+fi

@@ -1,7 +1,8 @@
 name: Preview Deploy & Smoke Test
 
 # 사용법: Actions 탭 → Preview Deploy & Smoke Test → Run workflow → 테스트할 브랜치 선택
-# 흐름: 변경된 서비스만 이미지 빌드 → ArgoCD를 해당 브랜치로 임시 전환 → smoke test → main으로 복구
+# 흐름: 변경된 서비스만 이미지 빌드 → kubectl set image로 배포 → smoke test → (가능한 서비스만) :latest로 복구
+# auction-service/bid-service는 Outbox BYTEA 마이그레이션 후 main :latest와 스키마 불일치로 복구 제외 (main merge 후 제거)
 
 on:
   workflow_dispatch:
@@ -121,7 +122,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-  # ArgoCD 전환 → 배포 → smoke test → 복구 (항상 실행)
+  # kubectl set image로 배포 → smoke test → (스키마 호환 서비스만) :latest로 복구
   deploy-and-test:
     needs: [detect-changes, build-push]
     if: |
@@ -131,72 +132,58 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    env:
-      ARGOCD_SERVER: ${{ vars.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      ARGOCD_OPTS: --insecure
+      id-token: write
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1
         with:
           persist-credentials: false
 
-      - name: Install ArgoCD CLI
-        run: |
-          # 클러스터의 ArgoCD 버전과 맞춰야 호환성 문제가 없다 (현재 클러스터: v3.4.2)
-          ARGOCD_VERSION="v3.4.2"
-          curl -sSL -o argocd \
-            "https://github.com/argoproj/argo-cd/releases/download/${ARGOCD_VERSION}/argocd-linux-amd64"
-          chmod +x argocd
-          sudo mv argocd /usr/local/bin/
-          argocd version --client
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Switch ArgoCD apps to branch '${{ github.ref_name }}'
-        id: switch
-        env:
-          BRANCH: ${{ github.ref_name }}
-        run: |
-          SERVICE_APPS="api-gateway auction-service bid-service user-service notification-service auction-streams"
+      - name: Configure kubectl for GKE
+        uses: google-github-actions/get-gke-credentials@64bc7249bbcf78056bb92f14d3cedc2da193946c  # v2
+        with:
+          cluster_name: auction-cluster
+          location: ${{ env.GCP_REGION }}-a
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-          # bootstrap이 자식 앱을 되돌리지 못하도록 먼저 selfHeal을 끈다
-          argocd app set auction-bootstrap --self-heal=false --sync-policy none
-
-          for app in $SERVICE_APPS; do
-            argocd app set "$app" --revision "$BRANCH" --self-heal=false
-          done
-          echo "ArgoCD 앱 → 브랜치 '$BRANCH' 전환 완료"
-
-      - name: Override images for changed services
+      - name: Deploy changed services
+        id: deploy
         if: needs.detect-changes.outputs.has_service_changes == 'true'
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
         run: |
           REGISTRY="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}"
           TAG="preview-${GITHUB_SHA:0:7}"
-          MATRIX='${{ needs.detect-changes.outputs.matrix }}'
 
           echo "$MATRIX" | python3 -c "
           import sys, json
-          data = json.load(sys.stdin)
-          for item in data['include']:
+          for item in json.load(sys.stdin)['include']:
               print(item['service'])
           " | while read -r svc; do
-            echo "이미지 오버라이드: ${svc}:${TAG}"
-            argocd app set "$svc" --kustomize-image "${svc}=${REGISTRY}/${svc}:${TAG}"
+            echo "배포 중: ${svc}:${TAG}"
+            kubectl set image deployment/${svc}-deployment \
+              ${svc}=${REGISTRY}/${svc}:${TAG} \
+              -n auction
           done
 
-      - name: Sync and wait for changed services
+      - name: Wait for rollout
         if: needs.detect-changes.outputs.has_service_changes == 'true'
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
         run: |
-          MATRIX='${{ needs.detect-changes.outputs.matrix }}'
-          APPS=$(echo "$MATRIX" | python3 -c "
+          echo "$MATRIX" | python3 -c "
           import sys, json
-          data = json.load(sys.stdin)
-          print(' '.join(item['service'] for item in data['include']))
-          ")
-
-          echo "Sync 대상: $APPS"
-          # shellcheck disable=SC2086
-          argocd app sync $APPS
-          # shellcheck disable=SC2086
-          argocd app wait $APPS --health --timeout 300
+          for item in json.load(sys.stdin)['include']:
+              print(item['service'])
+          " | while read -r svc; do
+            echo "${svc} rollout 대기 중..."
+            kubectl rollout status deployment/${svc}-deployment -n auction --timeout=300s
+          done
 
       - name: Wait for Gateway to be ready
         env:
@@ -223,19 +210,36 @@ jobs:
           chmod +x e2e/smoke.sh
           e2e/smoke.sh
 
-      # smoke test 성공/실패 관계없이 반드시 실행 — ArgoCD를 main 상태로 복구
-      - name: Restore ArgoCD to main
-        if: always() && steps.switch.outcome != 'skipped'
+      # smoke test 성공/실패 관계없이 항상 실행 — 스키마 호환 서비스만 :latest로 복구
+      - name: Restore deployments to latest
+        if: always() && steps.deploy.outcome != 'skipped'
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
         run: |
-          SERVICE_APPS="api-gateway auction-service bid-service user-service notification-service auction-streams"
+          REGISTRY="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}"
 
-          for app in $SERVICE_APPS; do
-            # kustomize 이미지 오버라이드 해제 후 main으로 복구
-            argocd app unset "$app" --kustomize-images 2>/dev/null || true
-            argocd app set "$app" --revision main --self-heal=true
+          # Outbox BYTEA Flyway 마이그레이션 후 main :latest(JSONB 엔티티)로 되돌리면 Hibernate validation 실패
+          # TODO: main merge 후 SKIP_RESTORE_SERVICES 제거
+          export SKIP_RESTORE_SERVICES="auction-service bid-service"
+
+          SERVICES=$(echo "$MATRIX" | python3 -c "
+          import os, sys, json
+          skip = set(os.environ['SKIP_RESTORE_SERVICES'].split())
+          services = [item['service'] for item in json.load(sys.stdin)['include'] if item['service'] not in skip]
+          print('\n'.join(services))
+          ")
+
+          if [ -z "$SERVICES" ]; then
+            echo "복구 대상 없음 (auction-service/bid-service는 BYTEA 마이그레이션으로 :latest 복구 제외)"
+            exit 0
+          fi
+
+          echo "$SERVICES" | while read -r svc; do
+            [ -z "$svc" ] && continue
+            echo "복구 중: ${svc}:latest"
+            kubectl set image deployment/${svc}-deployment \
+              ${svc}=${REGISTRY}/${svc}:latest \
+              -n auction
+            kubectl rollout status deployment/${svc}-deployment -n auction --timeout=120s
           done
-
-          # bootstrap 복구 및 sync → 자식 앱 전체를 git 상태(main)로 정리
-          argocd app set auction-bootstrap --self-heal=true --sync-policy automated
-          argocd app sync auction-bootstrap
-          echo "ArgoCD 복구 완료 → main"
+          echo "복구 완료 → :latest (auction-service/bid-service 제외)"

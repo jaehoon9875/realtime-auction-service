@@ -1,11 +1,7 @@
 package com.jaehoon.bid.entity;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
-
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -46,17 +42,16 @@ public class OutboxEvent {
     // 예: BID_PLACED, BID_REJECTED
     private String eventType;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false, columnDefinition = "jsonb")
-    // Avro 스키마(BidEvent.avsc)와 호환되는 이벤트 본문을 JSONB로 저장한다.
-    private Map<String, Object> payload;
+    @Column(nullable = false, columnDefinition = "bytea")
+    // Confluent Avro wire format — Debezium BinaryDataConverter가 Kafka로 그대로 전달한다.
+    private byte[] payload;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     @Builder
-    public OutboxEvent(String aggregateType, UUID aggregateId, String eventType, Map<String, Object> payload) {
+    public OutboxEvent(String aggregateType, UUID aggregateId, String eventType, byte[] payload) {
         this.aggregateType = aggregateType;
         this.aggregateId = aggregateId;
         this.eventType = eventType;

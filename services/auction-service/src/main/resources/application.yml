@@ -38,6 +38,8 @@ springdoc:
     path: /v3/api-docs
     enabled: ${SWAGGER_ENABLED}
 app:
+  outbox:
+    schema-registry-url: ${SCHEMA_REGISTRY_URL:http://localhost:8085}
   auction:
     schedule:
       # 예약 경매 PENDING→ONGOING 스케줄 태스크 (통합 테스트에서는 integration 프로파일로 비활성화)
