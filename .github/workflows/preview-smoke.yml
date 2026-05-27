@@ -1,8 +1,7 @@
 name: Preview Deploy & Smoke Test
 
 # 사용법: Actions 탭 → Preview Deploy & Smoke Test → Run workflow → 테스트할 브랜치 선택
-# 흐름: 변경된 서비스만 이미지 빌드 → kubectl set image로 배포 → smoke test → (가능한 서비스만) :latest로 복구
-# auction-service/bid-service는 Outbox BYTEA 마이그레이션 후 main :latest와 스키마 불일치로 복구 제외 (main merge 후 제거)
+# 흐름: 변경된 서비스만 이미지 빌드 → kubectl set image로 배포 → smoke test → :latest로 복구
 
 on:
   workflow_dispatch:
@@ -122,7 +121,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-  # kubectl set image로 배포 → smoke test → (스키마 호환 서비스만) :latest로 복구
+  # kubectl set image로 배포 → smoke test → :latest로 복구
   deploy-and-test:
     needs: [detect-changes, build-push]
     if: |
@@ -210,7 +209,7 @@ jobs:
           chmod +x e2e/smoke.sh
           e2e/smoke.sh
 
-      # smoke test 성공/실패 관계없이 항상 실행 — 스키마 호환 서비스만 :latest로 복구
+      # smoke test 성공/실패 관계없이 항상 실행 — 변경된 서비스를 :latest로 복구
       - name: Restore deployments to latest
         if: always() && steps.deploy.outcome != 'skipped'
         env:
@@ -218,23 +217,11 @@ jobs:
         run: |
           REGISTRY="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}"
 
-          # Outbox BYTEA Flyway 마이그레이션 후 main :latest(JSONB 엔티티)로 되돌리면 Hibernate validation 실패
-          # TODO: main merge 후 SKIP_RESTORE_SERVICES 제거
-          export SKIP_RESTORE_SERVICES="auction-service bid-service"
-
-          SERVICES=$(echo "$MATRIX" | python3 -c "
-          import os, sys, json
-          skip = set(os.environ['SKIP_RESTORE_SERVICES'].split())
-          services = [item['service'] for item in json.load(sys.stdin)['include'] if item['service'] not in skip]
-          print('\n'.join(services))
-          ")
-
-          if [ -z "$SERVICES" ]; then
-            echo "복구 대상 없음 (auction-service/bid-service는 BYTEA 마이그레이션으로 :latest 복구 제외)"
-            exit 0
-          fi
-
-          echo "$SERVICES" | while read -r svc; do
+          echo "$MATRIX" | python3 -c "
+          import sys, json
+          for item in json.load(sys.stdin)['include']:
+              print(item['service'])
+          " | while read -r svc; do
             [ -z "$svc" ] && continue
             echo "복구 중: ${svc}:latest"
             kubectl set image deployment/${svc}-deployment \
@@ -242,4 +229,4 @@ jobs:
               -n auction
             kubectl rollout status deployment/${svc}-deployment -n auction --timeout=120s
           done
-          echo "복구 완료 → :latest (auction-service/bid-service 제외)"
+          echo "복구 완료 → :latest"
