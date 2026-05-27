@@ -52,13 +52,22 @@ public class AuctionStreamsClient {
 
     private Long fetchCurrentPrice(UUID auctionId) {
         try {
-            return auctionStreamsRestClient.get()
-                    .uri("/state/auctions/{auctionId}/current-price", auctionId)
+            HighestBidSnapshot snapshot = auctionStreamsRestClient.get()
+                    .uri("/state/auctions/{auctionId}/highest-bid", auctionId)
                     .retrieve()
-                    .body(Long.class);
+                    .body(HighestBidSnapshot.class);
+            return snapshot == null ? null : snapshot.highestBid();
         } catch (HttpClientErrorException.NotFound e) {
             // 아직 입찰이 없는 경매 → null 반환 (서비스 장애 아님, Circuit Breaker 실패로 미집계)
             return null;
         }
+    }
+
+    /** auction-streams {@code /state/auctions/{auctionId}/highest-bid} 응답 매핑 DTO. */
+    private record HighestBidSnapshot(
+            String auctionId,
+            long highestBid,
+            String highestBidderId,
+            int bidCount) {
     }
 }
