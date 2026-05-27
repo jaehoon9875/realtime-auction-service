@@ -1,11 +1,11 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../../../base/auction-streams
-images:
+- ../../../base/auction-streams
   # CD 파이프라인(cd.yml)이 newTag를 SHORT_SHA로 갱신한다
-  - name: auction-streams
-    newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-streams
-    newTag: 1ad4511
+images:
+- name: auction-streams
+  newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-streams
+  newTag: eccde6c
 patches:
-  - path: configmap-patch.yaml
+- path: configmap-patch.yaml
