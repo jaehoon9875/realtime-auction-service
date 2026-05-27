@@ -31,7 +31,7 @@ User A → 경매 생성 → auctionId 반환 확인
   └─ Debezium CDC → auction-events → Kafka Streams State Store (5초 대기)
 User B → 입찰 (재시도 최대 3회)
   └─ bid-service → auction-streams State Store 검증 → bid-events 발행
-User B → 경매 조회 → currentPrice = 입찰가 확인
+User B → 경매 조회 → currentPrice = 입찰가 확인 (최대 6회 × 3초 폴링, CDC→Streams 지연 대응)
 ```
 
 ---
@@ -73,10 +73,12 @@ BASE_URL=http://<gateway-loadbalancer-ip> ./e2e/smoke.sh
   [PASS] User A 로그인
   [PASS] User A accessToken 발급
   ...
+  currentPrice 대기 1/6 (HTTP 200)...
+  [PASS] 경매 조회
   [PASS] currentPrice=15000 반영
 
 ========================================
- 결과: PASS 12  FAIL 0
+ 결과: PASS 13  FAIL 0
 ========================================
 ```
 
@@ -87,8 +89,8 @@ BASE_URL=http://<gateway-loadbalancer-ip> ./e2e/smoke.sh
 `main` 브랜치 push → CI 통과 → CD 실행 순서:
 
 ```text
-1. update-dev-images  이미지 태그를 infra/k8s/overlays/dev/images에 커밋·푸시
-2. smoke-test         ArgoCD sync + rollout 대기 (최대 5분 폴링) → smoke.sh 실행
+1. update-and-deploy  이미지 태그를 infra/k8s/overlays/dev에 커밋·푸시 + kubectl set image로 직접 배포
+2. smoke-test         Gateway 헬스체크 대기 (최대 5분 폴링) → smoke.sh 실행
 ```
 
 ### 대기 로직

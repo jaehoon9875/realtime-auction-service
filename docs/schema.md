@@ -28,7 +28,7 @@ CREATE TABLE outbox_events (
     aggregate_type  VARCHAR(50) NOT NULL,   -- 'AUCTION'
     aggregate_id    UUID NOT NULL,
     event_type      VARCHAR(50) NOT NULL,   -- 'AUCTION_CREATED' | 'AUCTION_STATUS_CHANGED'
-    payload         JSONB NOT NULL,
+    payload         BYTEA NOT NULL,         -- Confluent Avro wire format (magic byte + schema id + Avro bytes). 직렬화는 앱이 수행 (ADR-008)
     created_at      TIMESTAMP NOT NULL DEFAULT now()
 );
 ```
@@ -60,7 +60,7 @@ CREATE TABLE outbox_events (
     aggregate_type  VARCHAR(50) NOT NULL,   -- 'BID'
     aggregate_id    UUID NOT NULL,
     event_type      VARCHAR(50) NOT NULL,   -- 'BID_PLACED' | 'BID_REJECTED'
-    payload         JSONB NOT NULL,
+    payload         BYTEA NOT NULL,         -- Confluent Avro wire format (magic byte + schema id + Avro bytes). 직렬화는 앱이 수행 (ADR-008)
     created_at      TIMESTAMP NOT NULL DEFAULT now()
 );
 ```
@@ -105,6 +105,12 @@ DECIMAL/FLOAT은 부동소수점 오차가 발생합니다. 금액은 원 단위
 
 **Outbox Table이 서비스마다 있는 이유**
 MSA에서 서비스별 DB가 분리되어 있으므로 Outbox도 각 DB에 존재합니다. Debezium이 각 DB의 WAL을 독립적으로 읽습니다.
+
+**Outbox payload를 BYTEA로 저장하는 이유**
+Debezium `AvroConverter`는 JSONB 컬럼을 `io.debezium.data.Json`(String 타입)으로 읽어 Avro string으로 직렬화합니다.
+Kafka Streams `SpecificAvroSerde`는 Avro Record 타입을 기대하므로 wire format 불일치가 발생합니다.
+이를 해결하기 위해 애플리케이션이 Outbox 저장 시 직접 Confluent Avro wire format으로 직렬화하고 BYTEA로 저장합니다.
+Debezium은 `BinaryDataConverter`로 바이트를 그대로 Kafka에 전달(pass-through)합니다. 상세 근거는 [ADR-008](adr/008-outbox-avro-serialization-owner.md) 참고.
 
 **Refresh Token을 Redis에 저장하는 이유**
 Refresh Token은 비즈니스 데이터가 아닌 임시 인증 세션 상태입니다. TTL 자동 만료, 단순 키-값 조회, 빠른 응답이 필요한 특성이 Redis에 적합합니다. PostgreSQL에 저장하면 만료 토큰 정기 삭제 배치가 별도로 필요합니다.

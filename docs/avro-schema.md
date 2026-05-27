@@ -16,8 +16,10 @@ Kafka 메시지 값의 **계약(필드·타입)** 을 Avro로 정의하고, Conf
 | Registry 주소 (로컬) | `SCHEMA_REGISTRY_PUBLIC_URL` 또는 `http://localhost:${SCHEMA_REGISTRY_PORT}` (기본 **8085**, `infra/.env`) |
 
 
-> **M5 현재:** Debezium `auction-outbox-connector`, `bid-outbox-connector`는 토픽 값을 **AvroConverter**로 발행하도록 전환되었습니다.
-> Connector 템플릿 JSON에는 `value.converter.schema.registry.url`를 하드코딩하지 않고, `register-connectors.sh`가 `SCHEMA_REGISTRY_URL` 환경변수로 주입합니다.
+> **직렬화 아키텍처:**
+> Kafka 토픽 값을 Avro로 직렬화하는 주체는 **애플리케이션**입니다. Debezium은 `BinaryDataConverter`로 BYTEA payload를 그대로 Kafka에 전달(pass-through)합니다.
+> 이에 따라 Connector 설정에 `value.converter.schema.registry.url`이 포함되지 않습니다. Schema Registry는 앱의 `KafkaAvroSerializer`/`SpecificAvroSerde`가 사용합니다.
+> 결정 배경은 [ADR-008](adr/008-outbox-avro-serialization-owner.md) 참고.
 > `register-schemas.sh`는 호스트에서 실행하므로 Registry URL 우선순위를 `SCHEMA_REGISTRY_PUBLIC_URL` → `SCHEMA_REGISTRY_URL` → `http://localhost:${SCHEMA_REGISTRY_PORT}`로 처리합니다.
 
 ---
