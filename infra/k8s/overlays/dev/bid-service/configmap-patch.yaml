@@ -19,3 +19,4 @@ data:
   AUCTION_STREAMS_BASE_URL: http://auction-streams-service:8086
   AUCTION_STREAMS_CONNECT_TIMEOUT: "2000"
   AUCTION_STREAMS_READ_TIMEOUT: "3000"
+  SCHEMA_REGISTRY_URL: http://schema-registry-service:8085

@@ -59,8 +59,6 @@ spec:
                 configMapKeyRef:
                   name: debezium-connector-configmap
                   key: BID_POSTGRES_DB
-            - name: SCHEMA_REGISTRY_URL
-              value: http://schema-registry-service:8085
           command:
             - /bin/sh
             - -c
@@ -92,13 +90,15 @@ spec:
                       \"slot.name\": \"debezium_auction\",
                       \"publication.name\": \"debezium_auction_pub\",
                       \"table.include.list\": \"public.outbox_events\",
+                      \"snapshot.mode\": \"never\",
                       \"transforms\": \"outbox\",
                       \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
-                      \"transforms.outbox.route.by.field\": \"aggregate_type\",
-                      \"transforms.outbox.route.topic.replacement\": \"\${routeByValue}-events\",
+                      \"transforms.outbox.table.field.event.key\": \"aggregate_id\",
+                      \"transforms.outbox.route.topic.replacement\": \"auction-events\",
                       \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
-                      \"value.converter\": \"io.confluent.connect.avro.AvroConverter\",
-                      \"value.converter.schema.registry.url\": \"${SCHEMA_REGISTRY_URL}\"
+                      \"value.converter\": \"io.debezium.converters.BinaryDataConverter\",
+                      \"value.converter.delegate.converter.type\": \"org.apache.kafka.connect.json.JsonConverter\",
+                      \"value.converter.delegate.converter.type.schemas.enable\": \"false\"
                     }
                   }"
                 echo "auction-outbox-connector registered."
@@ -124,13 +124,15 @@ spec:
                       \"slot.name\": \"debezium_bid\",
                       \"publication.name\": \"debezium_bid_pub\",
                       \"table.include.list\": \"public.outbox_events\",
+                      \"snapshot.mode\": \"never\",
                       \"transforms\": \"outbox\",
                       \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
-                      \"transforms.outbox.route.by.field\": \"aggregate_type\",
-                      \"transforms.outbox.route.topic.replacement\": \"\${routeByValue}-events\",
+                      \"transforms.outbox.table.field.event.key\": \"aggregate_id\",
+                      \"transforms.outbox.route.topic.replacement\": \"bid-events\",
                       \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
-                      \"value.converter\": \"io.confluent.connect.avro.AvroConverter\",
-                      \"value.converter.schema.registry.url\": \"${SCHEMA_REGISTRY_URL}\"
+                      \"value.converter\": \"io.debezium.converters.BinaryDataConverter\",
+                      \"value.converter.delegate.converter.type\": \"org.apache.kafka.connect.json.JsonConverter\",
+                      \"value.converter.delegate.converter.type.schemas.enable\": \"false\"
                     }
                   }"
                 echo "bid-outbox-connector registered."

@@ -1,7 +1,17 @@
+import com.github.davidmc24.gradle.plugin.avro.GenerateAvroJavaTask
+
 plugins {
     id("org.springframework.boot")
     id("io.spring.dependency-management")
+    id("com.github.davidmc24.gradle.plugin.avro-base") version "1.9.1"
 }
+
+repositories {
+    mavenCentral()
+    maven("https://packages.confluent.io/maven/")
+}
+
+val confluentVersion = "8.1.0"
 
 dependencyManagement {
     imports {
@@ -28,6 +38,10 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
 
+    // --- Avro + Schema Registry (Outbox payload 직렬화) ---
+    implementation("org.apache.avro:avro:1.12.0")
+    implementation("io.confluent:kafka-avro-serializer:$confluentVersion")
+
     // --- Test ---
     // spring-boot-starter-test, Lombok(테스트), JUnit Platform 런처는 루트 build.gradle.kts subprojects에서 공통 적용
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
@@ -35,4 +49,23 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
+}
+
+val generateAvro = tasks.register<GenerateAvroJavaTask>("generateAvro") {
+    source(fileTree(layout.projectDirectory.dir("../../infra/avro")) {
+        include("BidEvent.avsc")
+    })
+    setOutputDir(layout.buildDirectory.dir("generated-main-avro-java").get().asFile)
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir(generateAvro)
+        }
+    }
+}
+
+tasks.named<JavaCompile>("compileJava") {
+    source(generateAvro)
 }

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -25,12 +26,16 @@ import com.jaehoon.auction.dto.CreateAuctionRequest;
 import com.jaehoon.auction.entity.Auction;
 import com.jaehoon.auction.entity.AuctionStatus;
 import com.jaehoon.auction.entity.OutboxEvent;
+import com.jaehoon.auction.events.AuctionEvent;
+import com.jaehoon.auction.outbox.OutboxAvroSerializer;
 import com.jaehoon.auction.exception.AuctionNotFoundException;
 import com.jaehoon.auction.exception.ForbiddenException;
 import com.jaehoon.auction.repository.AuctionRepository;
 import com.jaehoon.auction.repository.OutboxEventRepository;
 import com.jaehoon.auction.service.AuctionService;
 import com.jaehoon.auction.service.AuctionStreamsClient;
+
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.test.context.ActiveProfiles;
@@ -45,6 +50,7 @@ import org.springframework.test.context.ActiveProfiles;
 @Testcontainers
 // CI에서 SPRING_PROFILES_ACTIVE=test 가 주입되어 JPA가 제외되는 것을 방지
 @ActiveProfiles("integration")
+@Import(OutboxAvroIntegrationTestConfig.class)
 class AuctionIntegrationTest {
 
     @Container
@@ -70,6 +76,9 @@ class AuctionIntegrationTest {
 
     @Autowired
     JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    KafkaAvroDeserializer outboxAvroDeserializer;
 
     @BeforeEach
     void cleanDatabase() {
@@ -103,7 +112,9 @@ class AuctionIntegrationTest {
         // given
         UUID sellerId = UUID.randomUUID();
         CreateAuctionRequest request = new CreateAuctionRequest(
-                "아웃박스 검증", null, 1_000L, null, Instant.now().plus(1, ChronoUnit.DAYS));
+                "아웃박스 검증", null, 1_000L,
+                Instant.now().plus(1, ChronoUnit.HOURS),
+                Instant.now().plus(1, ChronoUnit.DAYS));
 
         // when
         AuctionResponse response = auctionService.createAuction(request, sellerId);
@@ -116,10 +127,14 @@ class AuctionIntegrationTest {
         assertThat(event.getAggregateType()).isEqualTo("AUCTION");
         assertThat(event.getAggregateId()).isEqualTo(response.id());
         assertThat(event.getEventType()).isEqualTo("AUCTION_CREATED");
-        assertThat(event.getPayload()).containsKey("auctionId");
-        assertThat(event.getPayload()).containsKey("sellerId");
-        assertThat(event.getPayload()).containsKey("status");
-        assertThat(event.getPayload()).containsKey("startsAt");
+
+        AuctionEvent payload = (AuctionEvent) outboxAvroDeserializer.deserialize(
+                OutboxAvroSerializer.AUCTION_EVENTS_TOPIC,
+                event.getPayload());
+        assertThat(payload.getAuctionId()).isEqualTo(response.id().toString());
+        assertThat(payload.getSellerId()).isEqualTo(sellerId.toString());
+        assertThat(payload.getStatus()).isEqualTo(AuctionStatus.PENDING.name());
+        assertThat(payload.getStartsAt()).isNotNull();
         assertThat(event.getCreatedAt()).isNotNull();
     }
 

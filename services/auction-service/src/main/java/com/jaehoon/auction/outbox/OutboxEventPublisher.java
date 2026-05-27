@@ -1,14 +1,13 @@
 package com.jaehoon.auction.outbox;
 
 import java.time.Instant;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
 import com.jaehoon.auction.entity.Auction;
 import com.jaehoon.auction.entity.OutboxEvent;
+import com.jaehoon.auction.events.AuctionEvent;
 import com.jaehoon.auction.repository.OutboxEventRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -23,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 public class OutboxEventPublisher {
 
     private final OutboxEventRepository outboxEventRepository;
+    private final OutboxAvroSerializer outboxAvroSerializer;
 
     /**
      * 경매 도메인 이벤트를 outbox_events 테이블에 저장한다.
@@ -31,36 +31,33 @@ public class OutboxEventPublisher {
      * @param eventType {@code AUCTION_CREATED} 또는 {@code AUCTION_STATUS_CHANGED}
      */
     public void publish(Auction auction, String eventType) {
-        Map<String, Object> payload = buildPayload(auction, eventType);
-
         OutboxEvent event = OutboxEvent.builder()
                 .aggregateType("AUCTION")
                 .aggregateId(auction.getId())
                 .eventType(eventType)
-                .payload(payload)
+                .payload(buildPayload(auction, eventType))
                 .build();
 
         // 호출부의 트랜잭션과 동일 커밋에 포함됨 — 원자성 보장
         outboxEventRepository.save(event);
     }
 
-    /** payload 키 순서·이름은 {@code infra/avro/AuctionEvent.avsc} 와 동기화한다. */
-    private Map<String, Object> buildPayload(Auction auction, String eventType) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("eventId", UUID.randomUUID().toString());
-        payload.put("eventType", eventType);
-        payload.put("auctionId", auction.getId().toString());
-        payload.put("sellerId", auction.getSellerId().toString());
-        payload.put("status", auction.getStatus().name());
-        payload.put("title", auction.getTitle());
-        payload.put("startPrice", auction.getStartPrice());
-        // auction-service 는 입찰 정보를 모름. currentPrice 의 진짜 주인은 Kafka Streams State Store.
-        // AUCTION_CLOSED 는 Punctuator 가 발행하며 그때 실제 최고가가 채워진다.
-        payload.put("currentPrice", null);
-        payload.put("startsAt", auction.getStartsAt().getEpochSecond());
-        // endsAt을 Unix epoch(초) 로 변환 — Debezium/Kafka 소비자 호환
-        payload.put("endsAt", auction.getEndsAt().getEpochSecond());
-        payload.put("occurredAt", Instant.now().getEpochSecond());
-        return payload;
+    /** 필드는 {@code infra/avro/AuctionEvent.avsc} 와 동기화한다. */
+    private byte[] buildPayload(Auction auction, String eventType) {
+        AuctionEvent event = AuctionEvent.newBuilder()
+                .setEventId(UUID.randomUUID().toString())
+                .setEventType(eventType)
+                .setAuctionId(auction.getId().toString())
+                .setSellerId(auction.getSellerId().toString())
+                .setStatus(auction.getStatus().name())
+                .setTitle(auction.getTitle())
+                .setStartPrice(auction.getStartPrice())
+                // auction-service 는 입찰 정보를 모름. currentPrice 의 진짜 주인은 Kafka Streams State Store.
+                .setCurrentPrice(null)
+                .setStartsAt(auction.getStartsAt().getEpochSecond())
+                .setEndsAt(auction.getEndsAt().getEpochSecond())
+                .setOccurredAt(Instant.now().getEpochSecond())
+                .build();
+        return outboxAvroSerializer.serialize(event);
     }
 }

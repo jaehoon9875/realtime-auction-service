@@ -1,11 +1,7 @@
 package com.jaehoon.auction.entity;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
-
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -46,17 +42,16 @@ public class OutboxEvent {
     @Column(name = "event_type", nullable = false, length = 50)
     private String eventType;
 
-    /** PostgreSQL JSONB — 발행 페이로드 */
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false, columnDefinition = "jsonb")
-    private Map<String, Object> payload;
+    /** Confluent Avro wire format — Debezium BinaryDataConverter가 Kafka로 그대로 전달한다. */
+    @Column(nullable = false, columnDefinition = "bytea")
+    private byte[] payload;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     @Builder
-    public OutboxEvent(String aggregateType, UUID aggregateId, String eventType, Map<String, Object> payload) {
+    public OutboxEvent(String aggregateType, UUID aggregateId, String eventType, byte[] payload) {
         this.aggregateType = aggregateType;
         this.aggregateId = aggregateId;
         this.eventType = eventType;

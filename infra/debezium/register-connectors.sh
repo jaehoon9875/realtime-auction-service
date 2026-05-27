@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Kafka Connect(Debezium 컨테이너)에 outbox 커넥터를 등록/삭제한다.
-# database.password 와 schema registry 주소는 환경변수로 주입한다.
+# database.password 는 환경변수로 주입한다.
 # 기본 동작은 "등록"이며, --recreate / --delete-only 옵션으로 동작을 제어한다.
 set -euo pipefail
 
@@ -21,9 +21,6 @@ fi
 
 # Kafka Connect 주소를 환경변수 또는 기본값(localhost:DEBEZIUM_PORT)으로 결정한다.
 CONNECT_URL="${KAFKA_CONNECT_URL:-http://localhost:${DEBEZIUM_PORT:-8083}}"
-# 커넥터 태스크는 Connect 컨테이너 내부에서 동작하므로 기본값은 컨테이너 DNS를 사용한다.
-# 필요 시 SCHEMA_REGISTRY_URL 환경변수로 localhost:${SCHEMA_REGISTRY_PORT} 같은 값으로 오버라이드할 수 있다.
-SCHEMA_REGISTRY_URL_VALUE="${SCHEMA_REGISTRY_URL:-http://schema-registry:8081}"
 
 ACTION="create"
 
@@ -39,7 +36,6 @@ Options:
 Environment variables:
   DEBEZIUM_PASSWORD  (required for create/recreate)
   KAFKA_CONNECT_URL  (default: http://localhost:${DEBEZIUM_PORT:-8083})
-  SCHEMA_REGISTRY_URL (default: http://schema-registry:8081)
 EOF
 }
 
@@ -101,15 +97,13 @@ fi
 
 # connector 템플릿 JSON에 database.password를 동적으로 주입해 최종 요청 본문을 만든다.
 BODY_AUCTION="$(
-  jq --arg pwd "${DEBEZIUM_PASSWORD}" --arg sr "${SCHEMA_REGISTRY_URL_VALUE}" \
-    '.config["database.password"] = $pwd
-     | .config["value.converter.schema.registry.url"] = $sr' \
+  jq --arg pwd "${DEBEZIUM_PASSWORD}" \
+    '.config["database.password"] = $pwd' \
     "${CONNECTOR_JSON}"
 )"
 BODY_BID="$(
-  jq --arg pwd "${DEBEZIUM_PASSWORD}" --arg sr "${SCHEMA_REGISTRY_URL_VALUE}" \
-    '.config["database.password"] = $pwd
-     | .config["value.converter.schema.registry.url"] = $sr' \
+  jq --arg pwd "${DEBEZIUM_PASSWORD}" \
+    '.config["database.password"] = $pwd' \
     "${CONNECTOR_JSON_BID}"
 )"
 
