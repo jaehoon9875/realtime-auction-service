@@ -265,9 +265,10 @@ jobs:
               -p '{"spec":{"source":{"targetRevision":"main"},"syncPolicy":{"automated":{"selfHeal":true}}}}'
           done
 
-          # bootstrap auto-sync 복구 후 sync 트리거 → 자식 앱 전체를 git 상태(main)로 정리
+          # bootstrap targetRevision을 main으로 복구 + auto-sync 재활성화
+          # → bootstrap sync 시 자식 앱의 targetRevision도 main으로 덮어씀
           kubectl patch app auction-bootstrap -n argocd --type merge \
-            -p '{"spec":{"syncPolicy":{"automated":{"selfHeal":true,"prune":true}}}}'
+            -p '{"spec":{"source":{"targetRevision":"main"},"syncPolicy":{"automated":{"selfHeal":true,"prune":true}}}}'
           kubectl patch app auction-bootstrap -n argocd --type merge \
             -p '{"operation":{"initiatedBy":{"username":"github-actions"},"sync":{"syncStrategy":{"apply":{"force":false}}}}}'
           echo "ArgoCD 복구 완료 → main"

@@ -36,6 +36,27 @@ jobs:
         with:
           kustomize-version: "5.8.1"
 
+      - name: Verify images exist in Artifact Registry
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          SHORT_SHA="${HEAD_SHA:0:7}"
+          REGISTRY="${GCP_REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${AR_REPO}"
+          MISSING=()
+
+          for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
+            if ! gcloud artifacts docker images describe "${REGISTRY}/${svc}:${SHORT_SHA}" --quiet 2>/dev/null; then
+              MISSING+=("${svc}:${SHORT_SHA}")
+            fi
+          done
+
+          if [ "${#MISSING[@]}" -gt 0 ]; then
+            echo "이미지 푸시가 확인되지 않은 서비스가 있습니다. kustomize 업데이트를 중단합니다."
+            echo "누락 이미지: ${MISSING[*]}"
+            exit 1
+          fi
+          echo "모든 이미지 확인 완료: ${SHORT_SHA}"
+
       - name: Update dev overlay image tags
         working-directory: infra/k8s/overlays/dev/images
         env:
