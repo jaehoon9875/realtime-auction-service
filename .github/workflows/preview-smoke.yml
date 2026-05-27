@@ -1,7 +1,7 @@
 name: Preview Deploy & Smoke Test
 
 # 사용법: Actions 탭 → Preview Deploy & Smoke Test → Run workflow → 테스트할 브랜치 선택
-# 흐름: 변경된 서비스만 이미지 빌드 → ArgoCD를 해당 브랜치로 임시 전환 → smoke test → main으로 복구
+# 흐름: 변경된 서비스만 이미지 빌드 → kubectl set image로 배포 → smoke test → :latest로 복구
 
 on:
   workflow_dispatch:
@@ -121,7 +121,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-  # ArgoCD 전환 → 배포 → smoke test → 복구 (항상 실행)
+  # kubectl set image로 배포 → smoke test → :latest로 복구
   deploy-and-test:
     needs: [detect-changes, build-push]
     if: |
@@ -150,79 +150,38 @@ jobs:
           location: ${{ env.GCP_REGION }}-a
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Switch ArgoCD apps to branch '${{ github.ref_name }}'
-        id: switch
-        env:
-          BRANCH: ${{ github.ref_name }}
-        run: |
-          SERVICE_APPS="api-gateway auction-service bid-service user-service notification-service auction-streams"
-
-          # bootstrap이 자식 앱을 되돌리지 못하도록 먼저 auto-sync를 끈다
-          kubectl patch app auction-bootstrap -n argocd --type merge \
-            -p '{"spec":{"syncPolicy":null}}'
-
-          for app in $SERVICE_APPS; do
-            kubectl patch app "$app" -n argocd --type merge \
-              -p "{\"spec\":{\"source\":{\"targetRevision\":\"${BRANCH}\"},\"syncPolicy\":{\"automated\":{\"selfHeal\":false}}}}"
-          done
-          echo "ArgoCD 앱 → 브랜치 '${BRANCH}' 전환 완료"
-
-      - name: Override images for changed services
+      - name: Deploy changed services
+        id: deploy
         if: needs.detect-changes.outputs.has_service_changes == 'true'
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
         run: |
           REGISTRY="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}"
           TAG="preview-${GITHUB_SHA:0:7}"
-          MATRIX='${{ needs.detect-changes.outputs.matrix }}'
 
           echo "$MATRIX" | python3 -c "
           import sys, json
-          data = json.load(sys.stdin)
-          for item in data['include']:
+          for item in json.load(sys.stdin)['include']:
               print(item['service'])
           " | while read -r svc; do
-            echo "이미지 오버라이드: ${svc}:${TAG}"
-            kubectl patch app "$svc" -n argocd --type merge \
-              -p "{\"spec\":{\"source\":{\"kustomize\":{\"images\":[\"${svc}=${REGISTRY}/${svc}:${TAG}\"]}}}}"
+            echo "배포 중: ${svc}:${TAG}"
+            kubectl set image deployment/${svc}-deployment \
+              ${svc}=${REGISTRY}/${svc}:${TAG} \
+              -n auction
           done
 
-      - name: Sync and wait for changed services
+      - name: Wait for rollout
         if: needs.detect-changes.outputs.has_service_changes == 'true'
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
         run: |
-          MATRIX='${{ needs.detect-changes.outputs.matrix }}'
-          APPS=$(echo "$MATRIX" | python3 -c "
+          echo "$MATRIX" | python3 -c "
           import sys, json
-          data = json.load(sys.stdin)
-          print(' '.join(item['service'] for item in data['include']))
-          ")
-
-          # 각 앱에 sync operation 트리거 (ArgoCD operator가 operation 필드를 감지하여 sync 실행)
-          for app in $APPS; do
-            kubectl patch app "$app" -n argocd --type merge \
-              -p '{"operation":{"initiatedBy":{"username":"github-actions"},"sync":{"syncStrategy":{"apply":{"force":false}}}}}'
-            echo "Sync 트리거: $app"
-          done
-
-          # Healthy + Synced 대기 (최대 300초)
-          TIMEOUT=300
-          INTERVAL=10
-          for app in $APPS; do
-            elapsed=0
-            echo "$app 헬스 대기 중..."
-            while [ "$elapsed" -lt "$TIMEOUT" ]; do
-              health=$(kubectl get app "$app" -n argocd -o jsonpath='{.status.health.status}' 2>/dev/null)
-              sync_status=$(kubectl get app "$app" -n argocd -o jsonpath='{.status.sync.status}' 2>/dev/null)
-              if [ "$health" = "Healthy" ] && [ "$sync_status" = "Synced" ]; then
-                echo "$app: Healthy + Synced (${elapsed}s)"
-                break
-              fi
-              echo "  $app: health=${health}, sync=${sync_status} (${elapsed}s)"
-              sleep "$INTERVAL"
-              elapsed=$((elapsed + INTERVAL))
-            done
-            if [ "$elapsed" -ge "$TIMEOUT" ]; then
-              echo "$app이 ${TIMEOUT}초 내에 Healthy+Synced 상태가 되지 않았습니다"
-              exit 1
-            fi
+          for item in json.load(sys.stdin)['include']:
+              print(item['service'])
+          " | while read -r svc; do
+            echo "${svc} rollout 대기 중..."
+            kubectl rollout status deployment/${svc}-deployment -n auction --timeout=300s
           done
 
       - name: Wait for Gateway to be ready
@@ -250,25 +209,23 @@ jobs:
           chmod +x e2e/smoke.sh
           e2e/smoke.sh
 
-      # smoke test 성공/실패 관계없이 반드시 실행 — ArgoCD를 main 상태로 복구
-      - name: Restore ArgoCD to main
-        if: always() && steps.switch.outcome != 'skipped'
+      # smoke test 성공/실패 관계없이 항상 실행 — :latest 이미지로 복구
+      - name: Restore deployments to latest
+        if: always() && steps.deploy.outcome != 'skipped'
+        env:
+          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
         run: |
-          SERVICE_APPS="api-gateway auction-service bid-service user-service notification-service auction-streams"
+          REGISTRY="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}"
 
-          for app in $SERVICE_APPS; do
-            # kustomize 이미지 오버라이드 제거 (없으면 무시)
-            kubectl patch app "$app" -n argocd --type json \
-              -p '[{"op":"remove","path":"/spec/source/kustomize/images"}]' 2>/dev/null || true
-            # targetRevision main 복구 + selfHeal 재활성화
-            kubectl patch app "$app" -n argocd --type merge \
-              -p '{"spec":{"source":{"targetRevision":"main"},"syncPolicy":{"automated":{"selfHeal":true}}}}'
+          echo "$MATRIX" | python3 -c "
+          import sys, json
+          for item in json.load(sys.stdin)['include']:
+              print(item['service'])
+          " | while read -r svc; do
+            echo "복구 중: ${svc}:latest"
+            kubectl set image deployment/${svc}-deployment \
+              ${svc}=${REGISTRY}/${svc}:latest \
+              -n auction
+            kubectl rollout status deployment/${svc}-deployment -n auction --timeout=120s
           done
-
-          # bootstrap targetRevision을 main으로 복구 + auto-sync 재활성화
-          # → bootstrap sync 시 자식 앱의 targetRevision도 main으로 덮어씀
-          kubectl patch app auction-bootstrap -n argocd --type merge \
-            -p '{"spec":{"source":{"targetRevision":"main"},"syncPolicy":{"automated":{"selfHeal":true,"prune":true}}}}'
-          kubectl patch app auction-bootstrap -n argocd --type merge \
-            -p '{"operation":{"initiatedBy":{"username":"github-actions"},"sync":{"syncStrategy":{"apply":{"force":false}}}}}'
-          echo "ArgoCD 복구 완료 → main"
+          echo "복구 완료 → :latest"
