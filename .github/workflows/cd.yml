@@ -58,15 +58,17 @@ jobs:
           echo "모든 이미지 확인 완료: ${SHORT_SHA}"
 
       - name: Update dev overlay image tags
-        working-directory: infra/k8s/overlays/dev/images
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           SHORT_SHA="${HEAD_SHA:0:7}"
           REGISTRY="${GCP_REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${AR_REPO}"
 
+          # 각 서비스 overlay에서 직접 이미지 태그 업데이트
+          # (images가 overlay에 직접 정의되어야 ArgoCD kustomize.images 오버라이드가 정상 작동)
           for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
-            kustomize edit set image "${svc}=${REGISTRY}/${svc}:${SHORT_SHA}"
+            (cd "infra/k8s/overlays/dev/${svc}" && \
+              kustomize edit set image "${svc}=${REGISTRY}/${svc}:${SHORT_SHA}")
           done
 
           echo "Updated image tags to ${SHORT_SHA}"
@@ -84,7 +86,7 @@ jobs:
             exit 0
           fi
 
-          git add infra/k8s/overlays/dev/images/kustomization.yaml
+          git add infra/k8s/overlays/dev/
           git commit -m "chore(infra): update dev image tags to ${SHORT_SHA} [skip ci]"
           git push
 
