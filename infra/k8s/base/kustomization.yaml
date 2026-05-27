@@ -11,3 +11,4 @@ resources:
   - user-service/
   - notification-service/
   - auction-streams/
+  - ci-rbac/
