@@ -20,7 +20,7 @@ Linux·Windows는 [bitnami-labs/sealed-secrets — Kubeseal](https://github.com/
 
 ## Step 2 — 브랜치 push 및 Sealed Secrets Controller 설치 확인
 
-브랜치를 push하면 App-of-Apps가 `sealed-secrets` ArgoCD Application을 감지하고
+main 브랜치에 반영(push/merge)되면 App-of-Apps가 `sealed-secrets` ArgoCD Application을 감지하고
 Helm으로 Controller를 `kube-system`에 자동 설치합니다.
 
 Controller Pod가 Running 상태인지 확인합니다.
