@@ -112,7 +112,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "count(up == 0) or vector(0)",
+              "expr": "count(up{namespace=~\"$namespace\"} == 0) or vector(0)",
               "refId": "A",
               "instant": true
             }
