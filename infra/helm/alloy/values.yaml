@@ -102,21 +102,26 @@ alloy:
           values = ["pod"]
         }
 
-        // JSON 로그에서 traceId/spanId 추출
-        // micrometer-tracing-bridge-otel이 MDC에 camelCase(traceId/spanId)로 주입하므로
-        // JSON 필드명 "traceId" → 파이프라인 변수 "trace_id"로 리매핑하여
-        // Loki structured_metadata 키를 OTel 표준(snake_case)으로 통일한다.
-        // JSON 파싱 실패 시(텍스트 로그) 해당 스테이지는 무시되므로 비-JSON Pod에도 안전
+        // JSON 필드 추출: Micrometer MDC camelCase → snake_case 리매핑
+        // JSON 파싱 실패 시(텍스트 로그) 이 스테이지는 무시된다
         stage.json {
           expressions = {
             trace_id = "traceId",
             span_id  = "spanId",
+            level    = "level",
           }
         }
+        // trace_id/span_id: 고카디널리티 → 라벨 아닌 structured_metadata로 저장
         stage.structured_metadata {
           values = {
             trace_id = "",
             span_id  = "",
+          }
+        }
+        // level: 저카디널리티(INFO/WARN/ERROR) → 라벨로 승격
+        stage.labels {
+          values = {
+            level = "level",
           }
         }
 
