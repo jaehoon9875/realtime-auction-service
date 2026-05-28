@@ -53,29 +53,3 @@ chunksCache:
 resultsCache:
   allocatedCPU: 100m
   allocatedMemory: 256
-
-# loki Service(3100) 직접 호출을 차단하고 gateway 경유만 허용
-extraObjects:
-  - apiVersion: networking.k8s.io/v1
-    kind: NetworkPolicy
-    metadata:
-      name: loki-single-binary-ingress-from-gateway
-      namespace: monitoring
-    spec:
-      podSelector:
-        matchLabels:
-          app.kubernetes.io/name: loki
-          app.kubernetes.io/instance: loki
-          app.kubernetes.io/component: single-binary
-      policyTypes:
-        - Ingress
-      ingress:
-        - from:
-            - podSelector:
-                matchLabels:
-                  app.kubernetes.io/name: loki
-                  app.kubernetes.io/instance: loki
-                  app.kubernetes.io/component: gateway
-          ports:
-            - protocol: TCP
-              port: http-metrics

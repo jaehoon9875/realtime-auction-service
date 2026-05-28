@@ -12,6 +12,7 @@ alloy:
       loki.write "default_loki_endpoint" {
         endpoint {
           url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+          // dev single-tenant 환경에서는 Loki 기본 tenant ID(fake)를 사용한다
           tenant_id = "fake"
         }
       }
