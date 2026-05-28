@@ -93,11 +93,11 @@ ArgoCD가 SSA로 일관되게 관리하려면 기존 릴리즈를 제거하고 A
 # 1. 기존 Helm 릴리즈 제거 (PVC 등 리소스는 보존)
 helm uninstall kube-prometheus-stack -n monitoring
 
-# 2. ArgoCD가 kube-prometheus-stack을 재설치할 때까지 대기
-#    ArgoCD UI → kube-prometheus-stack → Sync 또는:
-argocd app sync kube-prometheus-stack
+# 2. ArgoCD automated sync가 자동으로 재설치합니다. 아래 명령으로 완료 확인:
+kubectl get pods -n monitoring
 ```
 
+`automated: selfHeal: true` 설정으로 helm uninstall 직후 ArgoCD가 자동으로 재설치합니다.
 재설치 후 모든 리소스의 SSA 필드 매니저가 `argocd-controller`로 설정됩니다.
 
 ## Step 7 — 완료 확인
