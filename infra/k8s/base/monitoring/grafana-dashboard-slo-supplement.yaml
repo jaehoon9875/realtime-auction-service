@@ -1,0 +1,163 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-slo-supplement
+  namespace: monitoring
+  labels:
+    # Grafana sidecar가 이 라벨을 감지해 대시보드를 자동 로드함
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: "SLO"
+data:
+  slo-supplement.json: |
+    {
+      "title": "SLO 보완 지표 (재시작 · Scrape 가용성)",
+      "uid": "slo-supplement",
+      "schemaVersion": 38,
+      "version": 1,
+      "refresh": "30s",
+      "time": { "from": "now-3h", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "namespace",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(kube_pod_container_status_restarts_total, namespace)",
+            "refresh": 2,
+            "includeAll": true,
+            "allValue": ".*",
+            "current": {}
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "Pod 재시작 횟수 (1h 누적)",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}[1h]) > 0",
+              "legendFormat": "{{ namespace }}/{{ pod }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 3 },
+                  { "color": "red", "value": 5 }
+                ]
+              },
+              "custom": { "lineWidth": 2 }
+            }
+          },
+          "options": { "tooltip": { "mode": "multi" } }
+        },
+        {
+          "id": 2,
+          "type": "table",
+          "title": "Scrape 가용성 (up == 0 이면 장애)",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "up{namespace=~\"$namespace\"}",
+              "legendFormat": "{{ job }} / {{ instance }}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              },
+              "custom": { "displayMode": "color-background" }
+            },
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Value" },
+                "properties": [
+                  { "id": "displayName", "value": "상태" },
+                  {
+                    "id": "mappings",
+                    "value": [
+                      { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "options": { "sortBy": [{ "displayName": "상태", "desc": false }] }
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "현재 DOWN 상태 scrape 대상 수",
+          "gridPos": { "x": 0, "y": 8, "w": 6, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "count(up == 0) or vector(0)",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" }
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "재시작 이력 있는 Pod 수 (1h)",
+          "gridPos": { "x": 6, "y": 8, "w": 6, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "count(increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}[1h]) > 0) or vector(0)",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 3 }
+                ]
+              }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" }
+        }
+      ]
+    }
