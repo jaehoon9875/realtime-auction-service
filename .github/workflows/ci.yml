@@ -181,7 +181,12 @@ jobs:
   # main push: 전체 서비스 이미지 빌드·푸시 (CD 태그 일관성)
   docker-build-push:
     needs: ci-success
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+    if: |
+      always() &&
+      needs.ci-success.result == 'success' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      !contains(github.event.head_commit.message, '[skip ci]')
     name: push-${{ matrix.service }}
     runs-on: ubuntu-latest
     permissions:
