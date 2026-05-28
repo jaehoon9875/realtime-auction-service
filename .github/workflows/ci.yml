@@ -181,6 +181,7 @@ jobs:
   # main push: 전체 서비스 이미지 빌드·푸시 (CD 태그 일관성)
   docker-build-push:
     needs: ci-success
+    # always()가 없으면 docs-only push 시 build-and-test skipped → skip 전파로 이 job도 스킵됨
     if: |
       always() &&
       needs.ci-success.result == 'success' &&
