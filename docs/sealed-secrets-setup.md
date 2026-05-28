@@ -116,25 +116,31 @@ kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana
 
 Loki Helm chart 내장 MinIO의 기본 자격증명(`supersecretpassword`)을 SealedSecret으로 교체합니다.
 Loki ArgoCD Application 첫 배포 전에 수행해야 합니다.
+MinIO chart는 [기존 Secret 사용](https://github.com/minio/minio/blob/master/helm/minio/README.md#existing-secret) 시 `rootUser`, `rootPassword` 키를 기대합니다.
+또한 Loki chart가 생성하는 Loki 설정은 `minio.rootUser`, `minio.rootPassword` 값을 S3 접속 정보로 사용하므로,
+Loki Pod에도 같은 Secret을 환경변수로 주입하고 `-config.expand-env=true`를 활성화해야 합니다.
 
 ### Step 1 — SealedSecret 생성
 
 ```bash
 echo -n "MinIO root password: " && read -s MINIO_ROOT_PASSWORD && echo
+echo -n "MinIO logs-user secret key: " && read -s MINIO_LOGS_USER_SECRET_KEY && echo
 printf '%s' "$MINIO_ROOT_PASSWORD" > /tmp/minio-root-password.txt
-unset MINIO_ROOT_PASSWORD
+printf '%s' "$MINIO_LOGS_USER_SECRET_KEY" > /tmp/minio-logs-user-secret-key.txt
+unset MINIO_ROOT_PASSWORD MINIO_LOGS_USER_SECRET_KEY
 
 kubectl create secret generic loki-minio-secret \
   --namespace monitoring \
-  --from-literal=root-user='loki' \
-  --from-file=root-password=/tmp/minio-root-password.txt \
+  --from-literal=rootUser='loki-root' \
+  --from-file=rootPassword=/tmp/minio-root-password.txt \
+  --from-file=logsUserSecretKey=/tmp/minio-logs-user-secret-key.txt \
   --dry-run=client -o yaml \
   | kubeseal --format yaml \
   --controller-name=sealed-secrets \
   --controller-namespace=kube-system \
   > infra/k8s/base/monitoring/loki-minio-sealed-secret.yaml
 
-rm -f /tmp/minio-root-password.txt
+rm -f /tmp/minio-root-password.txt /tmp/minio-logs-user-secret-key.txt
 ```
 
 ### Step 2 — loki/values.yaml에 existingSecret 참조 추가
@@ -142,10 +148,23 @@ rm -f /tmp/minio-root-password.txt
 `infra/helm/loki/values.yaml`의 minio 섹션을 수정합니다:
 
 ```yaml
+global:
+  extraArgs:
+    - -config.expand-env=true
+  extraEnvFrom:
+    - secretRef:
+        name: loki-minio-secret
+
 minio:
   enabled: true
-  auth:
-    existingSecret: loki-minio-secret
+  existingSecret: loki-minio-secret
+  rootUser: ${rootUser}
+  rootPassword: ${rootPassword}
+  users:
+    - accessKey: logs-user
+      existingSecret: loki-minio-secret
+      existingSecretKey: logsUserSecretKey
+      policy: readwrite
 ```
 
 ### Step 3 — kustomization.yaml에 파일 추가
