@@ -1,0 +1,3 @@
+# grafana/tempo 커스텀 설정
+# chart version: 1.24.4 / app version: 2.9.0
+# 기본값으로 설치됨 — OTLP gRPC(4317) · HTTP(4318) 수신 포트 기본 활성화

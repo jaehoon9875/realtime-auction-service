@@ -21,6 +21,12 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc") // Interactive Query REST API 엔드포인트 제공에 사용
     implementation("org.springframework.boot:spring-boot-starter-actuator") // 헬스체크/메트릭 노출에 사용
 
+    // --- 분산 추적 (OTel) ---
+    // micrometer-tracing-bridge-otel: Micrometer Tracing → OTel SDK 브릿지
+    // opentelemetry-exporter-otlp: OTLP HTTP exporter (Tempo로 트레이스 전송)
+    implementation("io.micrometer:micrometer-tracing-bridge-otel")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp")
+
     // --- Kafka Streams ---
     implementation("org.springframework.kafka:spring-kafka") // Kafka 프로듀서/컨슈머 공통 설정 및 통합에 사용
     implementation("org.apache.kafka:kafka-streams") // Streams 토폴로지/State Store 처리에 사용

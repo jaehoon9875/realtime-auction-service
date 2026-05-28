@@ -30,6 +30,8 @@ spec:
             - configMapRef:
                 name: bid-service-configmap
           env:
+            - name: OTEL_SERVICE_NAME
+              value: bid-service
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:

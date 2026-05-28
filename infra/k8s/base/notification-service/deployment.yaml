@@ -30,6 +30,8 @@ spec:
             - configMapRef:
                 name: notification-service-configmap
           env:
+            - name: OTEL_SERVICE_NAME
+              value: notification-service
             # REDIS_HOST 는 Memorystore private IP — GCP Secret Manager 에서 주입
             - name: REDIS_HOST
               valueFrom:

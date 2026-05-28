@@ -30,6 +30,8 @@ spec:
             - configMapRef:
                 name: api-gateway-configmap
           env:
+            - name: OTEL_SERVICE_NAME
+              value: api-gateway
             - name: INTERNAL_REQUEST_SECRET
               valueFrom:
                 secretKeyRef:

@@ -31,6 +31,8 @@ spec:
             - configMapRef:
                 name: user-service-configmap
           env:
+            - name: OTEL_SERVICE_NAME
+              value: user-service
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
