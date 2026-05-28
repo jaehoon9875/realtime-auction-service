@@ -28,6 +28,8 @@ loki:
     enable_api: true
 
 # 내장 MinIO를 오브젝트 스토리지로 사용
+# TODO: 기본 자격증명(supersecretpassword) → SealedSecret으로 교체 필요
+#       배포 전 docs/sealed-secrets-setup.md "Loki MinIO 자격증명 설정" 절차 수행
 minio:
   enabled: true
 
