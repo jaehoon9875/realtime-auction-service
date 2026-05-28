@@ -2,6 +2,12 @@
 # chart version: 85.3.0 / app version: v0.90.1
 # release name: kube-prometheus-stack
 
+prometheus:
+  prometheusSpec:
+    # Exemplar 저장소 활성화 — 메트릭에 붙은 trace_id를 Prometheus가 보존 (Tempo 연동 시 활용)
+    enableFeatures:
+      - exemplar-storage
+
 grafana:
   # admin 비밀번호는 SealedSecret(grafana-admin-secret)으로 관리
   # 비밀번호 변경 시 docs/sealed-secrets-setup.md 참조
@@ -9,3 +15,24 @@ grafana:
     existingSecret: grafana-admin-secret
     userKey: admin-user
     passwordKey: admin-password
+  deleteDatasources:
+    - name: Loki
+      orgId: 1
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      url: http://loki.monitoring:3100
+      access: proxy
+      jsonData:
+        httpHeaderName1: "X-Scope-OrgID"
+        # Loki structured_metadata의 traceId → 로그 본문에서 추출하여 표시
+        # Tempo 연동(#49) 완료 후 datasourceUid: tempo 추가 예정
+        derivedFields:
+          - name: TraceID
+            matcherType: regex
+            matcherRegex: '"traceId"\s*:\s*"([^"]+)"'
+            url: "${__value.raw}"
+            urlDisplayLabel: "TraceID"
+      secureJsonData:
+        httpHeaderValue1: "fake"

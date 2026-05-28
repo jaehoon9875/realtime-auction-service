@@ -1,0 +1,152 @@
+# grafana/alloy 커스텀 설정
+# chart version: 1.6.2 / app version: v1.14.0
+# 역할: 클러스터 전체 로그 수집 → Loki로 전송 (DaemonSet)
+
+alloy:
+  mounts:
+    varlog: true  # 노드 /var/log 마운트 (syslog 수집용)
+
+  configMap:
+    content: |
+      // loki endpoint 정의
+      loki.write "default_loki_endpoint" {
+        endpoint {
+          url = "http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push"
+          tenant_id = "fake"
+        }
+      }
+
+      // 노드 로그 수집
+      local.file_match "node_logs" {
+        path_targets = [{
+            __path__  = "/var/log/syslog",
+            job       = "node/syslog",
+            node_name = sys.env("HOSTNAME"),
+            cluster   = "kubernetes",
+        }]
+      }
+      loki.source.file "node_logs" {
+        targets    = local.file_match.node_logs.targets
+        forward_to = [loki.write.default_loki_endpoint.receiver]
+      }
+
+      // Pod 로그 수집
+      discovery.kubernetes "pod" {
+        role = "pod"
+        selectors {
+          role = "pod"
+          field = "spec.nodeName=" + coalesce(sys.env("HOSTNAME"), constants.hostname)
+        }
+      }
+      discovery.relabel "pod_logs" {
+        targets = discovery.kubernetes.pod.targets
+
+        // --- 스트림 라벨: 낮은 카디널리티만 허용 ---
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          action = "replace"
+          target_label = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action = "replace"
+          target_label = "app"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          action = "replace"
+          target_label = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_container_name"]
+          action = "replace"
+          target_label = "job"
+          separator = "/"
+          replacement = "$1"
+        }
+
+        // --- 파일 경로 (내부용, 라벨 아님) ---
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          action = "replace"
+          target_label = "__path__"
+          separator = "/"
+          replacement = "/var/log/pods/*$1/*.log"
+        }
+
+        // --- pod명은 일단 라벨로 수집 후 loki.process에서 structured_metadata로 이동 ---
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          action = "replace"
+          target_label = "pod"
+        }
+      }
+      loki.source.kubernetes "pod_logs" {
+        targets    = discovery.relabel.pod_logs.output
+        forward_to = [loki.process.pod_logs.receiver]
+      }
+      loki.process "pod_logs" {
+        stage.static_labels {
+          values = {
+            cluster = "kubernetes",
+          }
+        }
+
+        // pod명: 고카디널리티이므로 라벨에서 structured_metadata로 이동 후 라벨 제거
+        stage.structured_metadata {
+          values = {
+            pod = "",
+          }
+        }
+        stage.label_drop {
+          values = ["pod"]
+        }
+
+        // JSON 로그에서 traceId/spanId 추출
+        // micrometer-tracing-bridge-otel이 MDC에 camelCase(traceId/spanId)로 주입하므로
+        // JSON 필드명 "traceId" → 파이프라인 변수 "trace_id"로 리매핑하여
+        // Loki structured_metadata 키를 OTel 표준(snake_case)으로 통일한다.
+        // JSON 파싱 실패 시(텍스트 로그) 해당 스테이지는 무시되므로 비-JSON Pod에도 안전
+        stage.json {
+          expressions = {
+            trace_id = "traceId",
+            span_id  = "spanId",
+          }
+        }
+        stage.structured_metadata {
+          values = {
+            trace_id = "",
+            span_id  = "",
+          }
+        }
+
+        forward_to = [loki.write.default_loki_endpoint.receiver]
+      }
+
+      // 쿠버네티스 이벤트 로그
+      loki.source.kubernetes_events "cluster_events" {
+        job_name   = "integrations/kubernetes/eventhandler"
+        log_format = "logfmt"
+        forward_to = [
+          loki.process.cluster_events.receiver,
+        ]
+      }
+      loki.process "cluster_events" {
+        forward_to = [loki.write.default_loki_endpoint.receiver]
+        stage.static_labels {
+          values = {
+            cluster = "kubernetes",
+          }
+        }
+        stage.labels {
+          values = {
+            kubernetes_cluster_events = "job",
+          }
+        }
+      }
+
+configReloader:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 50Mi
