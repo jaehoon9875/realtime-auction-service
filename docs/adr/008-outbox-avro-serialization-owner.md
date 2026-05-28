@@ -71,7 +71,8 @@ GKE E2E Smoke Test PASS 13 / FAIL 0 달성 (2026-05-27).
 - Good, because 직렬화 책임이 애플리케이션 코드 안에 있어 Schema Registry와의 계약이 컴파일 타임에 검증됨
 - Good, because Debezium은 byte 배열을 그대로 통과시키므로 wire format 변환 오류 가능성 없음
 - Good, because Streams `SpecificAvroSerde`와 동일한 `KafkaAvroSerializer`가 사용되므로 schema id가 일치함
-- Bad, because 앱 빌드 시 Schema Registry URL 접근이 필요하거나, 로컬에서 스키마 파일을 참조해야 함
+- Bad, because 앱 실행 시 Schema Registry 접근이 필요함 (Outbox payload 직렬화)
+- Bad, because Avro Java 클래스 생성을 위해 빌드 시 `infra/avro` 스키마 파일 참조가 필요함
 - Bad, because Outbox payload가 BYTEA이므로 DB 직접 조회 시 가독성 없음
 
 ### Option B: Debezium expand.json.payload + Avro Record 변환
