@@ -10,9 +10,13 @@ Sealed Secrets Controller와 Grafana admin 비밀번호 SealedSecret 초기 설�
 
 ## Step 1 — kubeseal CLI 설치 (최초 1회)
 
+macOS (Homebrew):
+
 ```bash
 brew install kubeseal
 ```
+
+Linux·Windows는 [bitnami-labs/sealed-secrets — Kubeseal](https://github.com/bitnami-labs/sealed-secrets#kubeseal)의 공식 설치 절차를 따릅니다 (바이너리 다운로드, `go install`, Windows는 [Releases](https://github.com/bitnami-labs/sealed-secrets/releases)의 `windows-amd64` 아카이브).
 
 ## Step 2 — 브랜치 push 및 Sealed Secrets Controller 설치 확인
 
@@ -26,7 +30,8 @@ kubectl get pods -n kube-system -l app.kubernetes.io/name=sealed-secrets
 ```
 
 출력 예시:
-```
+
+```text
 NAME                               READY   STATUS    RESTARTS   AGE
 sealed-secrets-XXXXXXXXX-XXXXX    1/1     Running   0          1m
 ```
@@ -34,16 +39,25 @@ sealed-secrets-XXXXXXXXX-XXXXX    1/1     Running   0          1m
 ## Step 3 — SealedSecret 생성
 
 Controller가 Running 상태가 된 후 실행합니다.
-`<원하는_비밀번호>` 부분을 실제 비밀번호로 교체합니다.
+
+> `--from-literal=admin-password='...'`처럼 명령줄에 비밀번호를 넣으면 셸 히스토리·프로세스 목록에 남을 수 있습니다.
+> 아래처럼 `read -s`로 입력하거나, 비밀번호만 담은 파일을 `--from-file`로 넘기세요.
 
 ```bash
+read -s -p "Grafana admin password: " GRAFANA_ADMIN_PASSWORD
+echo
+printf '%s' "$GRAFANA_ADMIN_PASSWORD" > /tmp/grafana-admin-password.txt
+unset GRAFANA_ADMIN_PASSWORD
+
 kubectl create secret generic grafana-admin-secret \
   --namespace monitoring \
   --from-literal=admin-user='admin' \
-  --from-literal=admin-password='<원하는_비밀번호>' \
+  --from-file=admin-password=/tmp/grafana-admin-password.txt \
   --dry-run=client -o yaml \
   | kubeseal --format yaml \
   > infra/k8s/base/monitoring/grafana-admin-sealed-secret.yaml
+
+rm -f /tmp/grafana-admin-password.txt
 ```
 
 생성된 파일은 암호화되어 있으므로 Git에 커밋해도 안전합니다.
