@@ -112,6 +112,36 @@ kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana
 
 ---
 
+## Loki MinIO 자격증명 설정
+
+Loki Helm chart 내장 MinIO의 기본 자격증명(`supersecretpassword`)을 SealedSecret으로 교체합니다.
+SealedSecret 파일과 관련 설정(`loki/values.yaml`, `kustomization.yaml`)은 이미 커밋되어 있으므로,
+클러스터 교체 등으로 재봉인이 필요한 경우 아래 절차로 SealedSecret 파일만 다시 생성하여 커밋합니다.
+
+> 시크릿 키명은 `rootUser` / `rootPassword` (camelCase) 를 사용한다.
+> Loki 차트 내장 MinIO 서브차트(`minio/minio`)가 이 키를 참조하며,
+> Bitnami MinIO 차트의 `auth.existingSecret` / `root-user` 키명과 다르다.
+
+```bash
+echo -n "MinIO root password: " && read -s MINIO_ROOT_PASSWORD && echo
+printf '%s' "$MINIO_ROOT_PASSWORD" > /tmp/minio-root-password.txt
+unset MINIO_ROOT_PASSWORD
+
+kubectl create secret generic loki-minio-secret \
+  --namespace monitoring \
+  --from-literal=rootUser='loki' \
+  --from-file=rootPassword=/tmp/minio-root-password.txt \
+  --dry-run=client -o yaml \
+  | kubeseal --format yaml \
+  --controller-name=sealed-secrets \
+  --controller-namespace=kube-system \
+  > infra/k8s/base/monitoring/loki-minio-sealed-secret.yaml
+
+rm -f /tmp/minio-root-password.txt
+```
+
+---
+
 ## 클러스터 교체 시 재봉인
 
 Sealed Secrets는 클러스터의 공개키로 암호화됩니다.
