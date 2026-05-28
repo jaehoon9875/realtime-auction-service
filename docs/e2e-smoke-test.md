@@ -31,7 +31,7 @@ User A → 경매 생성 → auctionId 반환 확인
   └─ Debezium CDC → auction-events → Kafka Streams State Store (5초 대기)
 User B → 입찰 (재시도 최대 3회)
   └─ bid-service → auction-streams State Store 검증 → bid-events 발행
-User B → 경매 조회 → currentPrice = 입찰가 확인
+User B → 경매 조회 → currentPrice = 입찰가 확인 (최대 6회 × 3초 폴링, CDC→Streams 지연 대응)
 ```
 
 ---
@@ -73,10 +73,12 @@ BASE_URL=http://<gateway-loadbalancer-ip> ./e2e/smoke.sh
   [PASS] User A 로그인
   [PASS] User A accessToken 발급
   ...
+  currentPrice 대기 1/6 (HTTP 200)...
+  [PASS] 경매 조회
   [PASS] currentPrice=15000 반영
 
 ========================================
- 결과: PASS 12  FAIL 0
+ 결과: PASS 13  FAIL 0
 ========================================
 ```
 
@@ -87,8 +89,8 @@ BASE_URL=http://<gateway-loadbalancer-ip> ./e2e/smoke.sh
 `main` 브랜치 push → CI 통과 → CD 실행 순서:
 
 ```text
-1. update-dev-images  이미지 태그를 infra/k8s/overlays/dev/images에 커밋·푸시
-2. smoke-test         ArgoCD sync + rollout 대기 (최대 5분 폴링) → smoke.sh 실행
+1. update-and-deploy  이미지 태그를 infra/k8s/overlays/dev에 커밋·푸시 + kubectl set image로 직접 배포
+2. smoke-test         Gateway 헬스체크 대기 (최대 5분 폴링) → smoke.sh 실행
 ```
 
 ### 대기 로직
@@ -133,11 +135,11 @@ UP 응답이 오면 즉시 smoke test를 실행하고, 5분(30회) 안에 응답
 
 | 이름 | 설명 | 어느 워크플로에서 사용 |
 |---|---|---|
-| `GCP_PROJECT_ID` | GCP 프로젝트 ID | CI (docker-build-push), CD (update-dev-images) |
+| `GCP_PROJECT_ID` | GCP 프로젝트 ID | CI (docker-build-push), CD (update-and-deploy) |
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | Workload Identity Federation 프로바이더 URI | CI (docker-build-push) |
 | `GCP_SERVICE_ACCOUNT` | Artifact Registry 푸시 권한이 있는 서비스 계정 이메일 | CI (docker-build-push) |
-| `APP_ID` | GitHub App ID (브랜치 보호 우회용) | CD (update-dev-images) |
-| `APP_PRIVATE_KEY` | GitHub App 프라이빗 키 (PEM 형식) | CD (update-dev-images) |
+| `APP_ID` | GitHub App ID (브랜치 보호 우회용) | CD (update-and-deploy) |
+| `APP_PRIVATE_KEY` | GitHub App 프라이빗 키 (PEM 형식) | CD (update-and-deploy) |
 
 #### Repository Variables
 

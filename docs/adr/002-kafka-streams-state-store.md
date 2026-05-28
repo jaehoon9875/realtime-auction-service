@@ -52,7 +52,7 @@ bid-events 토픽
 ### Confirmation
 
 `GET /auctions/{id}` 응답의 `currentPrice`가 State Store에서 반환되고, DB `auctions.current_price`와 다를 수 있음을 확인.
-Interactive Query 엔드포인트: Auction Streams 앱 `GET /internal/auctions/{id}/current-price`
+Interactive Query 엔드포인트: Auction Streams 앱 `GET /state/auctions/{id}/highest-bid`
 
 ## Pros and Cons of the Options
 

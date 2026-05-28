@@ -214,10 +214,11 @@ gh secret list -R ${GITHUB_USER}/${GITHUB_REPO}
 | 워크플로 | 트리거 | 동작 |
 |----------|--------|------|
 | `ci.yml` | PR·main push | Gradle test → Docker build (PR) / Artifact Registry push (main) |
-| `cd.yml` | main CI 성공 후 | `infra/k8s/overlays/dev` 이미지 태그 갱신 → Git push |
+| `cd.yml` | main CI 성공 후 | `infra/k8s/overlays/dev` 이미지 태그 갱신 → Git push + **`kubectl set image` 직접 배포** → smoke test |
 
 main push 시 이미지 태그는 커밋 SHA 앞 7자(`SHORT_SHA`)와 `latest` 두 개가 푸시됩니다.
-CD는 `SHORT_SHA`로 Kustomize overlay를 갱신하며, ArgoCD 자동 sync는 Phase 7에서 설정합니다.
+CD는 overlay를 `SHORT_SHA`로 커밋한 뒤, ArgoCD를 거치지 않고 `kubectl set image`로 Java 서비스를 즉시 배포합니다.
+인프라(Kafka, PostgreSQL 등)는 ArgoCD가 overlay 변경을 감지해 sync합니다.
 
 ---
 
@@ -534,3 +535,24 @@ ArgoCD UI에서 각 Application이 `Synced` 상태가 되면 완료입니다.
 
 1. main merge 후 CI/CD로 Artifact Registry 이미지 push·태그 갱신 확인
 2. Pod 기동·Debezium Connector 등록 등 앱 레벨 검증
+
+### Post-deploy 검증 체크리스트
+
+| 항목 | 확인 방법 |
+|------|-----------|
+| 이미지 태그 반영 | `kubectl get deploy -n auction -o custom-columns='NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image'` |
+| Flyway 마이그레이션 | auction/bid Pod 로그에서 `Successfully applied N migrations` 확인 |
+| SCHEMA_REGISTRY_URL 설정 | `kubectl exec -n auction deploy/auction-service-deployment -c auction-service -- printenv SCHEMA_REGISTRY_URL` |
+| Debezium 커넥터 상태 | `kubectl exec -n auction deploy/debezium-deployment -c debezium -- curl -s 'http://localhost:8083/connectors?expand=status'` |
+| E2E smoke | `BASE_URL=http://<GATEWAY_IP> e2e/smoke.sh` |
+
+### Debezium GKE 운영 주의사항
+
+Cloud SQL 환경에서 Debezium 초기 기동 시 아래 작업이 필요합니다.
+
+| 작업 | 대상 DB | 방법 |
+|------|---------|------|
+| `ALTER USER debezium WITH REPLICATION` | auction-db, bid-db | Cloud SQL 콘솔 또는 psql |
+| `GRANT cloudsqllogical TO debezium` | auction-db, bid-db | Cloud SQL 콘솔 또는 psql (Cloud SQL 전용 역할, 수동 적용) |
+| `GRANT SELECT ON outbox_events TO debezium` | auction-db, bid-db | Flyway V9(auction)/V5(bid) 마이그레이션으로 자동 적용 |
+| connector-register Job | 클러스터 | 커넥터 미존재 시 자동 실행, 이미 존재하면 skip — 설정 변경 시 DELETE 선행 필요 |

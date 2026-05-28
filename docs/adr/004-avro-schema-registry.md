@@ -43,6 +43,10 @@ Chosen option: **"Avro + Confluent Schema Registry"**, because Schema Registry�
 Schema Registry에 스키마가 정상 등록되고, producer가 Avro로 직렬화한 메시지를 consumer가 역직렬화하여 정상 소비함을 확인.
 관련 문서: [avro-schema.md](../avro-schema.md), [kafka.md](../kafka.md)
 
+> **직렬화 주체 결정:** 이 ADR은 Avro + Schema Registry 사용을 결정하며, 직렬화를 Debezium이 담당하는 것을 암묵적으로 가정했습니다.
+> 실제 구현에서는 Debezium `AvroConverter`와 Outbox `JSONB` 조합이 Kafka Streams `SpecificAvroSerde`와 wire format 불일치를 유발함이 확인되었습니다.
+> **누가 Avro 직렬화를 수행하는가**에 대한 결정은 [ADR-008](008-outbox-avro-serialization-owner.md)을 참고하세요.
+
 ## Pros and Cons of the Options
 
 ### Avro + Confluent Schema Registry

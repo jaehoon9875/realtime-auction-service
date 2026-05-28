@@ -124,4 +124,11 @@ graph TD
 ```
 
 로컬 개발은 `docker-compose.yml`로 전체 인프라를 로컬에서 구동합니다.
-운영 배포는 GKE 위에서 ArgoCD GitOps로 관리합니다.
+운영 배포는 **하이브리드** 방식으로 관리합니다.
+
+| 대상 | 배포 방식 | 근거 |
+|------|-----------|------|
+| 인프라 (Kafka, PostgreSQL, Redis 등) | ArgoCD GitOps | infra/ overlay 변경 → ArgoCD auto-sync |
+| Java 서비스 (api-gateway, auction, bid 등) | GitHub Actions `kubectl set image` | CD 워크플로(`cd.yml`)가 CI 성공 후 직접 배포 |
+
+상세 워크플로는 [gke-deployment.md](./gke-deployment.md) 참고.

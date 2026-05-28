@@ -14,6 +14,7 @@ MADR(Markdown Architectural Decision Records) 형식으로 작성합니다.
 | [ADR-005](005-resilience4j-circuit-breaker.md) | Resilience4j Circuit Breaker로 장애 격리 | Accepted | 2026-05-18 |
 | [ADR-006](006-oauth2-resource-server-zero-trust.md) | OAuth2 Resource Server로 Zero Trust JWT 인증 전환 | Accepted | 2026-05-19 |
 | [ADR-007](007-kafka-version-alignment.md) | Kafka 버전 정렬 — Apache Kafka 4.1 / Confluent Platform 8.1 기준 통일 | Accepted | 2026-05-22 |
+| [ADR-008](008-outbox-avro-serialization-owner.md) | Outbox payload Avro 직렬화 주체: 애플리케이션 + Debezium BinaryDataConverter pass-through | Accepted | 2026-05-27 |
 
 ## Status 정의
 
