@@ -115,80 +115,30 @@ kubectl get pods -n monitoring -l app.kubernetes.io/name=grafana
 ## Loki MinIO 자격증명 설정
 
 Loki Helm chart 내장 MinIO의 기본 자격증명(`supersecretpassword`)을 SealedSecret으로 교체합니다.
-Loki ArgoCD Application 첫 배포 전에 수행해야 합니다.
-MinIO chart는 [기존 Secret 사용](https://github.com/minio/minio/blob/master/helm/minio/README.md#existing-secret) 시 `rootUser`, `rootPassword` 키를 기대합니다.
-또한 Loki chart가 생성하는 Loki 설정은 `minio.rootUser`, `minio.rootPassword` 값을 S3 접속 정보로 사용하므로,
-Loki Pod에도 같은 Secret을 환경변수로 주입하고 `-config.expand-env=true`를 활성화해야 합니다.
+SealedSecret 파일과 관련 설정(`loki/values.yaml`, `kustomization.yaml`)은 이미 커밋되어 있으므로,
+클러스터 교체 등으로 재봉인이 필요한 경우 아래 절차로 SealedSecret 파일만 다시 생성하여 커밋합니다.
 
-### Step 1 — SealedSecret 생성
+> 시크릿 키명은 `rootUser` / `rootPassword` (camelCase) 를 사용한다.
+> Loki 차트 내장 MinIO 서브차트(`minio/minio`)가 이 키를 참조하며,
+> Bitnami MinIO 차트의 `auth.existingSecret` / `root-user` 키명과 다르다.
 
 ```bash
 echo -n "MinIO root password: " && read -s MINIO_ROOT_PASSWORD && echo
-echo -n "MinIO logs-user secret key: " && read -s MINIO_LOGS_USER_SECRET_KEY && echo
 printf '%s' "$MINIO_ROOT_PASSWORD" > /tmp/minio-root-password.txt
-printf '%s' "$MINIO_LOGS_USER_SECRET_KEY" > /tmp/minio-logs-user-secret-key.txt
-unset MINIO_ROOT_PASSWORD MINIO_LOGS_USER_SECRET_KEY
+unset MINIO_ROOT_PASSWORD
 
 kubectl create secret generic loki-minio-secret \
   --namespace monitoring \
-  --from-literal=rootUser='loki-root' \
+  --from-literal=rootUser='loki' \
   --from-file=rootPassword=/tmp/minio-root-password.txt \
-  --from-file=logsUserSecretKey=/tmp/minio-logs-user-secret-key.txt \
   --dry-run=client -o yaml \
   | kubeseal --format yaml \
   --controller-name=sealed-secrets \
   --controller-namespace=kube-system \
   > infra/k8s/base/monitoring/loki-minio-sealed-secret.yaml
 
-rm -f /tmp/minio-root-password.txt /tmp/minio-logs-user-secret-key.txt
+rm -f /tmp/minio-root-password.txt
 ```
-
-### Step 2 — loki/values.yaml에 existingSecret 참조 추가
-
-`infra/helm/loki/values.yaml`의 minio 섹션을 수정합니다:
-
-```yaml
-global:
-  extraArgs:
-    - -config.expand-env=true
-  extraEnvFrom:
-    - secretRef:
-        name: loki-minio-secret
-
-minio:
-  enabled: true
-  existingSecret: loki-minio-secret
-  rootUser: ${rootUser}
-  rootPassword: ${rootPassword}
-  users:
-    - accessKey: logs-user
-      existingSecret: loki-minio-secret
-      existingSecretKey: logsUserSecretKey
-      policy: readwrite
-```
-
-### Step 3 — kustomization.yaml에 파일 추가
-
-`infra/k8s/base/monitoring/kustomization.yaml`의 `resources`에 추가합니다:
-
-```yaml
-resources:
-  - grafana-admin-sealed-secret.yaml
-  - grafana-dashboard-slo-supplement.yaml
-  - loki-minio-sealed-secret.yaml
-```
-
-### Step 4 — 커밋 및 push
-
-```bash
-git add infra/k8s/base/monitoring/loki-minio-sealed-secret.yaml \
-        infra/k8s/base/monitoring/kustomization.yaml \
-        infra/helm/loki/values.yaml
-git commit -m "infra: Loki MinIO 자격증명 SealedSecret 추가"
-git push
-```
-
-ArgoCD `monitoring-secrets` Application이 SealedSecret을 적용하고, Loki가 해당 자격증명으로 MinIO에 접근합니다.
 
 ---
 

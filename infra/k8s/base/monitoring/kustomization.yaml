@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - grafana-admin-sealed-secret.yaml
   - grafana-dashboard-slo-supplement.yaml
+  - loki-minio-sealed-secret.yaml
