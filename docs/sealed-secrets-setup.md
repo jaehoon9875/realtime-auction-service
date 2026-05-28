@@ -6,7 +6,7 @@ Sealed Secrets Controller와 Grafana admin 비밀번호 SealedSecret 초기 설�
 ## 전제 조건
 
 - GKE 클러스터에 접근 가능한 kubeconfig 설정 완료
-- ArgoCD가 실행 중이고 `infra/kube-prometheus-stack-gitops` 브랜치(또는 main 병합 이후)가 sync 대상
+- ArgoCD가 실행 중이고 main 브랜치가 sync 대상
 
 ## Step 1 — kubeseal CLI 설치 (최초 1회)
 
@@ -20,7 +20,7 @@ Linux·Windows는 [bitnami-labs/sealed-secrets — Kubeseal](https://github.com/
 
 ## Step 2 — 브랜치 push 및 Sealed Secrets Controller 설치 확인
 
-브랜치를 push하면 App-of-Apps가 `sealed-secrets` ArgoCD Application을 감지하고
+main 브랜치에 반영(push/merge)되면 App-of-Apps가 `sealed-secrets` ArgoCD Application을 감지하고
 Helm으로 Controller를 `kube-system`에 자동 설치합니다.
 
 Controller Pod가 Running 상태인지 확인합니다.
@@ -44,8 +44,7 @@ Controller가 Running 상태가 된 후 실행합니다.
 > 아래처럼 `read -s`로 입력하거나, 비밀번호만 담은 파일을 `--from-file`로 넘기세요.
 
 ```bash
-read -s -p "Grafana admin password: " GRAFANA_ADMIN_PASSWORD
-echo
+echo -n "Grafana admin password: " && read -s GRAFANA_ADMIN_PASSWORD && echo
 printf '%s' "$GRAFANA_ADMIN_PASSWORD" > /tmp/grafana-admin-password.txt
 unset GRAFANA_ADMIN_PASSWORD
 
@@ -55,6 +54,8 @@ kubectl create secret generic grafana-admin-secret \
   --from-file=admin-password=/tmp/grafana-admin-password.txt \
   --dry-run=client -o yaml \
   | kubeseal --format yaml \
+  --controller-name=sealed-secrets \
+  --controller-namespace=kube-system \
   > infra/k8s/base/monitoring/grafana-admin-sealed-secret.yaml
 
 rm -f /tmp/grafana-admin-password.txt
@@ -92,11 +93,11 @@ ArgoCD가 SSA로 일관되게 관리하려면 기존 릴리즈를 제거하고 A
 # 1. 기존 Helm 릴리즈 제거 (PVC 등 리소스는 보존)
 helm uninstall kube-prometheus-stack -n monitoring
 
-# 2. ArgoCD가 kube-prometheus-stack을 재설치할 때까지 대기
-#    ArgoCD UI → kube-prometheus-stack → Sync 또는:
-argocd app sync kube-prometheus-stack
+# 2. ArgoCD automated sync가 자동으로 재설치합니다. 아래 명령으로 완료 확인:
+kubectl get pods -n monitoring
 ```
 
+`automated: selfHeal: true` 설정으로 helm uninstall 직후 ArgoCD가 자동으로 재설치합니다.
 재설치 후 모든 리소스의 SSA 필드 매니저가 `argocd-controller`로 설정됩니다.
 
 ## Step 7 — 완료 확인
@@ -119,5 +120,7 @@ Sealed Secrets는 클러스터의 공개키로 암호화됩니다.
 현재 클러스터의 공개키 확인:
 
 ```bash
-kubeseal --fetch-cert --controller-namespace kube-system
+kubeseal --fetch-cert \
+  --controller-name=sealed-secrets \
+  --controller-namespace=kube-system
 ```

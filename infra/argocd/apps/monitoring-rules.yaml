@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-rules
+  namespace: argocd
+  annotations:
+    # PrometheusRule CRD는 kube-prometheus-stack(wave 0)이 설치하므로 wave 1 이후 적용해야 함
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: auction-project
+  source:
+    repoURL: https://github.com/jaehoon9875/realtime-auction-service
+    targetRevision: main
+    path: infra/k8s/base/monitoring-rules
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
