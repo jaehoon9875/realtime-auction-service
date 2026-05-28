@@ -67,16 +67,23 @@ git push
 
 ArgoCD `monitoring-secrets` Application이 SealedSecret을 클러스터에 적용합니다.
 
-## Step 6 — kube-prometheus-stack 최초 sync
+## Step 6 — kube-prometheus-stack 클린 마이그레이션
 
-`kube-prometheus-stack` ArgoCD Application이 기존 Helm 릴리즈를 인계받습니다.
-최초 sync 시 ArgoCD UI에서 OutOfSync 상태로 표시되면 수동으로 Sync를 실행합니다.
+기존 `helm install` CLI로 설치된 릴리즈는 `helm` SSA 필드 매니저가 리소스 소유권을 갖습니다.
+ArgoCD가 SSA로 일관되게 관리하려면 기존 릴리즈를 제거하고 ArgoCD가 처음부터 설치해야 합니다.
+
+> 이 과정에서 Prometheus/Grafana가 약 1-2분간 중단됩니다.
 
 ```bash
+# 1. 기존 Helm 릴리즈 제거 (PVC 등 리소스는 보존)
+helm uninstall kube-prometheus-stack -n monitoring
+
+# 2. ArgoCD가 kube-prometheus-stack을 재설치할 때까지 대기
+#    ArgoCD UI → kube-prometheus-stack → Sync 또는:
 argocd app sync kube-prometheus-stack
 ```
 
-또는 ArgoCD UI → kube-prometheus-stack → Sync 클릭.
+재설치 후 모든 리소스의 SSA 필드 매니저가 `argocd-controller`로 설정됩니다.
 
 ## Step 7 — 완료 확인
 
