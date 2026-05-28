@@ -548,7 +548,7 @@ ArgoCD UI에서 각 Application이 `Synced` 상태가 되면 완료입니다.
 
 ### Debezium GKE 운영 주의사항
 
-Cloud SQL 환경에서 Debezium 초기 기동 시 아래 작업이 필요합니다. 수동 적용 항목은 Terraform/init 코드화 예정입니다.
+Cloud SQL 환경에서 Debezium 초기 기동 시 아래 작업이 필요합니다.
 
 | 작업 | 대상 DB | 방법 |
 |------|---------|------|

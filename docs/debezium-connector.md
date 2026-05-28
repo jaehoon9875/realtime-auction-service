@@ -128,6 +128,8 @@ curl -X DELETE http://localhost:8083/connectors/auction-outbox-connector
 
 ## 자주 발생하는 오류
 
+> 아래 예시는 로컬 환경(docker-compose) 기준입니다. GKE 환경은 slot 이름이 다릅니다(`debezium_auction`, `debezium_bid`).
+
 | 증상 | 원인 | 해결 |
 |------|------|------|
 | `409 Conflict` | 같은 이름의 Connector가 이미 등록됨 | `DELETE` 후 재등록 |

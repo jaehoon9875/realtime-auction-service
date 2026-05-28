@@ -135,11 +135,11 @@ UP 응답이 오면 즉시 smoke test를 실행하고, 5분(30회) 안에 응답
 
 | 이름 | 설명 | 어느 워크플로에서 사용 |
 |---|---|---|
-| `GCP_PROJECT_ID` | GCP 프로젝트 ID | CI (docker-build-push), CD (update-dev-images) |
+| `GCP_PROJECT_ID` | GCP 프로젝트 ID | CI (docker-build-push), CD (update-and-deploy) |
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | Workload Identity Federation 프로바이더 URI | CI (docker-build-push) |
 | `GCP_SERVICE_ACCOUNT` | Artifact Registry 푸시 권한이 있는 서비스 계정 이메일 | CI (docker-build-push) |
-| `APP_ID` | GitHub App ID (브랜치 보호 우회용) | CD (update-dev-images) |
-| `APP_PRIVATE_KEY` | GitHub App 프라이빗 키 (PEM 형식) | CD (update-dev-images) |
+| `APP_ID` | GitHub App ID (브랜치 보호 우회용) | CD (update-and-deploy) |
+| `APP_PRIVATE_KEY` | GitHub App 프라이빗 키 (PEM 형식) | CD (update-and-deploy) |
 
 #### Repository Variables
 
