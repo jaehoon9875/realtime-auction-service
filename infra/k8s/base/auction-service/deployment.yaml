@@ -30,8 +30,6 @@ spec:
             - configMapRef:
                 name: auction-service-configmap
           env:
-            - name: OTEL_SERVICE_NAME
-              value: auction-service
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
