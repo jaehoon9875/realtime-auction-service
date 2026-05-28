@@ -1,0 +1,11 @@
+# prometheus-community/kube-prometheus-stack 커스텀 설정
+# chart version: 85.3.0 / app version: v0.90.1
+# release name: kube-prometheus-stack
+
+grafana:
+  # admin 비밀번호는 SealedSecret(grafana-admin-secret)으로 관리
+  # 비밀번호 변경 시 docs/sealed-secrets-setup.md 참조
+  admin:
+    existingSecret: grafana-admin-secret
+    userKey: admin-user
+    passwordKey: admin-password
