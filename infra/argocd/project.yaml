@@ -16,6 +16,8 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: external-secrets-system
       server: https://kubernetes.default.svc
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
   namespaceResourceWhitelist:
     # Core API
     - group: ""
@@ -37,6 +39,9 @@ spec:
     # External Secrets
     - group: external-secrets.io
       kind: ExternalSecret
+    # Sealed Secrets
+    - group: bitnami.com
+      kind: SealedSecret
     # Strimzi Kafka (네임스페이스 스코프)
     - group: kafka.strimzi.io
       kind: Kafka
