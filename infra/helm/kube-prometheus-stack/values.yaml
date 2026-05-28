@@ -22,7 +22,7 @@ grafana:
     - name: Loki
       type: loki
       uid: loki
-      url: http://loki.monitoring:3100
+      url: http://loki-gateway.monitoring.svc.cluster.local
       access: proxy
       jsonData:
         httpHeaderName1: "X-Scope-OrgID"
