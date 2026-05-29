@@ -8,8 +8,15 @@ reviews:
   review_status: true
   collapse_walkthrough: false
 
+  path_filters:
+    - "!**/build/**"
+    - "!**/generated/**"
+    - "!**/*.class"
+    - "!**/.gradle/**"
+    - "!**/gradlew"
+
   path_instructions:
-    - path: "services/**/*.java"
+    - path: "services/**/src/main/**/*.java"
       instructions: |
         다음 프로젝트 고유 규칙을 기준으로 리뷰:
         - Kafka 직접 발행 금지: 반드시 Outbox Table 저장 → Debezium 경로로만 발행
@@ -17,8 +24,21 @@ reviews:
         - 외부 서비스 호출에 Resilience4j Circuit Breaker / Retry 적용
         - 환경변수 하드코딩 금지: @ConfigurationProperties 또는 application.yml 사용
         - 시크릿(API 키, 비밀번호, JWT secret) 하드코딩 절대 금지
-        - 통합 테스트는 Testcontainers 사용
         - @Transactional 범위가 불필요하게 넓지 않은지 확인 (Outbox 저장이 트랜잭션 내에 포함되어 있는지 확인)
+
+    - path: "services/**/src/test/**/*.java"
+      instructions: |
+        테스트 코드 리뷰 기준:
+        - 통합 테스트는 반드시 Testcontainers 사용 (Mock DB 금지)
+        - 테스트 메서드에 시나리오 의도가 한글로 명시되어 있는지 확인
+        - Mock 남용 여부 확인: 외부 서비스 경계에서만 Mock 허용
+
+    - path: "services/notification-service/**/*.java"
+      instructions: |
+        Notification Service (WebSocket) 리뷰 기준:
+        - WebSocket 연결 관리 시 메모리 누수 가능성 확인 (연결 해제 시 리소스 정리 여부)
+        - 알림 이벤트 수신은 반드시 Kafka Consumer를 통해서만 처리 (직접 DB 폴링 금지)
+        - WebSocket 세션 상태는 서버 메모리에만 저장 (DB 직접 저장 금지)
 
     - path: "streams/**/*.java"
       instructions: |
@@ -29,11 +49,23 @@ reviews:
         - 이벤트 스키마 변경 시 Confluent Schema Registry 호환성 확인 (Avro)
         - 예외 처리: DeserializationExceptionHandler, ProductionExceptionHandler 구현 여부 확인
 
-    - path: "k8s/**"
+    - path: "infra/k8s/**"
       instructions: |
         ArgoCD 자동 배포 대상이므로 변경 시 영향도를 반드시 확인.
         시크릿은 Secret 리소스로 분리되어 있는지 확인.
         ConfigMap/Secret 변경 시 관련 Deployment의 롤링 업데이트 트리거 여부 확인.
+
+    - path: "infra/helm/**"
+      instructions: |
+        Helm 차트 변경 시 영향 범위 확인:
+        - values.yaml의 민감 값(비밀번호, 키)이 하드코딩되어 있지 않은지 확인
+        - 모니터링 스택(Prometheus, Grafana, Loki, Tempo) 변경 시 기존 대시보드·얼럿 영향도 확인
+
+    - path: "infra/argocd/**"
+      instructions: |
+        ArgoCD 앱 정의 변경 시 주의사항:
+        - syncPolicy 변경(특히 automated 활성화/비활성화)은 배포 동작에 즉각 영향
+        - targetRevision 변경 시 배포 대상 브랜치/태그가 의도에 맞는지 확인
 
     - path: "infra/terraform/**"
       instructions: |
