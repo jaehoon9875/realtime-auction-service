@@ -18,6 +18,7 @@ loki:
           period: 24h
   compactor:
     retention_enabled: true  # 이 설정이 없으면 retention_period가 무시됨
+    delete_request_store: s3  # Loki 3.x에서 retention 활성화 시 삭제 요청 저장소 지정 필수
   limits_config:
     allow_structured_metadata: true
     volume_enabled: true

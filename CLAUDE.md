@@ -11,8 +11,6 @@ Debezium CDC를 활용한 Outbox Pattern, WebSocket 기반 실시간 알림을 �
 
 ## 현재 진행 상태
 
-M1·M2·M3·M4·M5 완료. M6(Notification Service + WebSocket) 진행 예정.
-
 마일스톤 진행: GitHub Milestones (https://github.com/jaehoon9875/realtime-auction-service/milestones)
 이슈 추적: GitHub Issues (https://github.com/jaehoon9875/realtime-auction-service/issues)
 초기 기획 문서: docs/PLAN.md (마일스톤별 설계 의도·완료 기준)
@@ -30,6 +28,7 @@ M1·M2·M3·M4·M5 완료. M6(Notification Service + WebSocket) 진행 예정.
 
 - 커밋: `type: 설명` (type 목록: feat, fix, refactor, docs, infra, test, chore)
 - 브랜치: feature/{기능명}, fix/{버그명}
+- PR 생성 시 `.github/PULL_REQUEST_TEMPLATE.md` 형식에 맞춰 변경 요약, 변경 유형, 체크리스트, 관련 이슈를 작성한다.
 
 ## 주석 작성 규칙
 
