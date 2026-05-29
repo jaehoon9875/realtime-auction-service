@@ -150,19 +150,49 @@ secret 값과 무관하게 차트 기본값(`root-user` / `supersecretpassword`)
 
 ```yaml
 loki:
-  extraEnvFrom:
-    - secretRef:
-        name: loki-minio-secret   # rootUser / rootPassword 를 환경변수로 주입
   structuredConfig:
     common:
       storage:
         s3:
           access_key_id: "${rootUser}"       # Loki가 기동 시 환경변수로 치환
           secret_access_key: "${rootPassword}"
+
+singleBinary:
+  extraArgs:
+    - -config.expand-env=true               # ${VAR} 치환 활성화 (기본값 false)
+  extraEnvFrom:
+    - secretRef:
+        name: loki-minio-secret             # rootUser / rootPassword 를 환경변수로 주입
 ```
 
-`extraEnvFrom`으로 secret 값을 환경변수로 주입하고, `structuredConfig`의 `${VAR}` 구문을 통해
-Loki가 기동 시 실제 자격증명으로 치환합니다. 자격증명을 values.yaml에 평문으로 노출하지 않아도 됩니다.
+`singleBinary.extraEnvFrom`으로 secret 값을 환경변수로 주입하고, `-config.expand-env=true` 플래그와
+`structuredConfig`의 `${VAR}` 구문을 통해 Loki가 기동 시 실제 자격증명으로 치환합니다.
+
+> `loki.extraEnvFrom`은 Distributed/SimpleScalable 모드에서만 동작하며, SingleBinary 템플릿은 `singleBinary.extraEnvFrom`만 참조합니다.
+
+---
+
+## Loki MinIO 버킷 생성
+
+MinIO는 PVC에 데이터를 저장하지만 **버킷은 자동 생성되지 않습니다.**
+클러스터 교체 또는 MinIO PVC 초기화 후에는 아래 절차로 버킷을 수동 생성해야 합니다.
+
+```bash
+kubectl exec loki-minio-0 -n monitoring -- sh -c "
+  mc alias set local http://localhost:9000 <rootUser> <rootPassword> && \
+  mc mb local/chunks && \
+  mc mb local/ruler
+"
+```
+
+버킷 생성 확인:
+
+```bash
+kubectl exec loki-minio-0 -n monitoring -- mc ls local
+```
+
+> `chunks` — 로그 데이터 저장소 (필수)
+> `ruler` — 알럿 규칙 저장소 (필수)
 
 ---
 
