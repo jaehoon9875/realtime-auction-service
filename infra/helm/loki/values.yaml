@@ -5,6 +5,15 @@
 deploymentMode: SingleBinary
 
 loki:
+  extraEnvFrom:
+    - secretRef:
+        name: loki-minio-secret
+  structuredConfig:
+    common:
+      storage:
+        s3:
+          access_key_id: "${rootUser}"
+          secret_access_key: "${rootPassword}"
   commonConfig:
     replication_factor: 1
   schemaConfig:

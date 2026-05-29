@@ -140,6 +140,30 @@ kubectl create secret generic loki-minio-secret \
 rm -f /tmp/minio-root-password.txt
 ```
 
+### values.yaml 연동 주의사항
+
+`minio.existingSecret`만 설정하면 MinIO 자체는 올바른 자격증명으로 기동하지만,
+**Loki Helm 차트 템플릿은 `minio.rootUser` / `minio.rootPassword` Helm 값을 기준으로 Loki 설정 파일을 생성**하기 때문에
+secret 값과 무관하게 차트 기본값(`root-user` / `supersecretpassword`)이 Loki ConfigMap에 하드코딩됩니다.
+
+이를 방지하기 위해 `infra/helm/loki/values.yaml`에 아래 설정이 반드시 포함되어야 합니다.
+
+```yaml
+loki:
+  extraEnvFrom:
+    - secretRef:
+        name: loki-minio-secret   # rootUser / rootPassword 를 환경변수로 주입
+  structuredConfig:
+    common:
+      storage:
+        s3:
+          access_key_id: "${rootUser}"       # Loki가 기동 시 환경변수로 치환
+          secret_access_key: "${rootPassword}"
+```
+
+`extraEnvFrom`으로 secret 값을 환경변수로 주입하고, `structuredConfig`의 `${VAR}` 구문을 통해
+Loki가 기동 시 실제 자격증명으로 치환합니다. 자격증명을 values.yaml에 평문으로 노출하지 않아도 됩니다.
+
 ---
 
 ## 클러스터 교체 시 재봉인
