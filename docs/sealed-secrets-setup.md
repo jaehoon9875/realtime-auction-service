@@ -178,8 +178,11 @@ MinIO는 PVC에 데이터를 저장하지만 **버킷은 자동 생성되지 않
 클러스터 교체 또는 MinIO PVC 초기화 후에는 아래 절차로 버킷을 수동 생성해야 합니다.
 
 ```bash
+MINIO_USER=$(kubectl get secret loki-minio-secret -n monitoring -o jsonpath='{.data.rootUser}' | base64 --decode)
+MINIO_PASS=$(kubectl get secret loki-minio-secret -n monitoring -o jsonpath='{.data.rootPassword}' | base64 --decode)
+
 kubectl exec loki-minio-0 -n monitoring -- sh -c "
-  mc alias set local http://localhost:9000 <rootUser> <rootPassword> && \
+  mc alias set local http://localhost:9000 ${MINIO_USER} ${MINIO_PASS} && \
   mc mb local/chunks && \
   mc mb local/ruler
 "
