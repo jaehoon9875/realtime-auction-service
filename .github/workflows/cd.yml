@@ -119,7 +119,7 @@ jobs:
         run: |
           for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
             echo "${svc} rollout 대기 중..."
-            kubectl rollout status deployment/${svc}-deployment -n auction --timeout=600s
+            kubectl rollout status deployment/${svc}-deployment -n auction --timeout=300s
           done
 
   smoke-test:
