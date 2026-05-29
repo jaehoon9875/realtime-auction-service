@@ -23,12 +23,27 @@ spring:
       properties:
         schema.registry.url: ${SCHEMA_REGISTRY_URL}
         specific.avro.reader: true
+    listener:
+      observation-enabled: true
   security:
     oauth2:
       resourceserver:
         jwt:
           jwk-set-uri: ${JWK_SET_URI}
 
+management:
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
 app:
   kafka:
     topics:

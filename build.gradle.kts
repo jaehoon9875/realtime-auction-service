@@ -28,11 +28,10 @@ subprojects {
         add("implementation", "org.springframework.boot:spring-boot-starter-actuator")
 
         // --- 분산 추적 (OTel) ---
-        // micrometer-tracing-bridge-otel: Micrometer Tracing → OTel SDK 브릿지
-        // opentelemetry-exporter-otlp: OTLP HTTP exporter (Tempo로 트레이스 전송)
+        // spring-boot-starter-opentelemetry: Spring Boot 4.x OTel 통합 스타터
+        // micrometer-tracing-bridge-otel + opentelemetry-exporter-otlp + 자동구성(OtlpTracingAutoConfiguration) 포함
         // 버전은 Spring Boot BOM이 관리
-        add("implementation", "io.micrometer:micrometer-tracing-bridge-otel")
-        add("implementation", "io.opentelemetry:opentelemetry-exporter-otlp")
+        add("implementation", "org.springframework.boot:spring-boot-starter-opentelemetry")
 
         // --- JWT (jjwt-api: 인터페이스, impl/jackson: 런타임 구현체) ---
         add("implementation", "io.jsonwebtoken:jjwt-api:0.12.7")

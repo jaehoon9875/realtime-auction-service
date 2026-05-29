@@ -20,6 +20,19 @@ spring:
         default.deserialization.exception.handler: com.jaehoon.streams.auction.exception.DlqExceptionHandler
         default.production.exception.handler: com.jaehoon.streams.auction.exception.DlqExceptionHandler
 
+management:
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
 auction:
   streams:
     # 우선순위: AUCTION_STREAMS_* (Spring 표준) → 구 env 예시(PUNCTUATOR_INTERVAL_SECONDS 등)
