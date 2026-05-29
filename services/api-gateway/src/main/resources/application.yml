@@ -89,6 +89,15 @@ springdoc:
   api-docs:
     # Gateway 자체는 문서화할 컨트롤러가 없으므로 비활성화
     enabled: false
+management:
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
 app:
   security:
     # Gateway가 받는 외부 경로 (StripPrefix 전). user-service의 /users/* 와 1:1 대응

@@ -55,6 +55,15 @@ app:
     connect-timeout-ms: ${AUCTION_STREAMS_CONNECT_TIMEOUT:2000}
     read-timeout-ms: ${AUCTION_STREAMS_READ_TIMEOUT:3000}
 
+management:
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+  tracing:
+    sampling:
+      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
 resilience4j:
   retry:
     instances:
