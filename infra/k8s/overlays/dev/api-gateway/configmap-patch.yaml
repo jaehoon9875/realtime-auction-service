@@ -10,3 +10,5 @@ data:
   AUCTION_SERVICE_URI: http://auction-service-service:8081
   BID_SERVICE_URI: http://bid-service-service:8082
   NOTIFICATION_SERVICE_URI: http://notification-service-service:8084
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: http://tempo.monitoring:4318/v1/traces
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"

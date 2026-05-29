@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tempo-network-policy
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: tempo
+  policyTypes:
+    - Ingress
+  ingress:
+    # auction 네임스페이스 서비스 → OTLP HTTP(4318) 스팬 전송 허용
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: auction
+      ports:
+        - port: 4318
+          protocol: TCP
+    # Grafana → 쿼리 API(3200) 허용
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: grafana
+      ports:
+        - port: 3200
+          protocol: TCP

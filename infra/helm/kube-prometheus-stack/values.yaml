@@ -15,8 +15,17 @@ grafana:
     existingSecret: grafana-admin-secret
     userKey: admin-user
     passwordKey: admin-password
+  sidecar:
+    datasources:
+      # kube-prometheus-stack이 자동 생성하는 Prometheus 데이터소스에
+      # Exemplar → Tempo 링크 설정 추가
+      exemplarTraceIdDestinations:
+        datasourceUid: tempo
+        traceIdLabelName: trace_id
   deleteDatasources:
     - name: Loki
+      orgId: 1
+    - name: Tempo
       orgId: 1
   additionalDataSources:
     - name: Loki
@@ -26,13 +35,29 @@ grafana:
       access: proxy
       jsonData:
         httpHeaderName1: "X-Scope-OrgID"
-        # Loki structured_metadata의 traceId → 로그 본문에서 추출하여 표시
-        # Tempo 연동(#49) 완료 후 datasourceUid: tempo 추가 예정
+        # 로그 본문의 traceId 값을 추출하여 Tempo 트레이스 링크로 연결
         derivedFields:
           - name: TraceID
             matcherType: regex
             matcherRegex: '"traceId"\s*:\s*"([^"]+)"'
             url: "${__value.raw}"
-            urlDisplayLabel: "TraceID"
+            datasourceUid: tempo
+            urlDisplayLabel: "View trace in Tempo"
       secureJsonData:
         httpHeaderValue1: "fake"
+    - name: Tempo
+      type: tempo
+      uid: tempo
+      url: http://tempo.monitoring:3200
+      access: proxy
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: loki
+          filterByTraceID: true
+          filterBySpanID: false
+          tags:
+            # OTel resource attribute service.name → Loki label app으로 매핑
+            - key: service.name
+              value: app
+        lokiSearch:
+          datasourceUid: loki

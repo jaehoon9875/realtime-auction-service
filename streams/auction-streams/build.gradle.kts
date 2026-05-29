@@ -19,7 +19,7 @@ val confluentVersion = "8.1.0"
 dependencies {
     // --- Spring Boot Starters ---
     implementation("org.springframework.boot:spring-boot-starter-webmvc") // Interactive Query REST API 엔드포인트 제공에 사용
-    implementation("org.springframework.boot:spring-boot-starter-actuator") // 헬스체크/메트릭 노출에 사용
+    // Actuator, OTel 추적(micrometer-tracing-bridge-otel, opentelemetry-exporter-otlp), Lombok, spring-boot-starter-test 등은 루트 build.gradle.kts subprojects에서 공통 적용
 
     // --- Kafka Streams ---
     implementation("org.springframework.kafka:spring-kafka") // Kafka 프로듀서/컨슈머 공통 설정 및 통합에 사용
@@ -32,7 +32,7 @@ dependencies {
     implementation("io.confluent:kafka-schema-registry-client:$confluentVersion") // Schema Registry 연동에 사용
 
     // --- Test ---
-    testImplementation("org.springframework.boot:spring-boot-starter-test") // JUnit5 + Mockito + AssertJ
+    // spring-boot-starter-test, Lombok(테스트), JUnit Platform 런처는 루트 build.gradle.kts subprojects에서 공통 적용
     testImplementation("org.springframework.kafka:spring-kafka-test") // Embedded Kafka 기반 테스트 유틸에 사용
     testImplementation("org.apache.kafka:kafka-streams-test-utils") // TopologyTestDriver 제공
 }
