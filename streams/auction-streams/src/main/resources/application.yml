@@ -21,6 +21,10 @@ spring:
         default.production.exception.handler: com.jaehoon.streams.auction.exception.DlqExceptionHandler
 
 management:
+  otlp:
+    metrics:
+      export:
+        enabled: false
   opentelemetry:
     tracing:
       export:

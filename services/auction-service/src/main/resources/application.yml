@@ -66,6 +66,10 @@ app:
     read-timeout-ms: ${AUCTION_STREAMS_READ_TIMEOUT:3000}
 
 management:
+  otlp:
+    metrics:
+      export:
+        enabled: false
   opentelemetry:
     tracing:
       export:
