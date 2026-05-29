@@ -5,9 +5,6 @@
 deploymentMode: SingleBinary
 
 loki:
-  extraEnvFrom:
-    - secretRef:
-        name: loki-minio-secret
   structuredConfig:
     common:
       storage:
@@ -46,6 +43,11 @@ minio:
 # SingleBinary 모드: 단일 파드가 모든 역할 수행
 singleBinary:
   replicas: 1
+  extraArgs:
+    - -config.expand-env=true
+  extraEnvFrom:
+    - secretRef:
+        name: loki-minio-secret
 
 # SingleBinary 모드에서 개별 컴포넌트 비활성화
 read:
