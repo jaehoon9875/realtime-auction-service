@@ -374,6 +374,13 @@ Auth Proxy 사이드카는 각 서비스 Deployment에 이미 정의되어 있�
 GKE 클러스터에 kubectl context가 설정된 상태에서 **프로젝트 루트**에서 순서대로 실행합니다 (4절 참고).
 각 설치는 1회성 작업입니다.
 
+> **시크릿 관리 방식**: 이 프로젝트는 시크릿 종류에 따라 두 가지 방식을 병행합니다.
+> - **앱 시크릿** (DB 패스워드, JWT 키, 내부 인증 토큰 등): GCP Secret Manager → External Secrets Operator → K8s Secret (7절 참고)
+> - **모니터링 시크릿** (Grafana admin 패스워드, Loki MinIO 자격증명): Sealed Secrets (9-4절 이후 [sealed-secrets-setup.md](./sealed-secrets-setup.md) 참고)
+>
+> 앱 시크릿은 GCP 관리형이라 클러스터 재생성 시에도 재등록 없이 ESO가 자동 주입합니다.
+> 모니터링 시크릿은 클러스터 공개키로 봉인되므로 클러스터 교체 시 재봉인이 필요합니다.
+
 ### 9-0. 앱 네임스페이스 생성
 
 Strimzi Operator는 `watchNamespaces`에 지정한 namespace가 **미리 존재**해야 설치됩니다.
@@ -490,6 +497,9 @@ Grafana 초기 패스워드 확인:
 kubectl -n monitoring get secret kube-prometheus-stack-grafana \
   -o jsonpath="{.data.admin-password}" | base64 -d && echo
 ```
+
+> **다음 단계**: 10절(App-of-Apps 등록) 완료 후 Grafana admin 패스워드와 Loki MinIO 자격증명을 Sealed Secret으로 교체해야 합니다.
+> [sealed-secrets-setup.md](./sealed-secrets-setup.md)를 따라 SealedSecret 생성 → kube-prometheus-stack 클린 마이그레이션까지 진행합니다.
 
 ---
 

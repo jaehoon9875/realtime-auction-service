@@ -10,7 +10,42 @@ Kafka Streams State Store로 실시간 최고가를 관리하고, WebSocket으�
 
 ## 전체 아키텍처
 
-전체 아키텍처 개요는 [README.md](../README.md#architecture)를 참고합니다.
+```mermaid
+sequenceDiagram
+    actor Client
+    participant GW as API Gateway
+    participant AS as Auction/Bid Service
+    participant DB as PostgreSQL (Outbox)
+    participant DEB as Debezium CDC
+    participant KF as Kafka
+    participant KS as Kafka Streams
+    participant NS as Notification Service
+    participant WS as WebSocket (Client)
+
+    Client->>GW: REST 요청 (입찰 등) + JWT
+    GW->>GW: JWT 검증 + X-Internal-Request-Token 주입
+    GW->>AS: 요청 전달
+    AS->>DB: 도메인 저장 + Outbox 이벤트 동일 트랜잭션 기록
+    DB-->>AS: commit
+    AS-->>Client: 응답
+
+    DEB->>DB: WAL(Write-Ahead Log) 스트리밍
+    DEB->>KF: bid-events / auction-events 발행 (Avro, BinaryDataConverter)
+
+    KF->>KS: bid-events 소비
+    KS->>KS: State Store 최고가 갱신
+    KS->>KS: Windowed Aggregation (입찰 급증 탐지)
+    KS->>KF: notification-events 발행 (AUCTION_WON / OUTBID)
+
+    KS->>KS: Punctuator — 30초마다 endsAt 체크
+    KS->>KF: notification-events 발행 (AUCTION_CLOSED)
+
+    KF->>NS: notification-events 소비
+    NS->>NS: Redis에서 WebSocket 세션 조회
+    NS->>WS: 실시간 알림 push
+```
+
+서비스·포트 구성 개요는 아래 [서비스 구성](#서비스-구성) 표를 참고합니다.
 
 ---
 

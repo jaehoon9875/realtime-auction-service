@@ -5,16 +5,19 @@
 ## 문서 목록
 
 - PLAN.md: 마일스톤별 설계 의도·완료 기준 기록 (초기 기획 문서). 진행 상태는 GitHub Milestones에서 관리
-- ISSUES.md: M1~M5 해결된 이슈 아카이브. 신규 이슈는 GitHub Issues에서 관리
 - architecture.md: 전체 아키텍처, 서비스 간 관계, 핵심 설계 결정 및 근거(경매 생명주기·마감 정책 포함)
 - local-dev.md: 로컬 개발 환경 구성 및 docker-compose 운영 가이드
+- gke-deployment.md: GCP 인프라 프로비저닝 및 GKE 배포 실행 순서
+- sealed-secrets-setup.md: Sealed Secrets Controller 설치 및 모니터링 시크릿 봉인 절차
 - api.md: REST는 Swagger UI/OpenAPI 정본, WebSocket·레거시 수동 명세 포함
 - schema.md: 서비스별 DB 스키마 (PostgreSQL)
 - kafka.md: Kafka 토픽 목록, 이벤트 스키마 (Avro), 파티셔닝 전략
 - avro-schema.md: Schema Registry 등록 절차, `infra/avro` 스크립트와의 관계
+- debezium-connector.md: Debezium 커넥터 설정 및 등록 방법
+- internal-service-auth.md: Gateway ↔ 내부 서비스 간 Pre-shared Secret 인증 설정 가이드
 - adr/: MADR 형식 아키텍처 의사결정 기록. 각 결정의 Context·선택 근거·고려한 대안 포함 (adr/README.md 참고)
 - e2e-smoke-test.md: E2E Smoke Test 설명, 로컬 실행 방법, GitHub Secrets/Variables 전체 등록 가이드
-- ai-workflows.md: AI 자동화 워크플로우 목록 및 구현 계획 (M7 도입 예정)
+- preview-deploy.md: feature 브랜치를 main 머지 없이 GKE dev 환경에서 검증하는 워크플로 가이드
 - ../CHANGELOG.md: 마일스톤별 변경 이력 (Keep a Changelog 형식, 루트에 위치)
 
 ## 문서 업데이트 규칙

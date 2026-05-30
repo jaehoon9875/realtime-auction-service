@@ -87,25 +87,15 @@ app:
 
 ---
 
-## K8s 환경에서의 설정
+## K8s(GKE) 환경에서의 설정
 
-로컬 `.env` 대신 Kubernetes Secret을 사용합니다.
+GKE 배포에서는 직접 K8s Secret을 생성하지 않습니다.
+**GCP Secret Manager → External Secrets Operator → K8s Secret** 방식으로 자동 관리됩니다.
 
-```bash
-kubectl create secret generic internal-auth-secret \
-  --from-literal=INTERNAL_REQUEST_SECRET=<생성한_값>
-```
+`gke-deployment.md` 7절에 따라 GCP Secret Manager에 `internal-request-secret`을 등록하면,
+ESO가 K8s Secret을 자동 생성하고 Gateway/auction-service Pod에 주입합니다.
 
-Gateway와 auction-service Deployment 양쪽에 동일한 Secret을 마운트합니다.
-
-```yaml
-# Deployment spec.containers.env
-- name: INTERNAL_REQUEST_SECRET
-  valueFrom:
-    secretKeyRef:
-      name: internal-auth-secret
-      key: INTERNAL_REQUEST_SECRET
-```
+> 시크릿 등록 방법은 [gke-deployment.md — 7. GCP Secret Manager](./gke-deployment.md#7-gcp-secret-manager--시크릿-등록)를 참고하세요.
 
 ---
 
