@@ -44,3 +44,4 @@
 | [sealed-secrets-setup.md](sealed-secrets-setup.md) | Sealed Secrets Controller 설치 및 모니터링 시크릿 봉인 절차 |
 | [e2e-smoke-test.md](e2e-smoke-test.md) | E2E Smoke Test 시나리오, 파일 구조, CD 파이프라인 연동 가이드 |
 | [preview-deploy.md](preview-deploy.md) | feature 브랜치를 main 머지 없이 GKE dev 환경에서 검증하는 워크플로 가이드 |
+| [observability.md](observability.md) | Prometheus, Grafana, Loki, Tempo, Alloy 구성과 배포 후 검증 방법 |

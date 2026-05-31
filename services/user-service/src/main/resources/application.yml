@@ -55,6 +55,10 @@ app:
     access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:900000}      # 15분
     refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:604800000}  # 7일
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
   otlp:
     metrics:
       export:

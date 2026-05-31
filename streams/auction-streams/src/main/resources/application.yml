@@ -21,6 +21,10 @@ spring:
         default.production.exception.handler: com.jaehoon.streams.auction.exception.DlqExceptionHandler
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
   otlp:
     metrics:
       export:

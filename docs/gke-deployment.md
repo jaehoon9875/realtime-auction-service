@@ -555,6 +555,7 @@ ArgoCD UI에서 각 Application이 `Synced` 상태가 되면 완료입니다.
 | SCHEMA_REGISTRY_URL 설정 | `kubectl exec -n auction deploy/auction-service-deployment -c auction-service -- printenv SCHEMA_REGISTRY_URL` |
 | Debezium 커넥터 상태 | `kubectl exec -n auction deploy/debezium-deployment -c debezium -- curl -s 'http://localhost:8083/connectors?expand=status'` |
 | E2E smoke | `BASE_URL=http://<GATEWAY_IP> e2e/smoke.sh` |
+| Observability 수집 상태 | [observability.md](observability.md)의 배포 후 검증 절차 실행 |
 
 ### Debezium GKE 운영 주의사항
 

@@ -12,6 +12,9 @@ spec:
     metadata:
       labels:
         app: bid-service
+        app.kubernetes.io/name: bid-service
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/part-of: realtime-auction-service
     spec:
       serviceAccountName: bid-service-serviceaccount
       tolerations:

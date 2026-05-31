@@ -12,6 +12,9 @@ spec:
     metadata:
       labels:
         app: auction-service
+        app.kubernetes.io/name: auction-service
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/part-of: realtime-auction-service
     spec:
       serviceAccountName: auction-service-serviceaccount
       tolerations:

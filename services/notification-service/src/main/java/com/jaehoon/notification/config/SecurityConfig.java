@@ -15,8 +15,10 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
-    // Kubernetes liveness/readiness 프로브는 인증 없이 접근 허용
-    private static final String[] HEALTH_ENDPOINTS = { "/actuator/health", "/actuator/health/**" };
+    // Kubernetes 프로브와 Prometheus scrape 요청은 인증 없이 접근 허용
+    private static final String[] MONITORING_ENDPOINTS = {
+            "/actuator/health", "/actuator/health/**", "/actuator/prometheus"
+    };
 
     /**
      * WebSocket 핸드셰이크 및 HTTP 요청에 JWT 인증을 적용한다.
@@ -27,7 +29,7 @@ public class SecurityConfig {
                 // Bearer 토큰 기반 인증이므로 쿠키를 사용하지 않아 CSRF 방어 불필요
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers(HEALTH_ENDPOINTS).permitAll()
+                        .pathMatchers(MONITORING_ENDPOINTS).permitAll()
                         // WebSocket 핸드셰이크 시 JWT 인증 수행 (업그레이드 전 401 반환)
                         .pathMatchers("/ws/**").authenticated()
                         .anyExchange().authenticated())

@@ -156,3 +156,10 @@ configReloader:
     requests:
       cpu: 10m
       memory: 50Mi
+
+controller:
+  tolerations:
+    - key: "spot"
+      operator: "Equal"
+      value: "true"
+      effect: "NoSchedule"

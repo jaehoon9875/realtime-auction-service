@@ -32,6 +32,10 @@ spring:
           jwk-set-uri: ${JWK_SET_URI}
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
   otlp:
     metrics:
       export:

@@ -12,6 +12,9 @@ spec:
     metadata:
       labels:
         app: auction-streams
+        app.kubernetes.io/name: auction-streams
+        app.kubernetes.io/component: stream-processor
+        app.kubernetes.io/part-of: realtime-auction-service
     spec:
       serviceAccountName: auction-streams-serviceaccount
       # Streams는 RocksDB State Store를 사용하므로 default 풀(안정 노드)에 배치

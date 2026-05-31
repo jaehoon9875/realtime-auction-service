@@ -22,8 +22,10 @@ import org.springframework.security.web.SecurityFilterChain;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    // Kubernetes liveness/readiness 프로브는 인증 없이 접근 허용
-    private static final String[] HEALTH_ENDPOINTS = { "/actuator/health", "/actuator/health/**" };
+    // Kubernetes 프로브와 Prometheus scrape 요청은 인증 없이 접근 허용
+    private static final String[] MONITORING_ENDPOINTS = {
+            "/actuator/health", "/actuator/health/**", "/actuator/prometheus"
+    };
 
     private final InternalRequestTokenFilter internalRequestTokenFilter;
 
@@ -39,8 +41,8 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 인증 요청 권한 설정
                 .authorizeHttpRequests(auth -> auth
-                        // Kubernetes liveness/readiness 프로브는 인증 없이 접근 허용
-                        .requestMatchers(HEALTH_ENDPOINTS).permitAll()
+                        // Kubernetes 프로브와 Prometheus scrape 요청은 인증 없이 접근 허용
+                        .requestMatchers(MONITORING_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.POST, "/bids").authenticated()
                         .requestMatchers(HttpMethod.GET, "/bids/me").authenticated()
                         .anyRequest().permitAll())

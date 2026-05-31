@@ -26,6 +26,7 @@ subprojects {
     dependencies {
         // --- 운영 모니터링 (Actuator) ---
         add("implementation", "org.springframework.boot:spring-boot-starter-actuator")
+        add("runtimeOnly", "io.micrometer:micrometer-registry-prometheus")
 
         // --- 분산 추적 (OTel) ---
         // spring-boot-starter-opentelemetry: Spring Boot 4.x OTel 통합 스타터

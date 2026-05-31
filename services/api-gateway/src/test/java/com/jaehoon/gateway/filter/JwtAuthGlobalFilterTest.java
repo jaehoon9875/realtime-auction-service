@@ -52,7 +52,8 @@ class JwtAuthGlobalFilterTest {
                 "/api/users/signup",
                 "/api/users/login",
                 "/api/users/refresh",
-                "/actuator/health"));
+                "/actuator/health",
+                "/actuator/prometheus"));
         filter = new JwtAuthGlobalFilter(properties, securityProperties);
     }
 
@@ -103,6 +104,21 @@ class JwtAuthGlobalFilterTest {
         filter.filter(exchange, chainOf(chainCalled)).block();
 
         assertThat(chainCalled.get()).isTrue();
+    }
+
+    @Test
+    @DisplayName("공개 경로 /actuator/prometheus - 유효하지 않은 JWT가 있어도 체인 통과")
+    void publicPath_actuatorPrometheus_유효하지않은JWT가있어도체인통과() {
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("/actuator/prometheus")
+                        .header("Authorization", "Bearer invalid-token")
+                        .build());
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        filter.filter(exchange, chainOf(chainCalled)).block();
+
+        assertThat(chainCalled.get()).isTrue();
+        assertThat(exchange.getResponse().getStatusCode()).isNull();
     }
 
     @Test

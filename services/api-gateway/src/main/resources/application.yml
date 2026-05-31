@@ -90,6 +90,10 @@ springdoc:
     # Gateway 자체는 문서화할 컨트롤러가 없으므로 비활성화
     enabled: false
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
   otlp:
     metrics:
       export:
@@ -110,5 +114,6 @@ app:
       - /api/users/login
       - /api/users/refresh
       - /actuator/health
+      - /actuator/prometheus
   jwt:
     public-key: ${JWT_PUBLIC_KEY}
