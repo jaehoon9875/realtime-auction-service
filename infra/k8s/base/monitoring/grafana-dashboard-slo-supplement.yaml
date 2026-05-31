@@ -158,6 +158,33 @@ data:
             }
           },
           "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" }
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "등록된 애플리케이션 scrape 대상 수 (기대값: 6)",
+          "gridPos": { "x": 12, "y": 8, "w": 6, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "expr": "count(up{namespace=~\"$namespace\", scrape_group=\"auction-applications\"}) or vector(0)",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 6 }
+                ]
+              }
+            }
+          },
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" }
         }
       ]
     }

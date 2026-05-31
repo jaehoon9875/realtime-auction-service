@@ -57,8 +57,8 @@ public class InternalRequestTokenFilter extends OncePerRequestFilter {
             return;
         }
 
-        // 헬스체크는 프로브가 헤더를 붙이기 어려우므로 예외
-        if (isHealthEndpoint(request)) {
+        // Kubernetes 프로브와 Prometheus scrape 요청은 내부 토큰 없이 호출되므로 예외
+        if (isMonitoringEndpoint(request)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -75,8 +75,10 @@ public class InternalRequestTokenFilter extends OncePerRequestFilter {
         response.sendError(HttpServletResponse.SC_FORBIDDEN, "내부 요청 토큰이 올바르지 않습니다.");
     }
 
-    private boolean isHealthEndpoint(HttpServletRequest request) {
+    private boolean isMonitoringEndpoint(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return "/actuator/health".equals(path) || path.startsWith("/actuator/health/");
+        return "/actuator/health".equals(path)
+                || path.startsWith("/actuator/health/")
+                || "/actuator/prometheus".equals(path);
     }
 }

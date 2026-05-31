@@ -55,7 +55,7 @@ k8s/
 
 - 리소스명: `{service-name}-{resource-type}` (예: `auction-service-deployment`)
 - 네임스페이스: `auction`
-- 레이블: `app.kubernetes.io/name`, `app.kubernetes.io/component` 필수
+- 레이블: `app.kubernetes.io/name`, `app.kubernetes.io/component`, `app.kubernetes.io/part-of` 필수
 
 ### KafkaTopic CR 예시 (Strimzi)
 

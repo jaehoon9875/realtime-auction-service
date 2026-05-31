@@ -12,6 +12,9 @@ spec:
     metadata:
       labels:
         app: notification-service
+        app.kubernetes.io/name: notification-service
+        app.kubernetes.io/component: websocket
+        app.kubernetes.io/part-of: realtime-auction-service
     spec:
       serviceAccountName: notification-service-serviceaccount
       tolerations:

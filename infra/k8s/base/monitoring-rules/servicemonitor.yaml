@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: auction-applications
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - auction
+  selector:
+    matchLabels:
+      monitoring: prometheus
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 30s
+      relabelings:
+        - targetLabel: scrape_group
+          replacement: auction-applications

@@ -48,7 +48,7 @@ public class InternalRequestTokenFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (isHealthEndpoint(request)) {
+        if (isMonitoringEndpoint(request)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -63,8 +63,10 @@ public class InternalRequestTokenFilter extends OncePerRequestFilter {
         response.sendError(HttpServletResponse.SC_FORBIDDEN, "내부 요청 토큰이 올바르지 않습니다.");
     }
 
-    private boolean isHealthEndpoint(HttpServletRequest request) {
+    private boolean isMonitoringEndpoint(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return "/actuator/health".equals(path) || path.startsWith("/actuator/health/");
+        return "/actuator/health".equals(path)
+                || path.startsWith("/actuator/health/")
+                || "/actuator/prometheus".equals(path);
     }
 }

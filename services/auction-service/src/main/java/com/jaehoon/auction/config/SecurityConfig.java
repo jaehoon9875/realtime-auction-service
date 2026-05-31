@@ -24,8 +24,10 @@ public class SecurityConfig {
 
     // GET 조회는 비로그인 허용 (경매 목록·상세)
     private static final String[] PUBLIC_GET_ENDPOINTS = { "/auctions", "/auctions/*" };
-    // Kubernetes liveness/readiness 프로브는 인증 없이 접근 허용
-    private static final String[] HEALTH_ENDPOINTS = { "/actuator/health", "/actuator/health/**" };
+    // Kubernetes 프로브와 Prometheus scrape 요청은 인증 없이 접근 허용
+    private static final String[] MONITORING_ENDPOINTS = {
+            "/actuator/health", "/actuator/health/**", "/actuator/prometheus"
+    };
 
     private final InternalRequestTokenFilter internalRequestTokenFilter;
     private final AuctionSecurityProperties securityProperties;
@@ -45,8 +47,8 @@ public class SecurityConfig {
                 // 인증 요청 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
-                        // Kubernetes liveness/readiness 프로브는 인증 없이 접근 허용
-                        .requestMatchers(HEALTH_ENDPOINTS).permitAll()
+                        // Kubernetes 프로브와 Prometheus scrape 요청은 인증 없이 접근 허용
+                        .requestMatchers(MONITORING_ENDPOINTS).permitAll()
                         .requestMatchers(publicEndpoints).permitAll()
                         // 나머지 요청은 인증 필요
                         .anyRequest().authenticated())

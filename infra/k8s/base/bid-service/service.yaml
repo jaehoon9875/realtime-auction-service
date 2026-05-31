@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: bid-service-service
   namespace: auction
+  labels:
+    monitoring: prometheus
 spec:
   selector:
     app: bid-service

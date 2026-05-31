@@ -66,6 +66,10 @@ app:
     read-timeout-ms: ${AUCTION_STREAMS_READ_TIMEOUT:3000}
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
   otlp:
     metrics:
       export:
@@ -90,4 +94,3 @@ resilience4j:
         # 4xx 계열은 클라이언트 입력/요청 문제이므로 재시도하지 않는다.
         ignore-exceptions:
           - org.springframework.web.client.HttpClientErrorException
-

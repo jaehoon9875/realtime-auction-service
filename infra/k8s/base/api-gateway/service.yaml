@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: api-gateway-service
   namespace: auction
+  labels:
+    monitoring: prometheus
 spec:
   type: LoadBalancer
   selector:

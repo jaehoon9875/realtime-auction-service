@@ -12,6 +12,9 @@ spec:
     metadata:
       labels:
         app: api-gateway
+        app.kubernetes.io/name: api-gateway
+        app.kubernetes.io/component: gateway
+        app.kubernetes.io/part-of: realtime-auction-service
     spec:
       serviceAccountName: api-gateway-serviceaccount
       tolerations:

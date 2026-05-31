@@ -3,6 +3,8 @@ kind: Service
 metadata:
   name: auction-streams-service
   namespace: auction
+  labels:
+    monitoring: prometheus
 spec:
   selector:
     app: auction-streams
