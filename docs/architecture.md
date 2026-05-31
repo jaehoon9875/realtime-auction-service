@@ -151,6 +151,7 @@ graph TD
     AR["ArgoCD<br/>GitOps 배포"]
     PG["Prometheus + Grafana<br/>모니터링"]
     AL["Alloy<br/>로그 수집 · OTLP 트레이스 전달"]
+    LO["Loki<br/>로그 저장"]
     TE["Tempo<br/>트레이스 저장"]
     SVC["각 서비스 Deployment"]
 
@@ -159,6 +160,7 @@ graph TD
     GKE --> PG
     GKE --> SVC
     SVC -->|"OTLP HTTP :4318"| AL
+    AL -->|"로그"| LO
     AL -->|"OTLP gRPC :4317"| TE
 ```
 
