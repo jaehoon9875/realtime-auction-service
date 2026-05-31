@@ -72,6 +72,10 @@ management:
   tracing:
     sampling:
       probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
+logging:
+  structured:
+    format:
+      console: logstash
 resilience4j:
   retry:
     instances:

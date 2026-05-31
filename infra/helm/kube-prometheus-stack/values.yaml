@@ -53,6 +53,8 @@ grafana:
       jsonData:
         tracesToLogsV2:
           datasourceUid: loki
+          spanStartTimeShift: "-2s"
+          spanEndTimeShift: "2s"
           filterByTraceID: true
           filterBySpanID: false
           tags:

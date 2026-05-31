@@ -74,3 +74,6 @@ management:
 logging:
   level:
     root: INFO
+  structured:
+    format:
+      console: logstash

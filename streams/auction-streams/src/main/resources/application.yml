@@ -37,6 +37,10 @@ management:
   tracing:
     sampling:
       probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
+logging:
+  structured:
+    format:
+      console: logstash
 auction:
   streams:
     # 우선순위: AUCTION_STREAMS_* (Spring 표준) → 구 env 예시(PUNCTUATOR_INTERVAL_SECONDS 등)
