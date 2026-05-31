@@ -40,7 +40,7 @@ grafana:
         derivedFields:
           - name: TraceID
             matcherType: label
-            matcherName: trace_id
+            matcherRegex: trace_id
             url: "${__value.raw}"
             datasourceUid: tempo
             urlDisplayLabel: "View trace in Tempo"
