@@ -1,13 +1,49 @@
 # grafana/alloy 커스텀 설정
 # chart version: 1.6.2 / app version: v1.14.0
-# 역할: 클러스터 전체 로그 수집 → Loki로 전송 (DaemonSet)
+# 역할: 클러스터 전체 로그 수집 → Loki, 애플리케이션 트레이스 수신 → Tempo (DaemonSet)
 
 alloy:
+  extraPorts:
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+
   mounts:
     varlog: true  # 노드 /var/log 마운트 (syslog 수집용)
 
   configMap:
     content: |
+      // 애플리케이션 OTLP HTTP 트레이스를 수신해 Tempo OTLP gRPC로 전달
+      otelcol.receiver.otlp "default" {
+        http {
+          endpoint = "0.0.0.0:4318"
+        }
+
+        output {
+          traces = [otelcol.exporter.otlp.tempo.input]
+        }
+      }
+      otelcol.exporter.otlp "tempo" {
+        client {
+          endpoint = "tempo.monitoring.svc.cluster.local:4317"
+          tls {
+            insecure = true
+          }
+        }
+        // Tempo 단기 장애 시 메모리 큐에서 재시도한다. Alloy 재시작까지 보존되는 영속 큐는 아니다.
+        retry_on_failure {
+          enabled          = true
+          initial_interval = "5s"
+          max_interval     = "30s"
+          max_elapsed_time = "5m"
+        }
+        sending_queue {
+          enabled    = true
+          queue_size = 1000
+        }
+      }
+
       // loki endpoint 정의
       loki.write "default_loki_endpoint" {
         endpoint {

@@ -9,8 +9,8 @@ Prometheus, Grafana, Loki, Tempo, Alloy의 역할과 GKE 배포 후 검증 방�
 | Prometheus | Kubernetes 및 Spring Boot 애플리케이션 메트릭 수집 |
 | Grafana | 메트릭, 로그, 트레이스 탐색 |
 | Loki | Alloy가 전달한 노드 및 Pod 로그 저장 |
-| Tempo | Spring Boot 애플리케이션의 OTLP 트레이스 저장 |
-| Alloy | 모든 워크로드 노드에서 로그를 수집해 Loki로 전송 |
+| Tempo | Alloy가 전달한 OTLP 트레이스 저장 |
+| Alloy | 모든 워크로드 노드에서 로그를 수집해 Loki로 전송하고, 애플리케이션 OTLP 트레이스를 Tempo로 전달 |
 
 ## 애플리케이션 메트릭
 
@@ -103,6 +103,27 @@ kubectl get nodes -L cloud.google.com/gke-spot
 애플리케이션은 JSON 콘솔 로그를 출력합니다. Actuator를 제외한 HTTP 요청이 끝나면
 `traceId`, `spanId`, 요청 경로, 상태 코드, 처리 시간을 포함한 로그를 남깁니다.
 Alloy는 JSON 로그의 `traceId`, `spanId`를 Loki structured metadata로 저장합니다.
+
+트레이스는 다음 경로로 전달됩니다.
+
+```text
+Spring Boot 애플리케이션 → Alloy OTLP HTTP(4318) → Tempo OTLP gRPC(4317)
+```
+
+dev 환경은 Spring Boot OTLP export 주기를 기본값 `5s`에서 `1s`로 낮춰 로그가 Loki에
+먼저 나타난 직후 Tempo 링크를 열었을 때 발생하는 조회 지연을 줄입니다.
+Alloy exporter는 메모리 큐에서 최대 5분간 재시도합니다. Tempo 단기 장애는 흡수하지만,
+Alloy Pod 재시작까지 보존되는 영속 큐는 아닙니다.
+
+Alloy 서비스가 OTLP HTTP 포트를 노출하는지 확인합니다.
+
+```bash
+kubectl get service alloy -n monitoring
+```
+
+배포 시 Alloy가 먼저 동기화되어 `4318` 포트를 수신하는지 확인한 뒤 애플리케이션
+ConfigMap을 반영합니다. 애플리케이션 endpoint를 먼저 바꾸면 동기화 사이에 트레이스가
+일시적으로 유실될 수 있습니다.
 
 Grafana Explore에서 Tempo 트레이스를 선택한 뒤 span의 `Logs for this span`을 실행합니다.
 선택한 서비스의 Loki 로그가 `app` 라벨과 `traceId` 기준으로 조회되어야 합니다.

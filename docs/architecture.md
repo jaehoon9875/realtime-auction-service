@@ -150,12 +150,18 @@ graph TD
     SK["Strimzi Kafka Operator<br/>Kafka 클러스터 관리"]
     AR["ArgoCD<br/>GitOps 배포"]
     PG["Prometheus + Grafana<br/>모니터링"]
+    AL["Alloy<br/>로그 수집 · OTLP 트레이스 전달"]
+    LO["Loki<br/>로그 저장"]
+    TE["Tempo<br/>트레이스 저장"]
     SVC["각 서비스 Deployment"]
 
     GKE --> SK
     GKE --> AR
     GKE --> PG
     GKE --> SVC
+    SVC -->|"OTLP HTTP :4318"| AL
+    AL -->|"로그"| LO
+    AL -->|"OTLP gRPC :4317"| TE
 ```
 
 로컬 개발은 `docker-compose.yml`로 전체 인프라를 로컬에서 구동합니다.
