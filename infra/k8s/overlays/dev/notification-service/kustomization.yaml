@@ -6,6 +6,6 @@ resources:
 images:
 - name: notification-service
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/notification-service
-  newTag: f13db91
+  newTag: 6afa71a
 patches:
 - path: configmap-patch.yaml

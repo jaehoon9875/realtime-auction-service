@@ -6,6 +6,6 @@ resources:
 images:
 - name: api-gateway
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/api-gateway
-  newTag: f13db91
+  newTag: 6afa71a
 patches:
 - path: configmap-patch.yaml
