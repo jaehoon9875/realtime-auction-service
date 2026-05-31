@@ -101,18 +101,11 @@ jobs:
             git push
           fi
 
-      - name: Deploy to GKE (kubectl set image)
-        env:
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      - name: Deploy to GKE (kubectl apply -k)
         run: |
-          SHORT_SHA="${HEAD_SHA:0:7}"
-          REGISTRY="${GCP_REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${AR_REPO}"
-
           for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
-            echo "배포 중: ${svc}:${SHORT_SHA}"
-            kubectl set image deployment/${svc}-deployment \
-              ${svc}=${REGISTRY}/${svc}:${SHORT_SHA} \
-              -n auction
+            echo "배포 중: ${svc}"
+            kubectl apply -k "infra/k8s/overlays/dev/${svc}/"
           done
 
       - name: Wait for rollout
