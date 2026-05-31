@@ -214,11 +214,11 @@ gh secret list -R ${GITHUB_USER}/${GITHUB_REPO}
 | 워크플로 | 트리거 | 동작 |
 |----------|--------|------|
 | `ci.yml` | PR·main push | Gradle test → Docker build (PR) / Artifact Registry push (main) |
-| `cd.yml` | main CI 성공 후 | `infra/k8s/overlays/dev` 이미지 태그 갱신 → Git push + **`kubectl set image` 직접 배포** → smoke test |
+| `cd.yml` | main CI 성공 후 | `infra/k8s/overlays/dev` 이미지 태그 갱신 → Git push → smoke test |
 
-main push 시 이미지 태그는 커밋 SHA 앞 7자(`SHORT_SHA`)와 `latest` 두 개가 푸시됩니다.
-CD는 overlay를 `SHORT_SHA`로 커밋한 뒤, ArgoCD를 거치지 않고 `kubectl set image`로 Java 서비스를 즉시 배포합니다.
-인프라(Kafka, PostgreSQL 등)는 ArgoCD가 overlay 변경을 감지해 sync합니다.
+main push 시 이미지 태그는 커밋 SHA 앞 7자(`SHORT_SHA`)로 갱신됩니다.
+CD는 overlay를 `SHORT_SHA`로 Git에 커밋하고 종료합니다. 이후 ArgoCD가 Git 변경을 감지해 자동으로 Java 서비스를 배포합니다.
+ArgoCD webhook이 설정된 경우 Git push 즉시 sync가 트리거됩니다 (9-3-2절 참고).
 
 ---
 
@@ -309,6 +309,9 @@ echo -n "$JWT_PUBLIC_KEY"  | gcloud secrets create jwt-public-key  --project=$PR
 
 # JWT PEM 파일은 등록 후 삭제 권장
 rm -f jwt-private.pem
+
+# ── ArgoCD webhook (9-3-2절에서 별도 등록) ──────────────────────
+# argocd-webhook-github-secret 은 9-3-2절 절차에서 등록합니다.
 ```
 
 > JWT 키는 PEM 그대로 등록하면 앱 기동 시 `Illegal base64 character 2d` 오류가 납니다. 위처럼 `openssl ... -outform DER | base64`로 변환한 값을 등록해야 합니다.
@@ -333,6 +336,7 @@ gcloud secrets list --project=$PROJECT_ID
 | `internal-request-secret` | 서비스 간 내부 토큰 | api-gateway, auction-service, bid-service |
 | `jwt-private-key` | JWT 서명 키 | user-service |
 | `jwt-public-key` | JWT 검증 키 | api-gateway, user-service |
+| `argocd-webhook-github-secret` | ArgoCD GitHub webhook 검증 시크릿 | ArgoCD |
 
 ---
 
@@ -479,6 +483,51 @@ kubectl -n argocd get secret -l argocd.argoproj.io/secret-type=repository
 ```
 
 > private 레포의 경우 `stringData`에 `username`(GitHub 계정)과 `password`(Personal Access Token)를 추가합니다.
+
+### 9-3-2. ArgoCD GitHub Webhook 설정
+
+Git push 즉시 ArgoCD sync를 트리거하도록 GitHub → ArgoCD webhook을 구성합니다.
+설정하지 않으면 ArgoCD가 기본 polling 주기(~3분)로 Git 변경을 감지합니다.
+
+#### ArgoCD 서버 IP 확인
+
+```bash
+kubectl -n argocd get svc argocd-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
+
+#### webhook secret 생성 및 등록
+
+```bash
+# 1. 랜덤 secret 생성
+WEBHOOK_SECRET=$(openssl rand -hex 32)
+echo "secret: ${WEBHOOK_SECRET}"   # GitHub webhook 등록 시 입력값 — 복사해두기
+
+# 2. GCP Secret Manager에 등록
+echo -n "${WEBHOOK_SECRET}" | gcloud secrets create argocd-webhook-github-secret \
+  --project=${GCP_PROJECT_ID} \
+  --data-file=-
+
+# 3. ExternalSecret 적용 (argocd-secret에 webhook.github.secret 키 병합)
+kubectl apply -f infra/argocd/webhook-secret.yaml
+
+# 4. ESO가 argocd-secret에 키를 주입했는지 확인 (수십 초 소요)
+kubectl -n argocd get secret argocd-secret -o jsonpath='{.data.webhook\.github\.secret}' | base64 -d
+```
+
+#### GitHub webhook 등록
+
+GitHub 레포지토리 **Settings → Webhooks → Add webhook**:
+
+| 항목 | 값 |
+|------|-----|
+| Payload URL | `http://<argocd-server-ip>/api/webhook` |
+| Content type | `application/json` |
+| Secret | 위에서 복사한 `WEBHOOK_SECRET` 값 |
+| Events | `Just the push event` |
+
+등록 후 GitHub UI에서 Recent Deliveries 탭의 응답 코드가 `200`인지 확인합니다.
+
+---
 
 ### 9-4. kube-prometheus-stack (Prometheus + Grafana)
 

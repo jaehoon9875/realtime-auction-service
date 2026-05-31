@@ -43,13 +43,6 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Configure kubectl for GKE
-        uses: google-github-actions/get-gke-credentials@64bc7249bbcf78056bb92f14d3cedc2da193946c  # v2
-        with:
-          cluster_name: auction-cluster
-          location: ${{ env.GCP_REGION }}-a
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-
       - name: Verify images exist in Artifact Registry
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
@@ -101,19 +94,6 @@ jobs:
             git push
           fi
 
-      - name: Deploy to GKE (kubectl apply -k)
-        run: |
-          for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
-            echo "배포 중: ${svc}"
-            kubectl apply -k "infra/k8s/overlays/dev/${svc}/"
-          done
-
-      - name: Wait for rollout
-        run: |
-          for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
-            echo "${svc} rollout 대기 중..."
-            kubectl rollout status deployment/${svc}-deployment -n auction --timeout=300s
-          done
 
   smoke-test:
     needs: update-and-deploy
