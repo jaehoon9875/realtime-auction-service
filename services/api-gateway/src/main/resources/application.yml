@@ -114,5 +114,6 @@ app:
       - /api/users/login
       - /api/users/refresh
       - /actuator/health
+      - /actuator/prometheus
   jwt:
     public-key: ${JWT_PUBLIC_KEY}

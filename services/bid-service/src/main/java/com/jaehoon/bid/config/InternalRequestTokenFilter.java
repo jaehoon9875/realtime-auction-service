@@ -64,7 +64,7 @@ public class InternalRequestTokenFilter extends OncePerRequestFilter {
     }
 
     private boolean isMonitoringEndpoint(HttpServletRequest request) {
-        String path = request.getRequestURI();
+        String path = request.getServletPath();
         return "/actuator/health".equals(path)
                 || path.startsWith("/actuator/health/")
                 || "/actuator/prometheus".equals(path);
