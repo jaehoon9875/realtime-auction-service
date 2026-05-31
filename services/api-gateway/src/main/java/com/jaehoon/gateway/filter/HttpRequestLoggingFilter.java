@@ -41,7 +41,8 @@ public class HttpRequestLoggingFilter implements WebFilter {
      */
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        if (exchange.getRequest().getPath().value().startsWith("/actuator/")) {
+        String path = exchange.getRequest().getPath().value();
+        if ("/actuator".equals(path) || path.startsWith("/actuator/")) {
             return chain.filter(exchange);
         }
 
