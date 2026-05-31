@@ -42,6 +42,11 @@ spec:
     # Sealed Secrets
     - group: bitnami.com
       kind: SealedSecret
+    # Prometheus Operator 모니터링 리소스
+    - group: monitoring.coreos.com
+      kind: PrometheusRule
+    - group: monitoring.coreos.com
+      kind: ServiceMonitor
     # Strimzi Kafka (네임스페이스 스코프)
     - group: kafka.strimzi.io
       kind: Kafka

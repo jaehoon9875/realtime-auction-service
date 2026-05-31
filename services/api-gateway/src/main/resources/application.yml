@@ -117,3 +117,7 @@ app:
       - /actuator/prometheus
   jwt:
     public-key: ${JWT_PUBLIC_KEY}
+logging:
+  structured:
+    format:
+      console: logstash

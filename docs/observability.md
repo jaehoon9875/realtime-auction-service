@@ -100,5 +100,12 @@ kubectl get nodes -L cloud.google.com/gke-spot
 
 ### Tempo와 Loki 연결
 
-Grafana Explore에서 Tempo 트레이스를 선택하고 연결된 로그 탐색 기능을 실행합니다.
-선택한 서비스의 Loki 로그가 `app` 라벨 기준으로 조회되어야 합니다.
+애플리케이션은 JSON 콘솔 로그를 출력합니다. Actuator를 제외한 HTTP 요청이 끝나면
+`traceId`, `spanId`, 요청 경로, 상태 코드, 처리 시간을 포함한 로그를 남깁니다.
+Alloy는 JSON 로그의 `traceId`, `spanId`를 Loki structured metadata로 저장합니다.
+
+Grafana Explore에서 Tempo 트레이스를 선택한 뒤 span의 `Logs for this span`을 실행합니다.
+선택한 서비스의 Loki 로그가 `app` 라벨과 `traceId` 기준으로 조회되어야 합니다.
+
+반대로 Loki에서 `HTTP 요청 처리 완료` 로그를 펼친 뒤 `View trace in Tempo` 링크를
+선택하면 동일한 트레이스를 조회할 수 있습니다.
