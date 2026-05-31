@@ -10,13 +10,13 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    # auction 네임스페이스 서비스 → OTLP HTTP(4318) 스팬 전송 허용
+    # Alloy → Tempo OTLP gRPC(4317) 스팬 전송 허용
     - from:
-        - namespaceSelector:
+        - podSelector:
             matchLabels:
-              kubernetes.io/metadata.name: auction
+              app.kubernetes.io/name: alloy
       ports:
-        - port: 4318
+        - port: 4317
           protocol: TCP
     # Grafana → 쿼리 API(3200) 허용
     - from:
