@@ -26,6 +26,8 @@ spec:
           command: ["chown", "999:999", "/var/lib/kafka-streams"]
           securityContext:
             runAsUser: 0
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
           volumeMounts:
             - name: streams-state
               mountPath: /var/lib/kafka-streams
