@@ -35,13 +35,13 @@ grafana:
       access: proxy
       jsonData:
         httpHeaderName1: "X-Scope-OrgID"
-        # Alloy가 structured_metadata에 저장한 trace_id를 직접 참조하여 Tempo 트레이스 링크로 연결
-        # matcherType: label은 Grafana 11.x + Loki 3.x에서 structured_metadata 필드도 읽음
+        # JSON 로그 본문에서 traceId를 정규표현식으로 추출하여 Tempo 내부 링크로 연결
+        # url의 $$ → Helm 렌더링 후 $로 변환되어 Grafana가 ${__value.raw}를 올바르게 수신
         derivedFields:
           - name: TraceID
-            matcherType: label
-            matcherRegex: trace_id
-            url: "${__value.raw}"
+            matcherType: regex
+            matcherRegex: '"traceId"\s*:\s*"([^"]+)"'
+            url: "$${__value.raw}"
             datasourceUid: tempo
             urlDisplayLabel: "View trace in Tempo"
       secureJsonData:
