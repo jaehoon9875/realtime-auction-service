@@ -484,51 +484,6 @@ kubectl -n argocd get secret -l argocd.argoproj.io/secret-type=repository
 
 > private 레포의 경우 `stringData`에 `username`(GitHub 계정)과 `password`(Personal Access Token)를 추가합니다.
 
-### 9-3-2. ArgoCD GitHub Webhook 설정
-
-Git push 즉시 ArgoCD sync를 트리거하도록 GitHub → ArgoCD webhook을 구성합니다.
-설정하지 않으면 ArgoCD가 기본 polling 주기(~3분)로 Git 변경을 감지합니다.
-
-#### ArgoCD 서버 IP 확인
-
-```bash
-kubectl -n argocd get svc argocd-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-```
-
-#### webhook secret 생성 및 등록
-
-```bash
-# 1. 랜덤 secret 생성
-WEBHOOK_SECRET=$(openssl rand -hex 32)
-echo "secret: ${WEBHOOK_SECRET}"   # GitHub webhook 등록 시 입력값 — 복사해두기
-
-# 2. GCP Secret Manager에 등록
-echo -n "${WEBHOOK_SECRET}" | gcloud secrets create argocd-webhook-github-secret \
-  --project=${GCP_PROJECT_ID} \
-  --data-file=-
-
-# 3. ExternalSecret 적용 (argocd-secret에 webhook.github.secret 키 병합)
-kubectl apply -f infra/argocd/webhook-secret.yaml
-
-# 4. ESO가 argocd-secret에 키를 주입했는지 확인 (수십 초 소요)
-kubectl -n argocd get secret argocd-secret -o jsonpath='{.data.webhook\.github\.secret}' | base64 -d
-```
-
-#### GitHub webhook 등록
-
-GitHub 레포지토리 **Settings → Webhooks → Add webhook**:
-
-| 항목 | 값 |
-|------|-----|
-| Payload URL | `http://<argocd-server-ip>/api/webhook` |
-| Content type | `application/json` |
-| Secret | 위에서 복사한 `WEBHOOK_SECRET` 값 |
-| Events | `Just the push event` |
-
-등록 후 GitHub UI에서 Recent Deliveries 탭의 응답 코드가 `200`인지 확인합니다.
-
----
-
 ### 9-4. kube-prometheus-stack (Prometheus + Grafana)
 
 ```bash
@@ -578,7 +533,56 @@ kubectl -n argocd get applications
 
 ArgoCD UI에서 각 Application이 `Synced` 상태가 되면 완료입니다.
 
-### 동작하지 않을 경우 체크리스트
+### 10-1. ArgoCD GitHub Webhook 설정
+
+Git push 즉시 ArgoCD sync를 트리거하도록 GitHub → ArgoCD webhook을 구성합니다.
+설정하지 않으면 ArgoCD가 기본 polling 주기(~3분)로 Git 변경을 감지합니다.
+
+`webhook-secret.yaml`이 참조하는 `ClusterSecretStore`가 생성되었는지 확인합니다.
+
+```bash
+kubectl get clustersecretstore gcp-secret-manager
+```
+
+#### ArgoCD 서버 IP 확인
+
+```bash
+kubectl -n argocd get svc argocd-server -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+```
+
+#### webhook secret 생성 및 등록
+
+```bash
+# 1. 랜덤 secret 생성
+WEBHOOK_SECRET=$(openssl rand -hex 32)
+echo "secret: ${WEBHOOK_SECRET}"   # GitHub webhook 등록 시 입력값 — 복사해두기
+
+# 2. GCP Secret Manager에 등록
+echo -n "${WEBHOOK_SECRET}" | gcloud secrets create argocd-webhook-github-secret \
+  --project=${GCP_PROJECT_ID} \
+  --data-file=-
+
+# 3. ExternalSecret 적용 (argocd-secret에 webhook.github.secret 키 병합)
+kubectl apply -f infra/argocd/webhook-secret.yaml
+
+# 4. ESO가 argocd-secret에 키를 주입했는지 확인 (수십 초 소요)
+kubectl -n argocd get secret argocd-secret -o jsonpath='{.data.webhook\.github\.secret}' | base64 -d
+```
+
+#### GitHub webhook 등록
+
+GitHub 레포지토리 **Settings → Webhooks → Add webhook**:
+
+| 항목 | 값 |
+|------|-----|
+| Payload URL | `http://<argocd-server-ip>/api/webhook` |
+| Content type | `application/json` |
+| Secret | 위에서 복사한 `WEBHOOK_SECRET` 값 |
+| Events | `Just the push event` |
+
+등록 후 GitHub UI에서 Recent Deliveries 탭의 응답 코드가 `200`인지 확인합니다.
+
+### App-of-Apps가 동작하지 않을 경우 체크리스트
 
 | 항목 | 확인 방법 |
 |---|---|
