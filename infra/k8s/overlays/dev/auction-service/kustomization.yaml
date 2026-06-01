@@ -6,6 +6,6 @@ resources:
 images:
 - name: auction-service
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-service
-  newTag: d99ff8c
+  newTag: 0e6678d
 patches:
 - path: configmap-patch.yaml
