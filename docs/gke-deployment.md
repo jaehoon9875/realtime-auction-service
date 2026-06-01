@@ -521,6 +521,10 @@ kubectl apply -f infra/argocd/project.yaml
 kubectl apply -f infra/argocd/bootstrap.yaml
 ```
 
+`project.yaml`은 CD 파이프라인의 ArgoCD 상태 조회용 읽기 전용 Role도 허용합니다.
+기존 클러스터에서 해당 설정이 추가된 경우에도 `kubectl apply -f infra/argocd/project.yaml`을 한 번 다시 실행해야 합니다.
+실제 Role과 RoleBinding은 App-of-Apps가 `infra/argocd/apps/github-actions-wait-rbac.yaml`에서 자동 적용합니다.
+
 등록 후 확인:
 
 ```bash

@@ -37,6 +37,8 @@ spec:
       kind: NetworkPolicy
     # Namespace RBAC
     - group: rbac.authorization.k8s.io
+      kind: Role
+    - group: rbac.authorization.k8s.io
       kind: RoleBinding
     # External Secrets
     - group: external-secrets.io

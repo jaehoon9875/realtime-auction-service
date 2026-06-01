@@ -13,5 +13,6 @@
 
 인프라: infra/ 파일 수정 → Git push → ArgoCD auto-sync.
 Java 서비스: CI 통과 후 CD 파이프라인(cd.yml)이 kustomization.yaml 이미지 태그를 커밋 → ArgoCD가 Git 변경 감지 후 자동 배포.
+CD 파이프라인은 이미지 태그 커밋 SHA를 기준으로 의존 Application의 Synced + Healthy 상태를 확인한 후 smoke test를 실행.
 ArgoCD webhook(GitHub → ArgoCD): Git push 즉시 sync 트리거. 관련 설정: infra/argocd/webhook-secret.yaml, docs/gke-deployment.md 9-3-2절.
 관련 이슈: https://github.com/jaehoon9875/realtime-auction-service/issues/41

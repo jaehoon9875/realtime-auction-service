@@ -18,7 +18,8 @@ jobs:
   update-and-deploy:
     if: |
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push'
+      github.event.workflow_run.event == 'push' &&
+      !contains(github.event.workflow_run.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -83,6 +84,7 @@ jobs:
           echo "Updated image tags to ${SHORT_SHA}"
 
       - name: Commit and push image tag update
+        id: deploy-revision
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
@@ -98,6 +100,22 @@ jobs:
             git pull --rebase
             git push
           fi
+
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Configure kubectl for GKE
+        uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395  # v3.0.0
+        with:
+          cluster_name: auction-cluster
+          location: ${{ env.GCP_REGION }}-a
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Wait for ArgoCD applications
+        env:
+          ARGOCD_REVISION: ${{ steps.deploy-revision.outputs.revision }}
+        run: |
+          chmod +x .github/scripts/wait-for-argocd-apps.sh
+          .github/scripts/wait-for-argocd-apps.sh
 
 
   smoke-test:

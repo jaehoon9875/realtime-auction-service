@@ -21,6 +21,13 @@ spring:
         default.production.exception.handler: com.jaehoon.streams.auction.exception.DlqExceptionHandler
 
 management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: "readinessState,kafkaStreams"
   endpoints:
     web:
       exposure:
