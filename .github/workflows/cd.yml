@@ -10,6 +10,10 @@ env:
   GCP_REGION: asia-northeast3
   AR_REPO: auction-images
 
+concurrency:
+  group: cd-main
+  cancel-in-progress: false
+
 jobs:
   update-and-deploy:
     if: |
@@ -91,6 +95,7 @@ jobs:
           else
             git add infra/k8s/overlays/dev/
             git commit -m "chore(infra): update dev image tags to ${SHORT_SHA} [skip ci]"
+            git pull --rebase
             git push
           fi
 
