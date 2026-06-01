@@ -144,7 +144,7 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Configure kubectl for GKE
-        uses: google-github-actions/get-gke-credentials@64bc7249bbcf78056bb92f14d3cedc2da193946c  # v2
+        uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395  # v3.0.0
         with:
           cluster_name: auction-cluster
           location: ${{ env.GCP_REGION }}-a
