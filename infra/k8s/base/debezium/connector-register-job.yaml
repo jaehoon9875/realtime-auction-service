@@ -6,7 +6,7 @@ metadata:
   annotations:
     # ArgoCD hook: 앱 Sync 완료 후 1회 실행
     argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded,BeforeHookCreation
 spec:
   backoffLimit: 5
   activeDeadlineSeconds: 600  # backoffLimit 재시도 포함 전체 상한 — Debezium 장애 시 ArgoCD sync 무한 대기 방지

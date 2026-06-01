@@ -16,8 +16,6 @@ spec:
     - port: http
       path: /actuator/prometheus
       interval: 30s
-      # Prometheus exemplar 수집을 위해 OpenMetrics 포맷으로 스크레이핑 (Prometheus client 1.x 기준)
-      enableOpenMetrics: true
       relabelings:
         - targetLabel: scrape_group
           replacement: auction-applications
