@@ -6,6 +6,6 @@ resources:
 images:
 - name: bid-service
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/bid-service
-  newTag: "5446177"
+  newTag: ee842b9
 patches:
 - path: configmap-patch.yaml
