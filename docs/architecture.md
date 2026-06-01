@@ -115,6 +115,8 @@ sequenceDiagram
 | 4 | Avro + Schema Registry | Kafka 이벤트 스키마 버전을 중앙 관리하여 하위 호환성 보장 | [ADR-004](adr/004-avro-schema-registry.md) |
 | 5 | Resilience4j Circuit Breaker | 서비스 간 REST 호출 장애를 빠르게 차단하여 장애 전파 방지 | [ADR-005](adr/005-resilience4j-circuit-breaker.md) |
 | 6 | OAuth2 Resource Server (Zero Trust JWT 검증) | Gateway 1차 방어 + 각 서비스 독립 JWT 검증으로 Gateway 우회 공격 방어 | [ADR-006](adr/006-oauth2-resource-server-zero-trust.md) |
+| 7 | Kafka 버전 정렬 | Apache Kafka 4.1 / Confluent Platform 8.1 기준으로 버전 통일 | [ADR-007](adr/007-kafka-version-alignment.md) |
+| 8 | Outbox payload Avro 직렬화 주체 | 애플리케이션이 직렬화하고 Debezium BinaryDataConverter로 pass-through | [ADR-008](adr/008-outbox-avro-serialization-owner.md) |
 
 ---
 
@@ -125,19 +127,22 @@ graph TD
     BID["bid-events"]
     AE["auction-events"]
 
-    KT["KTable · State Store<br/>경매별 최고가 실시간 갱신<br/>key: auctionId · value: {currentPrice, currentWinnerId, bidCount}"]
-    WS["Windowed KStream · 입찰 급증 탐지<br/>1분 tumbling window<br/>동일 경매 10회 이상 → 이상 입찰 플래그"]
-    JOIN["KStream join auction-events<br/>마감 처리 · 낙찰자 확정"]
-    PUNCT["Punctuator · 마감 타이머<br/>30초마다 endsAt 체크"]
+    KT["KTable · auction-highest-bid (RocksDB)<br/>key: auctionId · value: {highestBid, highestBidderId, bidCount}"]
+    WS["Windowed KStream · 입찰 급증 탐지<br/>1분 tumbling window<br/>동일 auctionId 10회 이상 → 이상 입찰 플래그"]
+    JOIN["KStream join auction-events<br/>마감 이벤트 발생 시 최고가 확정"]
+    AMP["AuctionMetadataProcessor<br/>AUCTION_CREATED → auction-metadata Store 저장<br/>key: auctionId · value: {endsAt, startPrice, title}"]
+    PUNCT["Punctuator (WALL_CLOCK_TIME, 30초 주기)<br/>endsAt 경과 경매 → auction-highest-bid 조회"]
     NE["notification-events"]
 
     BID --> KT
     BID --> WS
     BID --> JOIN
     AE --> JOIN
-    AE --> PUNCT
+    AE --> AMP
+    AMP --> PUNCT
+    KT -.->|참조| PUNCT
     JOIN -->|"AUCTION_WON, OUTBID"| NE
-    PUNCT -->|AUCTION_CLOSED| NE
+    PUNCT -->|"AUCTION_WON, AUCTION_CLOSED"| NE
 ```
 
 ---
@@ -170,6 +175,6 @@ graph TD
 | 대상 | 배포 방식 | 근거 |
 |------|-----------|------|
 | 인프라 (Kafka, PostgreSQL, Redis 등) | ArgoCD GitOps | infra/ overlay 변경 → ArgoCD auto-sync |
-| Java 서비스 (api-gateway, auction, bid 등) | GitHub Actions `kubectl set image` | CD 워크플로(`cd.yml`)가 CI 성공 후 직접 배포 |
+| Java 서비스 (api-gateway, auction, bid 등) | kustomize 이미지 태그 업데이트 → Git 커밋 → ArgoCD auto-sync | CD 워크플로(`cd.yml`)가 CI 성공 후 kustomize로 태그 갱신, ArgoCD가 감지해 배포 |
 
 상세 워크플로는 [gke-deployment.md](./gke-deployment.md) 참고.
