@@ -89,17 +89,34 @@ BASE_URL=http://<gateway-loadbalancer-ip> ./e2e/smoke.sh
 `main` 브랜치 push → CI 통과 → CD 실행 순서:
 
 ```text
-1. update-and-deploy  이미지 태그를 infra/k8s/overlays/dev에 커밋·푸시 + kubectl set image로 직접 배포
-2. smoke-test         Gateway 헬스체크 대기 (최대 5분 폴링) → smoke.sh 실행
+1. update-and-deploy  이미지 태그를 infra/k8s/overlays/dev에 커밋·푸시
+2. update-and-deploy  ArgoCD Application Synced + Healthy 대기
+3. smoke-test         Gateway 헬스체크 대기 (최대 5분 폴링) → smoke.sh 실행
 ```
 
 ### 대기 로직
 
-`smoke-test` 잡은 Gateway `/actuator/health`를 10초 간격으로 폴링한다.
-UP 응답이 오면 즉시 smoke test를 실행하고, 5분(30회) 안에 응답이 없으면 실패 처리한다.
+`update-and-deploy` 잡은 이미지 태그 커밋 SHA를 기준으로 ArgoCD Application 상태를 확인한다.
+의존성 순서에 따라 `Synced + Healthy`가 확인되어야 다음 단계로 진행하며, 전체 대기 시간은 최대 10분이다.
 
-> **한계**: 폴링은 Gateway가 살아있는지만 확인하므로, 이전 버전 Pod가 아직 요청을 처리 중인 경우
-> 새 이미지 배포 전에 smoke test가 실행될 수 있다. 대부분의 상황에서 허용 가능한 트레이드오프.
+```text
+external-secrets-sa, kafka
+→ external-secrets-config, schema-registry
+→ debezium
+→ auction-streams
+→ user-service, auction-service, bid-service
+→ api-gateway
+→ notification-service
+```
+
+각 Application은 auto-sync되므로 실제 리소스 적용은 병렬로 진행될 수 있다.
+위 순서는 smoke test 진입 전 상태 검증 순서이며, 의존 서비스의 실패 지점을 로그에서 명확히 구분하기 위한 것이다.
+
+`auction-streams`의 Kubernetes readinessProbe는 Kafka Streams가 `RUNNING`이고 State Store가 조회 가능한 상태인지 확인한다.
+따라서 ArgoCD `Healthy`는 단순 HTTP 서버 기동이 아니라 Interactive Query 준비 완료를 의미한다.
+
+마지막으로 `smoke-test` 잡은 Gateway `/actuator/health`를 10초 간격으로 폴링한다.
+UP 응답이 오면 smoke test를 실행하고, 5분(30회) 안에 응답이 없으면 실패 처리한다.
 
 ---
 

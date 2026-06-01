@@ -1,0 +1,24 @@
+# CD 파이프라인이 GitOps 배포 완료 여부만 조회할 수 있도록 최소 읽기 권한을 부여한다.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: github-actions-argocd-wait
+  namespace: argocd
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: github-actions-argocd-wait
+  namespace: argocd
+subjects:
+  - kind: User
+    name: github-actions-sa@realtime-auction-service.iam.gserviceaccount.com
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: github-actions-argocd-wait
+  apiGroup: rbac.authorization.k8s.io

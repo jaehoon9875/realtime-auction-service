@@ -29,6 +29,11 @@
 Debezium readinessProbe가 `/connectors`를 체크하므로 Wave 2 Healthy = REST API 응답 가능.
 PostSync Job은 이 순서가 보장된 후 실행되어 별도 대기 루프 없이 커넥터를 즉시 등록할 수 있다.
 
+App-of-Apps 하위 Application의 sync-wave는 Application CR 등록 순서를 정의한다.
+각 하위 Application의 source 경로가 변경된 일반 배포에서는 auto-sync가 독립 실행될 수 있으므로,
+CD 파이프라인이 의존 순서대로 각 Application의 Synced + Healthy 상태와 대상 revision을 추가 검증한다.
+`auction-streams` readinessProbe는 Kafka Streams RUNNING 및 State Store 조회 가능 상태까지 확인한다.
+
 ## Strimzi Kafka
 
 GKE 클러스터 Kafka는 Strimzi Operator 관리. Operator 자체는 cloud-sre-platform에서 설치.
