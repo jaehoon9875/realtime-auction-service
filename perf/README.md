@@ -5,7 +5,7 @@ GKE 클러스터 내부에서 k6 부하 테스트를 실행하는 스크립트 �
 
 ## 구성
 
-```
+```text
 perf/
 ├── config/baseline.env   # 부하 고정값 (before/after 공용 — 수정 금지)
 ├── k6/

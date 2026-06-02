@@ -8,12 +8,16 @@ const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 // 회원가입 후 로그인해 accessToken을 반환한다. 이미 가입된 이메일이면 로그인만 시도.
 export function signupAndLogin(baseUrl, email, password, nickname) {
-  http.post(
+  const signupRes = http.post(
     `${baseUrl}/api/users/signup`,
     JSON.stringify({ email, password, nickname }),
     { headers: JSON_HEADERS },
   );
-  // 회원가입 결과(201/409 등)와 무관하게 로그인으로 토큰 확보.
+  // 신규 가입(201) 또는 이미 존재(409)만 정상으로 보고, 그 외(5xx 등)는 즉시 중단해 부트스트랩 실패 원인을 명확히 한다.
+  if (signupRes.status !== 201 && signupRes.status !== 409) {
+    throw new Error(`회원가입 실패 (${email}): status=${signupRes.status} body=${signupRes.body}`);
+  }
+  // 이미 가입된 계정(409)은 로그인으로 토큰 확보.
   const res = http.post(
     `${baseUrl}/api/users/login`,
     JSON.stringify({ email, password }),

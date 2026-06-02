@@ -22,7 +22,9 @@ const PROBE_AMOUNT = 20000;
 // ── 환경변수(베이스라인 설정에서 주입) ──────────────────────
 const BASE_URL      = __ENV.BASE_URL      || 'http://api-gateway-service';
 const MAX_VUS       = parseInt(__ENV.MAX_VUS)   || 20;
-const SLEEP_SEC     = parseFloat(__ENV.SLEEP)   || 0.3;
+// SLEEP=0(무대기 프로파일)을 허용해야 하므로 `|| 0.3`로 처리하지 않는다(0이 falsy라 0.3으로 둔갑함).
+const parsedSleep   = parseFloat(__ENV.SLEEP);
+const SLEEP_SEC     = Number.isNaN(parsedSleep) ? 0.3 : parsedSleep;
 const RAMPUP_DUR    = __ENV.RAMPUP_DUR    || '20s';
 const SUSTAIN_DUR   = __ENV.SUSTAIN_DUR   || '2m';
 const RAMPDOWN_DUR  = __ENV.RAMPDOWN_DUR  || '10s';

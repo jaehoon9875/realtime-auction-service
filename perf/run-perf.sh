@@ -23,6 +23,10 @@ JOB_NAME="k6-bid-latency"
 CONFIGMAP_NAME="k6-perf-scripts"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# k6 런타임은 before/after 재현성을 위해 고정 버전으로 핀한다(latest 같은 이동 태그 금지).
+# 로컬 검증 버전(v1.7.1)과 일치. 필요 시 K6_IMAGE로 override.
+K6_IMAGE="${K6_IMAGE:-grafana/k6:1.7.1}"
+
 # ── stop 처리 ──────────────────────────────────────────────
 if [[ "${1:-}" == "stop" ]]; then
   kubectl delete job "${JOB_NAME}" -n "${NAMESPACE}" --ignore-not-found
@@ -44,7 +48,10 @@ CONFIG_NAME="$(basename "${CONFIG_FILE}" .env)"
 
 GIT_SHA="$(git -C "${SCRIPT_DIR}" rev-parse --short HEAD)"
 GIT_DIRTY=""
-git -C "${SCRIPT_DIR}" diff --quiet || GIT_DIRTY="-dirty"
+# worktree(미스테이징)와 index(스테이징) 양쪽을 검사해야 미커밋 변경이 RUN_ID에 반영된다.
+if ! git -C "${SCRIPT_DIR}" diff --quiet || ! git -C "${SCRIPT_DIR}" diff --cached --quiet; then
+  GIT_DIRTY="-dirty"
+fi
 RUN_ID="${GIT_SHA}${GIT_DIRTY}"
 # baseline이 아닌 설정(스모크 등)의 결과가 본 측정과 섞이지 않도록 RUN_ID에 표시.
 if [[ "${CONFIG_NAME}" != "baseline" ]]; then
@@ -71,7 +78,9 @@ if [[ -n "${GIT_DIRTY}" ]]; then
 fi
 
 # ── 이전 리소스 정리 ──────────────────────────────────────
+# 삭제 요청 후 완전 종료까지 대기한다. terminating 중인 동명 Job과 다음 apply가 충돌하지 않도록.
 kubectl delete job "${JOB_NAME}" -n "${NAMESPACE}" --ignore-not-found >/dev/null 2>&1 || true
+kubectl wait --for=delete job/"${JOB_NAME}" -n "${NAMESPACE}" --timeout=60s >/dev/null 2>&1 || true
 
 # ── ConfigMap: perf/k6/*.js 를 그대로 주입(중복 없음) ─────
 echo ">>> ConfigMap 생성..."
@@ -103,7 +112,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: k6
-          image: grafana/k6:latest
+          image: ${K6_IMAGE}
           args: ["run", "/scripts/bid-latency.js"]
           env:
             - { name: BASE_URL,     value: "http://api-gateway-service" }
