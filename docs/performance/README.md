@@ -19,7 +19,9 @@
    baseline을 한 번 측정한 뒤로는 이 파일을 수정하지 않는다. before/after가 물리적으로 같은 값을 참조한다.
 2. **환경 고정**: 노드/파드 리소스, Kafka 파티션 수, 데이터 규모를 양쪽 측정에서 동일하게 유지한다.
 3. **워밍업**: ramp-up 구간이 JIT·커넥션 풀·RocksDB 예열을 겸한다.
-   현재 k6 요약은 ramp-up·유지(sustain)·ramp-down 전체를 집계하므로 before/after에서 단계 구성을 동일하게 유지한다.
+   단, 배포 또는 Pod 재시작 직후에는 ramp-up만으로 충분하지 않을 수 있으므로 본 측정과 같은 설정으로
+   워밍업 실행을 1회 수행한다. 현재 k6 요약은 ramp-up·유지(sustain)·ramp-down 전체를 집계하므로
+   before/after에서 워밍업 여부와 단계 구성을 동일하게 유지한다.
 4. **추적 가능성**: 매 실행은 클러스터에 배포된 bid-service 이미지의 git SHA로 태깅되어
    `perf/results/<git-sha>/`에 격리 저장된다. 결과 리포트에는 측정 대상 git SHA와 측정 일시를 기록하고,
    원시 결과는 수정하지 않는다.
@@ -83,14 +85,22 @@ PERF_CONFIG=perf/config/smoke.env ./perf/run-perf.sh
 ./perf/check-cluster-state.sh \
   | tee "perf/results/cluster-state-$(date -u +%Y%m%dT%H%M%SZ).log"
 
-# 4. 본 측정 — baseline.env 고정값으로 실행
+# 4. 배포 또는 Pod 재시작 직후라면 워밍업 실행
+#    → 본 측정과 같은 설정으로 1회 실행한다.
 ./perf/run-perf.sh
-
-# 5. 테스트 후 클러스터 상태 기록
+./perf/run-perf.sh stop
+#    → CPU·lag가 안정화될 때까지 기다린 뒤 상태를 기록한다.
 ./perf/check-cluster-state.sh \
   | tee "perf/results/cluster-state-$(date -u +%Y%m%dT%H%M%SZ).log"
 
-# 6. (필요 시) 실행 중인 Job 중단/정리
+# 5. 본 측정 — baseline.env 고정값으로 실행
+./perf/run-perf.sh
+
+# 6. 테스트 후 클러스터 상태 기록
+./perf/check-cluster-state.sh \
+  | tee "perf/results/cluster-state-$(date -u +%Y%m%dT%H%M%SZ).log"
+
+# 7. (필요 시) 실행 중인 Job 중단/정리
 ./perf/run-perf.sh stop
 ```
 
