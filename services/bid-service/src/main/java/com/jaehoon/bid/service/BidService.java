@@ -36,7 +36,17 @@ public class BidService {
     private final ExecutorService bidLookupExecutor;
     private final ContextSnapshotFactory contextSnapshotFactory;
 
-    // 경매/입찰 유효성 검증 후 입찰 저장+Outbox 저장을 위임한다 (검증은 트랜잭션 밖에서 수행).
+    /**
+     * 경매와 현재 최고가를 검증한 뒤 입찰과 Outbox 저장을 위임한다.
+     * 검증은 트랜잭션 밖에서 수행하고, 저장은 {@link BidTransactionService}에 위임한다.
+     *
+     * @param bidderId  입찰자 식별자
+     * @param auctionId 경매 식별자
+     * @param amount    입찰 금액
+     * @return 저장된 입찰 응답
+     * @throws AuctionNotFoundException 경매가 존재하지 않을 때
+     * @throws BadRequestException      경매 상태, 마감 시각, 금액 검증에 실패할 때
+     */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public BidResponse placeBid(UUID bidderId, UUID auctionId, Long amount) {
         // 서로 독립적인 외부 조회를 Virtual Thread에서 동시에 시작해 입찰 핫패스의 직렬 RTT를 줄인다.
