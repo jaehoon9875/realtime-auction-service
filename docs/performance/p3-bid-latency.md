@@ -1,6 +1,5 @@
 # P3 — 입찰 외부 호출 병렬화 (before/after)
 
-> 작업 지시서: `temp/30_performance-improvement-plan.md` §P3
 > 측정 절차: [README.md](./README.md)
 
 ## 1. 개선 대상
@@ -14,8 +13,7 @@
 두 조회는 `auctionId`만 입력으로 받아 서로 독립적인데 직렬로 실행되어, 입찰 API 레이턴시에
 2 RTT가 그대로 가산된다.
 
-**개선안**: 두 조회를 병렬 실행(Virtual Threads `StructuredTaskScope` 또는 `CompletableFuture`) 후
-결과를 모아 기존 검증 순서(존재 → 상태 → 금액)를 유지한다.
+**개선안**: 두 조회를 병렬 실행한 후 결과를 모아 기존 검증 순서(존재 → 상태 → 금액)를 유지한다.
 
 **기대 효과**: `POST /api/bids` p95/p99 레이턴시 약 -1 RTT.
 
@@ -31,7 +29,7 @@
 | 노드/파드 리소스 | _(측정 시 기입)_ |
 | Kafka 파티션 수 | _(측정 시 기입)_ |
 
-> ⚠️ before/after는 위 설정을 **동일하게** 유지한 상태에서만 비교 가능하다.
+> before/after는 위 설정을 **동일하게** 유지한 상태에서만 비교 가능하다.
 
 ## 3. 측정 결과
 
@@ -48,12 +46,13 @@
 | 서버 에러율 | | | |
 | 비즈니스 400 비율 (참고) | | | |
 
-> 원시 데이터: `perf/results/<git-sha>/summary-*.json`
+> 원시 데이터(로컬, Git 제외): `perf/results/<git-sha>/summary-*.json`
+> 외부 보관 링크: _(필요 시 기입)_
 
-### Grafana 스냅샷
+### Grafana 캡처
 
-- Baseline: _(캡처/링크)_
-- After: _(캡처/링크)_
+- Baseline: _(민감 정보를 제거한 이미지 또는 공유 링크)_
+- After: _(민감 정보를 제거한 이미지 또는 공유 링크)_
 
 ## 4. 분석
 
