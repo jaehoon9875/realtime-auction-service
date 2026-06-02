@@ -8,11 +8,17 @@ import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -27,6 +33,8 @@ import com.jaehoon.bid.service.AuctionServiceClient.AuctionSnapshot;
 import com.jaehoon.bid.service.AuctionStreamsClient;
 import com.jaehoon.bid.service.BidService;
 import com.jaehoon.bid.service.BidTransactionService;
+
+import io.micrometer.context.ContextSnapshotFactory;
 
 @ExtendWith(MockitoExtension.class)
 class BidServiceTest {
@@ -43,8 +51,26 @@ class BidServiceTest {
     @Mock
     BidTransactionService bidTransactionService;
 
-    @InjectMocks
     BidService bidService;
+
+    ExecutorService bidLookupExecutor;
+
+    @BeforeEach
+    void setUp() {
+        bidLookupExecutor = Executors.newVirtualThreadPerTaskExecutor();
+        bidService = new BidService(
+                bidRepository,
+                auctionServiceClient,
+                auctionStreamsClient,
+                bidTransactionService,
+                bidLookupExecutor,
+                ContextSnapshotFactory.builder().build());
+    }
+
+    @AfterEach
+    void tearDown() {
+        bidLookupExecutor.close();
+    }
 
     @Test
     void placeBid_정상_입찰이면_bidTransactionService에_위임한다() {
@@ -141,5 +167,34 @@ class BidServiceTest {
 
         assertThatThrownBy(() -> bidService.placeBid(UUID.randomUUID(), auctionId, 11_000L))
                 .isInstanceOf(ExternalServiceException.class);
+    }
+
+    @Test
+    void placeBid_경매와_최고가_외부조회를_병렬로_시작한다() throws Exception {
+        UUID bidderId = UUID.randomUUID();
+        UUID auctionId = UUID.randomUUID();
+        Instant nowUtc = Instant.now();
+        BidResponse expected = new BidResponse(UUID.randomUUID(), auctionId, bidderId, 12_000L, BidStatus.ACCEPTED, nowUtc);
+        CountDownLatch callsStarted = new CountDownLatch(2);
+        CountDownLatch releaseCalls = new CountDownLatch(1);
+
+        when(auctionServiceClient.getAuction(auctionId)).thenAnswer(invocation -> {
+            callsStarted.countDown();
+            releaseCalls.await(1, TimeUnit.SECONDS);
+            return new AuctionSnapshot(auctionId, "ONGOING", 10_000L, nowUtc.plus(10, ChronoUnit.MINUTES));
+        });
+        when(auctionStreamsClient.getCurrentPrice(auctionId)).thenAnswer(invocation -> {
+            callsStarted.countDown();
+            releaseCalls.await(1, TimeUnit.SECONDS);
+            return 11_000L;
+        });
+        when(bidTransactionService.saveBidWithOutbox(bidderId, auctionId, 12_000L)).thenReturn(expected);
+
+        CompletableFuture<BidResponse> responseFuture = CompletableFuture.supplyAsync(
+                () -> bidService.placeBid(bidderId, auctionId, 12_000L));
+
+        assertThat(callsStarted.await(1, TimeUnit.SECONDS)).isTrue();
+        releaseCalls.countDown();
+        assertThat(responseFuture.get(1, TimeUnit.SECONDS)).isEqualTo(expected);
     }
 }

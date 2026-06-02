@@ -7,9 +7,9 @@
 #   3) k6 Job을 auction 네임스페이스에 띄워 api-gateway-service(클러스터 내부)로 부하를 준다.
 #   4) 로그를 스트리밍하며 저장하고, 요약 JSON을 perf/results/<git-sha>/ 에 격리 저장한다.
 #
-# 비용 주의:
-#   - 부하는 클러스터 내부 트래픽이라 egress 과금이 없다.
-#   - baseline.env의 VU/지속시간을 키우면 노드 오토스케일로 과금이 늘 수 있다. 신중히.
+# 실행 주의:
+#   - 부하는 클러스터 내부 트래픽으로 제한한다.
+#   - baseline.env의 VU/지속시간을 변경하면 노드 오토스케일이 발생할 수 있다.
 #
 # 사용법:
 #   ./perf/run-perf.sh              # baseline.env 기본값으로 실행
@@ -46,13 +46,26 @@ fi
 source "${CONFIG_FILE}"
 CONFIG_NAME="$(basename "${CONFIG_FILE}" .env)"
 
-GIT_SHA="$(git -C "${SCRIPT_DIR}" rev-parse --short HEAD)"
-GIT_DIRTY=""
-# worktree(미스테이징)와 index(스테이징) 양쪽을 검사해야 미커밋 변경이 RUN_ID에 반영된다.
+SCRIPT_SHA="$(git -C "${SCRIPT_DIR}" rev-parse --short HEAD)"
+SCRIPT_DIRTY=""
+# worktree(미스테이징)와 index(스테이징) 양쪽을 검사해야 실행 자산 변경 여부가 로그에 반영된다.
 if ! git -C "${SCRIPT_DIR}" diff --quiet || ! git -C "${SCRIPT_DIR}" diff --cached --quiet; then
-  GIT_DIRTY="-dirty"
+  SCRIPT_DIRTY="-dirty"
 fi
-RUN_ID="${GIT_SHA}${GIT_DIRTY}"
+
+# 결과는 로컬 실행 자산이 아니라 실제 측정 대상인 bid-service 배포 이미지 태그로 식별한다.
+TARGET_IMAGE="$(kubectl get deployment/bid-service-deployment -n "${NAMESPACE}" \
+  -o jsonpath='{.spec.template.spec.containers[?(@.name=="bid-service")].image}')"
+TARGET_TAG="${TARGET_IMAGE##*:}"
+TARGET_SHA="${TARGET_TAG#preview-}"
+if [[ -z "${TARGET_IMAGE}" || -z "${TARGET_TAG}" || "${TARGET_TAG}" == "${TARGET_IMAGE}" ]]; then
+  echo "오류: bid-service 배포 이미지 태그를 확인할 수 없습니다: ${TARGET_IMAGE}"; exit 1
+fi
+if [[ ! "${TARGET_SHA}" =~ ^[0-9a-f]{7,40}$ ]]; then
+  echo "⚠️  bid-service 이미지 태그가 git SHA 형식이 아닙니다: ${TARGET_TAG}"
+fi
+
+RUN_ID="${TARGET_SHA}"
 # baseline이 아닌 설정(스모크 등)의 결과가 본 측정과 섞이지 않도록 RUN_ID에 표시.
 if [[ "${CONFIG_NAME}" != "baseline" ]]; then
   RUN_ID="${RUN_ID}-${CONFIG_NAME}"
@@ -65,7 +78,9 @@ LOG_FILE="${RESULT_DIR}/k6-${TIMESTAMP}.log"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo " P3 입찰 레이턴시 테스트"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo " git           : ${RUN_ID}"
+echo " 측정 대상     : ${TARGET_IMAGE}"
+echo " 결과 ID       : ${RUN_ID}"
+echo " 실행 자산 git : ${SCRIPT_SHA}${SCRIPT_DIRTY}"
 echo " 설정 파일     : ${CONFIG_NAME}"
 echo " 시나리오      : ${SCENARIO}"
 echo " 최대 VU       : ${MAX_VUS}"
@@ -73,8 +88,8 @@ echo " 단계          : ramp-up ${RAMPUP_DUR} / 유지 ${SUSTAIN_DUR} / ramp-do
 echo " 경매/입찰자   : ${AUCTION_COUNT} / ${BIDDER_COUNT}"
 echo " 결과 저장     : ${RESULT_DIR}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-if [[ -n "${GIT_DIRTY}" ]]; then
-  echo "⚠️  커밋되지 않은 변경이 있습니다(-dirty). before/after 추적을 위해 측정 전 커밋을 권장합니다."
+if [[ -n "${SCRIPT_DIRTY}" ]]; then
+  echo "⚠️  실행 자산에 커밋되지 않은 변경이 있습니다. before/after 추적을 위해 측정 전 커밋을 권장합니다."
 fi
 
 # ── 이전 리소스 정리 ──────────────────────────────────────

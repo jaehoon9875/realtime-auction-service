@@ -17,6 +17,7 @@
 - internal-service-auth.md: Gateway ↔ 내부 서비스 간 Pre-shared Secret 인증 설정 가이드
 - adr/: MADR 형식 아키텍처 의사결정 기록. 각 결정의 Context·선택 근거·고려한 대안 포함 (adr/README.md 참고)
 - e2e-smoke-test.md: E2E Smoke Test 설명, 로컬 실행 방법, GitHub Secrets/Variables 전체 등록 가이드
+- performance/: 성능 테스트 측정 절차와 before/after 결과 리포트
 - preview-deploy.md: feature 브랜치를 main 머지 없이 GKE dev 환경에서 검증하는 워크플로 가이드
 - observability.md: Prometheus, Grafana, Loki, Tempo, Alloy 구성과 배포 후 검증 방법
 - ../CHANGELOG.md: 마일스톤별 변경 이력 (Keep a Changelog 형식, 루트에 위치)

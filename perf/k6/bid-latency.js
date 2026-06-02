@@ -1,4 +1,4 @@
-// P3: 입찰 API(POST /api/bids) 레이턴시 baseline 측정 스크립트.
+// P3: 입찰 API(POST /api/bids) 레이턴시 before/after 측정 스크립트.
 //
 // 측정 대상: BidService.placeBid 핫패스(auction-service 조회 + auction-streams IQ 조회 → 검증).
 // 개선안(P3)은 이 두 외부 호출을 병렬화하는 것이므로, before/after에서 p95/p99 변화를 본다.
@@ -128,7 +128,7 @@ export default function (data) {
 
 import { sleep } from 'k6';
 
-// handleSummary: 외부 jslib import 없이(egress 회피) 사람용 요약 + 기계용 JSON을 stdout에 출력.
+// handleSummary: 외부 jslib import 없이 사람용 요약 + 기계용 JSON을 stdout에 출력.
 // run-perf.sh가 마커 사이의 JSON을 추출해 perf/results/<git-sha>/summary.json 으로 저장한다.
 export function handleSummary(data) {
   const m = data.metrics;
@@ -137,7 +137,7 @@ export function handleSummary(data) {
 
   const lines = [
     '',
-    '================ P3 입찰 레이턴시 baseline 요약 ================',
+    '================ P3 입찰 레이턴시 요약 ================',
     `run_id        : ${RUN_ID}`,
     `scenario      : ${SCENARIO}`,
     `max_vus       : ${MAX_VUS}`,
