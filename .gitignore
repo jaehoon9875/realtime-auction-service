@@ -61,3 +61,6 @@ bin/
 
 # etc
 temp/
+# 성능 테스트 결과물(원시 로그/JSON) — 커밋 제외, .gitkeep만 추적
+perf/results/*
+!perf/results/.gitkeep
