@@ -145,6 +145,18 @@ class AuctionStreamsTopologyTest {
     }
 
     @Test
+    void 마감_후_최고가_상태도_스토어에서_삭제된다() {
+        long pastEndsAt = BASE_TIME.minusSeconds(60).toEpochMilli();
+        auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, pastEndsAt));
+        bidStateStore.put("auction-1", new AuctionBidState(50000L, "bidder-99", 3));
+
+        testDriver.advanceWallClockTime(Duration.ofSeconds(2));
+
+        // 마감된 경매의 최고가 상태가 영구 잔류하지 않도록 함께 삭제한다 (State Store 무한 증가 방지)
+        assertThat(bidStateStore.get("auction-1")).isNull();
+    }
+
+    @Test
     void 낙찰자가_있는_마감_경매는_AUCTION_WON과_AUCTION_CLOSED_모두_발행된다() {
         long pastEndsAt = BASE_TIME.minusSeconds(60).toEpochMilli();
         auctionInput.pipeInput("auction-1", auctionEvent("auction-1", EVENT_AUCTION_CREATED, pastEndsAt));

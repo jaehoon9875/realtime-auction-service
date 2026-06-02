@@ -5,10 +5,8 @@ import org.reactivestreams.Publisher;
 import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -35,10 +33,9 @@ public final class WebSocketTestSupport {
                             when(message.getPayloadAsText()).thenReturn(payload);
                             return message;
                         });
-        when(session.send(any(Publisher.class)))
+        when(session.send(any()))
                 .thenAnswer(
                         invocation -> {
-                            @SuppressWarnings("unchecked")
                             Publisher<? extends WebSocketMessage> publisher =
                                     invocation.getArgument(0);
                             return Flux.from(publisher)

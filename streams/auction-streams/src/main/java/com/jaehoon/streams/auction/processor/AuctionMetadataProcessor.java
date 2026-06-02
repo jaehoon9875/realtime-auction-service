@@ -89,6 +89,11 @@ public class AuctionMetadataProcessor implements Processor<String, AuctionEvent,
         }
 
         context.forward(new Record<>(auctionId, buildAuctionClosedEvent(auctionId, metadata, timestamp), timestamp));
+
+        // 마감된 경매의 최고가 상태는 더 이상 필요 없으므로 함께 제거한다.
+        // metadata만 삭제하면 bidState가 영구 잔류해 RocksDB·changelog가 무한 증가한다.
+        // (두 스토어는 auctionId로 co-partition 되어 이 태스크가 둘 다 소유하므로 안전)
+        bidStateStore.delete(auctionId);
     }
 
     private NotificationEvent buildAuctionWonEvent(String auctionId, AuctionBidState bidState, AuctionMetadata metadata, long timestamp) {
