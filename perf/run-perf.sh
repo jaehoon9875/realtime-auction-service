@@ -56,12 +56,13 @@ fi
 # 결과는 로컬 실행 자산이 아니라 실제 측정 대상인 bid-service 배포 이미지 태그로 식별한다.
 TARGET_IMAGE="$(kubectl get deployment/bid-service-deployment -n "${NAMESPACE}" \
   -o jsonpath='{.spec.template.spec.containers[?(@.name=="bid-service")].image}')"
-TARGET_SHA="${TARGET_IMAGE##*:}"
-if [[ -z "${TARGET_IMAGE}" || -z "${TARGET_SHA}" || "${TARGET_SHA}" == "${TARGET_IMAGE}" ]]; then
+TARGET_TAG="${TARGET_IMAGE##*:}"
+TARGET_SHA="${TARGET_TAG#preview-}"
+if [[ -z "${TARGET_IMAGE}" || -z "${TARGET_TAG}" || "${TARGET_TAG}" == "${TARGET_IMAGE}" ]]; then
   echo "오류: bid-service 배포 이미지 태그를 확인할 수 없습니다: ${TARGET_IMAGE}"; exit 1
 fi
 if [[ ! "${TARGET_SHA}" =~ ^[0-9a-f]{7,40}$ ]]; then
-  echo "⚠️  bid-service 이미지 태그가 git SHA 형식이 아닙니다: ${TARGET_SHA}"
+  echo "⚠️  bid-service 이미지 태그가 git SHA 형식이 아닙니다: ${TARGET_TAG}"
 fi
 
 RUN_ID="${TARGET_SHA}"

@@ -34,6 +34,8 @@ import com.jaehoon.bid.service.AuctionStreamsClient;
 import com.jaehoon.bid.service.BidService;
 import com.jaehoon.bid.service.BidTransactionService;
 
+import io.micrometer.context.ContextSnapshotFactory;
+
 @ExtendWith(MockitoExtension.class)
 class BidServiceTest {
 
@@ -61,7 +63,8 @@ class BidServiceTest {
                 auctionServiceClient,
                 auctionStreamsClient,
                 bidTransactionService,
-                bidLookupExecutor);
+                bidLookupExecutor,
+                ContextSnapshotFactory.builder().build());
     }
 
     @AfterEach

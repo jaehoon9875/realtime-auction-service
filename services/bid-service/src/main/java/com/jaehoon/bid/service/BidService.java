@@ -3,6 +3,7 @@ package com.jaehoon.bid.service;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.UUID;
 
@@ -18,6 +19,7 @@ import com.jaehoon.bid.exception.BadRequestException;
 import com.jaehoon.bid.repository.BidRepository;
 import com.jaehoon.bid.service.AuctionServiceClient.AuctionSnapshot;
 
+import io.micrometer.context.ContextSnapshotFactory;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -32,33 +34,31 @@ public class BidService {
     private final AuctionStreamsClient auctionStreamsClient;
     private final BidTransactionService bidTransactionService;
     private final ExecutorService bidLookupExecutor;
+    private final ContextSnapshotFactory contextSnapshotFactory;
 
     // 경매/입찰 유효성 검증 후 입찰 저장+Outbox 저장을 위임한다 (검증은 트랜잭션 밖에서 수행).
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public BidResponse placeBid(UUID bidderId, UUID auctionId, Long amount) {
         // 서로 독립적인 외부 조회를 Virtual Thread에서 동시에 시작해 입찰 핫패스의 직렬 RTT를 줄인다.
+        // 요청 스레드의 트레이싱/MDC 컨텍스트를 스냅샷으로 떠 조회 스레드에 전파한다(분산 추적 span 연결 유지).
+        Executor tracedExecutor = contextSnapshotFactory.captureAll().wrapExecutor(bidLookupExecutor);
         CompletableFuture<AuctionSnapshot> auctionFuture = CompletableFuture.supplyAsync(
                 () -> auctionServiceClient.getAuction(auctionId),
-                bidLookupExecutor);
+                tracedExecutor);
         CompletableFuture<Long> currentPriceFuture = CompletableFuture.supplyAsync(
                 () -> auctionStreamsClient.getCurrentPrice(auctionId),
-                bidLookupExecutor);
+                tracedExecutor);
 
         AuctionSnapshot auction;
         try {
             auction = join(auctionFuture);
-        } catch (RuntimeException e) {
-            currentPriceFuture.cancel(true);
-            throw e;
-        }
-        if (auction == null) {
-            currentPriceFuture.cancel(true);
-            throw new AuctionNotFoundException(auctionId);
-        }
-
-        try {
+            if (auction == null) {
+                throw new AuctionNotFoundException(auctionId);
+            }
             validateAuctionOpen(auction);
         } catch (RuntimeException e) {
+            // 앞 단계에서 입찰이 거절되면 최고가 조회 결과는 더 필요 없으므로 버린다.
+            // 단, 이미 시작된 HTTP 호출 자체는 인터럽트되지 않고 완료된다(CompletableFuture.cancel 한계).
             currentPriceFuture.cancel(true);
             throw e;
         }
