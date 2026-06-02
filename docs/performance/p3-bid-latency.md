@@ -26,8 +26,9 @@
 | 부하 설정 | `perf/config/baseline.env` (VU 50 / ramp-up 30s / 유지 5m / sleep 0.3s) |
 | 시나리오 | spread (경매 20개에 입찰 분산) |
 | 메트릭 | k6 요약 + Grafana(bid-service) |
-| 노드/파드 리소스 | _(측정 시 기입)_ |
-| Kafka 파티션 수 | _(측정 시 기입)_ |
+| 노드 | `e2-standard-4` 2대 + Spot `e2-standard-2` 1대 |
+| 주요 파드 리소스 | gateway·auction·bid: request `100m` / limit `500m`, streams: request `200m` / limit `1 CPU` |
+| Kafka 파티션 수 | `auction-events`, `bid-events`, `notification-events`: 각 3 |
 
 > before/after는 위 설정을 **동일하게** 유지한 상태에서만 비교 가능하다.
 
@@ -35,29 +36,41 @@
 
 | 지표 | Baseline (개선 전) | After (개선 후) | 변화 |
 |------|-------------------|----------------|------|
-| git SHA | _(채우기)_ | _(채우기)_ | — |
-| 측정 일시(UTC) | | | |
-| 총 요청 수 | | | |
-| 처리량 (req/s) | | | |
-| 레이턴시 avg (ms) | | | |
-| 레이턴시 p50 (ms) | | | |
-| 레이턴시 p95 (ms) | | | |
-| 레이턴시 p99 (ms) | | | |
-| 서버 에러율 | | | |
-| 비즈니스 400 비율 (참고) | | | |
+| git SHA | `39c5ff9` | _(채우기)_ | — |
+| 측정 일시(UTC) | `2026-06-02T04:54:06Z` | | |
+| 총 요청 수 | 33,459 | | |
+| 입찰 iteration 수 | 33,397 | | |
+| 처리량 (req/s) | 95.29 | | |
+| 레이턴시 avg (ms) | 181.4 | | |
+| 레이턴시 p50 (ms) | 134.3 | | |
+| 레이턴시 p95 (ms) | 490.2 | | |
+| 레이턴시 p99 (ms) | 706.6 | | |
+| 레이턴시 max (ms) | 1,739.5 | | |
+| 서버 에러율 | 0.00% | | |
+| 비즈니스 400 비율 (참고) | 62.07% | | |
 
 > 원시 데이터(로컬, Git 제외): `perf/results/<git-sha>/summary-*.json`
 > 외부 보관 링크: _(필요 시 기입)_
 
 ### Grafana 캡처
 
-- Baseline: _(민감 정보를 제거한 이미지 또는 공유 링크)_
+- Baseline: _(캡처 예정)_
 - After: _(민감 정보를 제거한 이미지 또는 공유 링크)_
 
 ## 4. 분석
 
-_(측정 후 작성: p99가 얼마나 줄었는지, 기대했던 -1 RTT가 실제로 나타났는지,
-처리량 변화, 예상과 다른 점이 있다면 그 원인.)_
+Baseline 측정은 서버 오류 없이 완료됐다. 테스트 전후 Gateway health는 `UP`, Debezium connector와 task는
+모두 `RUNNING` 상태였고, `auction-streams` consumer lag는 부하 중에도 전 파티션 `0`을 유지했다.
+
+유지 구간 중 Spot 노드 CPU는 `100~101%`까지 올라갔다. gateway·auction-service·bid-service가 같은 Spot
+노드에 배치되어 있어, after 측정에서도 동일한 노드 구성과 파드 배치를 유지해야 P3 개선 효과를 공정하게
+비교할 수 있다.
+
+`notification-service` consumer lag는 유지 구간 중 파티션별 최대 `4~6`까지 일시적으로 증가했지만,
+테스트 종료 직후 기존 수준인 파티션별 `1`로 회복했다. P3 비교의 핵심 지표는 아니지만, 별도 병목 후보로
+추적할 가치가 있다.
+
+after 측정 후 p95/p99 감소 폭, 처리량 변화, Spot 노드 CPU 변화를 비교해 외부 호출 병렬화 효과를 판단한다.
 
 ## 5. 비고 / 측정 시 주의
 
