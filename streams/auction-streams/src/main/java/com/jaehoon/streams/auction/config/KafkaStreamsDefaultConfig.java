@@ -37,8 +37,8 @@ public class KafkaStreamsDefaultConfig {
         props.put(StreamsConfig.APPLICATION_SERVER_CONFIG, applicationServer);
         props.put("processing.guarantee", processingGuarantee);
         props.put("schema.registry.url", schemaRegistryUrl);
-        props.put(StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, deserializationExceptionHandler);
-        props.put(StreamsConfig.DEFAULT_PRODUCTION_EXCEPTION_HANDLER_CLASS_CONFIG, productionExceptionHandler);
+        props.put(StreamsConfig.DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, deserializationExceptionHandler);
+        props.put(StreamsConfig.PRODUCTION_EXCEPTION_HANDLER_CLASS_CONFIG, productionExceptionHandler);
         return new KafkaStreamsConfiguration(props);
     }
 }

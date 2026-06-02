@@ -40,11 +40,11 @@ class NotificationMessageMapperTest {
 
         JsonNode json = readJson(mapper.toWebSocketMessage(event));
 
-        assertThat(json.get("type").asText()).isEqualTo(BID_UPDATED);
-        assertThat(json.get("auctionId").asText()).isEqualTo("auction-1");
+        assertThat(json.get("type").asString()).isEqualTo(BID_UPDATED);
+        assertThat(json.get("auctionId").asString()).isEqualTo("auction-1");
         assertThat(json.get("currentPrice").asLong()).isEqualTo(1_500_000L);
         assertThat(json.get("bidCount").asInt()).isEqualTo(3);
-        assertThat(json.get("occurredAt").asText())
+        assertThat(json.get("occurredAt").asString())
                 .isEqualTo(NotificationEventTestSupport.OCCURRED_AT_ISO);
     }
 
@@ -61,9 +61,9 @@ class NotificationMessageMapperTest {
 
         JsonNode json = readJson(mapper.toWebSocketMessage(event));
 
-        assertThat(json.get("type").asText()).isEqualTo(AUCTION_CLOSED);
+        assertThat(json.get("type").asString()).isEqualTo(AUCTION_CLOSED);
         assertThat(json.get("finalPrice").asLong()).isEqualTo(2_000_000L);
-        assertThat(json.get("winnerId").asText()).isEqualTo("user-winner");
+        assertThat(json.get("winnerId").asString()).isEqualTo("user-winner");
     }
 
     @Test
@@ -88,7 +88,7 @@ class NotificationMessageMapperTest {
 
         JsonNode json = readJson(mapper.toWebSocketMessage(event));
 
-        assertThat(json.get("type").asText()).isEqualTo(OUTBID);
+        assertThat(json.get("type").asString()).isEqualTo(OUTBID);
         assertThat(json.get("currentPrice").asLong()).isEqualTo(900_000L);
     }
 
@@ -101,9 +101,9 @@ class NotificationMessageMapperTest {
 
         JsonNode json = readJson(mapper.toWebSocketMessage(event));
 
-        assertThat(json.get("type").asText()).isEqualTo(BID_REJECTED);
+        assertThat(json.get("type").asString()).isEqualTo(BID_REJECTED);
         assertThat(json.get("rejectedPrice").asLong()).isEqualTo(100_000L);
-        assertThat(json.get("reason").asText()).isEqualTo("PRICE_TOO_LOW");
+        assertThat(json.get("reason").asString()).isEqualTo("PRICE_TOO_LOW");
     }
 
     @Test

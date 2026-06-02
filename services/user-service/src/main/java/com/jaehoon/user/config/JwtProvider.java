@@ -35,8 +35,6 @@ import lombok.Getter;
 @ConfigurationProperties(prefix = "app.jwt")
 public class JwtProvider {
 
-    private final String privateKey;
-    private final String publicKey;
     private final long accessTokenExpirationMs;
 
     @Getter
@@ -50,8 +48,6 @@ public class JwtProvider {
 
     public JwtProvider(String privateKey, String publicKey,
             long accessTokenExpirationMs, long refreshTokenExpirationMs) {
-        this.privateKey = privateKey;
-        this.publicKey = publicKey;
         this.accessTokenExpirationMs = accessTokenExpirationMs;
         this.refreshTokenExpirationMs = refreshTokenExpirationMs;
         this.rsaPublicKey = parsePublicKey(publicKey);
