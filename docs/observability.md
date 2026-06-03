@@ -66,6 +66,64 @@ Helm 렌더링 결과의 Alloy DaemonSet에 다음 toleration이 있어야 합�
   effect: NoSchedule
 ```
 
+## Grafana 대시보드
+
+### 자동 로드 원리
+
+대시보드는 **수동 import가 필요 없습니다.** kube-prometheus-stack은 `grafana-sc-dashboard` sidecar 컨테이너를 Grafana Pod에 내장합니다. 이 sidecar는 `grafana_dashboard: "1"` 레이블이 붙은 ConfigMap을 감시해, 변경이 생기면 JSON을 자동으로 Grafana에 로드합니다.
+
+즉 `infra/k8s/base/monitoring/grafana-dashboard-*.yaml` 파일을 수정하고 ArgoCD가 sync하면 Grafana에 즉시 반영됩니다. kubectl apply나 Grafana UI import는 필요하지 않습니다.
+
+### 포함된 대시보드
+
+| 파일 | Folder | 용도 |
+|------|--------|------|
+| `grafana-dashboard-realtime-auction.yaml` | Realtime Auction | Kafka Consumer Lag · HTTP 처리량/레이턴시 · JVM Heap/GC |
+| `grafana-dashboard-slo-supplement.yaml` | SLO | Pod 재시작 횟수 · Scrape 가용성 |
+
+### 대시보드 추가 방법
+
+1. Grafana UI에서 대시보드를 만들고 `Export → Export for sharing externally` 로 JSON을 다운로드합니다.
+2. `infra/k8s/base/monitoring/grafana-dashboard-{이름}.yaml` 을 새로 만듭니다.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-{이름}
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"        # sidecar 감지 필수 레이블
+  annotations:
+    grafana_folder: "{폴더 이름}" # Grafana 좌측 패널 폴더
+data:
+  {이름}.json: |
+    { ... 내보낸 JSON ... }
+```
+
+3. `infra/k8s/base/monitoring/kustomization.yaml`의 `resources`에 파일명을 추가합니다.
+4. Git push → ArgoCD sync → Grafana 자동 로드 순으로 진행됩니다.
+
+> **파일 위치 선택 근거**: 대시보드 JSON은 ConfigMap으로 클러스터에 배포되므로 `infra/k8s/base/monitoring/`에 둡니다. 루트에 별도 `dashboards/` 디렉토리를 두는 방식은 JSON을 K8s 매니페스트와 분리해 편집하기 좋지만, kustomize configMapGenerator를 별도로 구성해야 합니다. 현재 규모에서는 ConfigMap 파일 하나로 관리하는 방식이 단순합니다.
+
+### Kafka Consumer Lag 대시보드 전제 조건
+
+`Realtime Auction — 운영 현황` 대시보드의 Consumer Lag 패널은 Strimzi Kafka Exporter 메트릭을 사용합니다.
+Kafka Exporter는 `infra/k8s/base/kafka/kafka-cluster.yaml`의 `kafkaExporter` 섹션으로 활성화되며,
+`infra/k8s/base/monitoring-rules/kafka-exporter-servicemonitor.yaml` ServiceMonitor가 스크레이프합니다.
+
+Kafka Exporter Pod가 실행 중인지 확인합니다.
+
+```bash
+kubectl get pod -n auction -l app.kubernetes.io/name=kafka-exporter
+```
+
+Prometheus가 메트릭을 수집하고 있는지 확인합니다.
+
+```promql
+kafka_consumergroup_lag_sum{namespace="auction"}
+```
+
 ## 배포 후 검증
 
 ### Prometheus

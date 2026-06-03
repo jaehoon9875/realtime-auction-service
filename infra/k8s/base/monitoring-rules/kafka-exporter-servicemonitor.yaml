@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kafka-exporter
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - auction
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka-exporter
+      strimzi.io/cluster: auction-kafka
+  endpoints:
+    - port: tcp-prometheus
+      interval: 30s
+      relabelings:
+        # Kafka Exporter 메트릭에 namespace 레이블 추가 — 대시보드 namespace 변수 필터링 가능
+        - targetLabel: namespace
+          replacement: auction
+        - targetLabel: scrape_group
+          replacement: kafka-exporter
