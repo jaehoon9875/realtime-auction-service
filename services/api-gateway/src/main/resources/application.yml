@@ -5,6 +5,23 @@ spring:
     gateway:
       server:
         webflux:
+          # 데모 UI(localhost)에서 브라우저 fetch/WebSocket 연결을 허용한다.
+          # 서버 간 호출(curl, k6, 내부 서비스)은 CORS를 무시하므로 기존 동작에 영향 없음.
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOriginPatterns:
+                  - "http://localhost:*"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                allowCredentials: true
+                maxAge: 3600
           routes:
             # User Service (README 포트: 8083)
             # 외부: /api/users/** → 내부: /users/** (첫 세그먼트 api 제거)
