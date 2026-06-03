@@ -220,7 +220,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "count(kafka_consumergroup_lag_sum{namespace=\"$namespace\"} == 0) or vector(0)",
+              "expr": "count((sum by (consumergroup) (kafka_consumergroup_lag_sum{namespace=\"$namespace\"})) == 0) or vector(0)",
               "refId": "A",
               "instant": true
             }
