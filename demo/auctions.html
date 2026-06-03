@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>실시간 경매 · 목록</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #2f81f7;
+    --up: #3fb950; --down: #f85149; --warn: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "SF Pro Text", "Pretendard", system-ui, sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    display: flex; flex-direction: column;
+  }
+  header {
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+  .user-chip {
+    margin-left: auto; font-size: 12px; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 999px;
+  }
+  .logout-btn {
+    font-size: 12px; color: var(--muted); background: none;
+    border: none; cursor: pointer; padding: 4px 8px;
+  }
+  .logout-btn:hover { color: var(--down); }
+
+  .toolbar {
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  .toolbar button {
+    padding: 7px 14px; font-size: 13px; font-weight: 600;
+    border-radius: 6px; border: 1px solid var(--border); cursor: pointer;
+  }
+  .primary { background: var(--accent); color: #fff; border-color: var(--accent) !important; }
+  .ghost   { background: transparent; color: var(--text); }
+  .toolbar button:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* 경매 생성 폼 */
+  .create-panel {
+    display: none; padding: 14px 20px; border-bottom: 1px solid var(--border);
+    background: var(--panel); gap: 10px; flex-wrap: wrap; align-items: flex-end;
+  }
+  .create-panel.open { display: flex; }
+  .create-panel label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .create-panel input {
+    display: block; width: 100%; margin-top: 4px;
+    padding: 8px 10px; font-size: 13px;
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: inherit;
+  }
+  .create-panel input:focus { outline: none; border-color: var(--accent); }
+  .create-panel .field { flex: 1; min-width: 160px; }
+  .create-msg { font-size: 12px; color: var(--muted); width: 100%; }
+
+  main { flex: 1; padding: 20px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px; cursor: pointer; transition: border-color .15s, transform .1s;
+  }
+  .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .card-title { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .card-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .card-row .val { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px; margin-bottom: 8px;
+  }
+  .badge.ONGOING  { background: rgba(63,185,80,.15);  color: var(--up);   border: 1px solid var(--up); }
+  .badge.CLOSED   { background: rgba(248,81,73,.15);  color: var(--down); border: 1px solid var(--down); }
+  .badge.PENDING  { background: rgba(210,153,34,.15); color: var(--warn); border: 1px solid var(--warn); }
+
+  .empty { color: var(--muted); text-align: center; margin-top: 60px; font-size: 14px; }
+  .loading { color: var(--muted); text-align: center; margin-top: 60px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔨 실시간 경매</h1>
+  <span class="user-chip" id="userChip">—</span>
+  <button class="logout-btn" id="logoutBtn">로그아웃</button>
+</header>
+
+<div class="toolbar">
+  <button class="primary" id="createBtn">+ 경매 생성</button>
+  <button class="ghost"   id="refreshBtn">새로고침</button>
+</div>
+
+<div class="create-panel" id="createPanel">
+  <div class="field">
+    <label>제목</label>
+    <input id="cfTitle" placeholder="경매 제목" />
+  </div>
+  <div class="field" style="max-width:140px">
+    <label>시작가 (원)</label>
+    <input id="cfPrice" type="number" placeholder="10000" value="10000" />
+  </div>
+  <div class="field" style="max-width:120px">
+    <label>마감 (분 후)</label>
+    <input id="cfMins" type="number" placeholder="60" value="60" />
+  </div>
+  <div>
+    <label>&nbsp;</label>
+    <button class="primary" id="cfSubmit" style="margin-top:4px;padding:9px 18px;font-size:13px;border-radius:6px;border:none;cursor:pointer">생성</button>
+  </div>
+  <div class="create-msg" id="createMsg"></div>
+</div>
+
+<main>
+  <div id="grid" class="grid"><div class="loading">불러오는 중…</div></div>
+</main>
+
+<script>
+  const LS = "auction-demo-cfg";
+  function cfg() { try { return JSON.parse(localStorage.getItem(LS) || "{}"); } catch(_) { return {}; } }
+
+  const c = cfg();
+  if (!c.token) { location.href = "login.html"; }
+
+  const BASE = (c.base || "").replace(/\/$/, "");
+  document.getElementById("userChip").textContent = c.email || "사용자";
+
+  function fmt(n) { return n != null ? Number(n).toLocaleString("ko-KR") + "원" : "—"; }
+  function timeLeft(endsAt) {
+    const d = new Date(endsAt) - Date.now();
+    if (d <= 0) return "마감";
+    const m = Math.floor(d / 60000);
+    const h = Math.floor(m / 60);
+    return h > 0 ? `${h}시간 ${m % 60}분 남음` : `${m}분 남음`;
+  }
+
+  async function fetchAuctions() {
+    const r = await fetch(`${BASE}/api/auctions`, {
+      headers: { Authorization: `Bearer ${c.token}` }
+    });
+    if (r.status === 401) { location.href = "login.html"; return []; }
+    const body = await r.json();
+    // 페이지네이션 응답(content 배열) 또는 일반 배열 모두 처리
+    return Array.isArray(body) ? body : (body.content || []);
+  }
+
+  function renderCard(a) {
+    const statusLabel = a.status === "ONGOING" ? "진행 중" : a.status === "CLOSED" ? "종료" : "대기";
+    // 서버 데이터를 innerHTML에 직접 삽입하지 않도록 DOM API로 조립
+    const div = document.createElement("div");
+    div.className = "card";
+
+    const badge = document.createElement("span");
+    badge.className = "badge " + (["ONGOING","CLOSED","PENDING"].includes(a.status) ? a.status : "");
+    badge.textContent = statusLabel;
+
+    const title = document.createElement("div");
+    title.className = "card-title";
+    title.textContent = a.title;
+
+    function makeRow(label, value) {
+      const row = document.createElement("div");
+      row.className = "card-row";
+      const l = document.createElement("span"); l.textContent = label;
+      const v = document.createElement("span"); v.className = "val"; v.textContent = value;
+      row.append(l, v);
+      return row;
+    }
+
+    div.append(
+      badge, title,
+      makeRow("현재가", fmt(a.currentPrice ?? a.startPrice)),
+      makeRow("시작가", fmt(a.startPrice)),
+      makeRow("마감",   timeLeft(a.endsAt)),
+    );
+    div.addEventListener("click", () => {
+      location.href = `auction-live.html?id=${a.id}`;
+    });
+    return div;
+  }
+
+  async function loadList() {
+    const grid = document.getElementById("grid");
+    grid.innerHTML = '<div class="loading">불러오는 중…</div>';
+    const list = await fetchAuctions();
+    grid.innerHTML = "";
+    if (!list.length) {
+      grid.innerHTML = '<div class="empty">경매가 없습니다. 새 경매를 생성해보세요.</div>';
+      return;
+    }
+    // ONGOING 먼저, 최신순
+    list.sort((a, b) => {
+      if (a.status === b.status) return new Date(b.createdAt) - new Date(a.createdAt);
+      return a.status === "ONGOING" ? -1 : 1;
+    });
+    list.forEach(a => grid.appendChild(renderCard(a)));
+  }
+
+  // 경매 생성
+  let createOpen = false;
+  document.getElementById("createBtn").addEventListener("click", () => {
+    createOpen = !createOpen;
+    document.getElementById("createPanel").classList.toggle("open", createOpen);
+  });
+
+  document.getElementById("cfSubmit").addEventListener("click", async () => {
+    const title = document.getElementById("cfTitle").value.trim();
+    const price = parseInt(document.getElementById("cfPrice").value) || 10000;
+    const mins  = parseInt(document.getElementById("cfMins").value)  || 60;
+    if (!title) { document.getElementById("createMsg").textContent = "제목을 입력하세요."; return; }
+
+    const endsAt = new Date(Date.now() + mins * 60000).toISOString().replace(/\.\d+Z$/, "Z");
+    document.getElementById("createMsg").textContent = "생성 중…";
+    try {
+      const r = await fetch(`${BASE}/api/auctions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${c.token}` },
+        body: JSON.stringify({ title, startPrice: price, endsAt }),
+      });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.message || `HTTP ${r.status}`);
+      document.getElementById("createMsg").textContent = "생성 완료!";
+      document.getElementById("cfTitle").value = "";
+      setTimeout(() => {
+        document.getElementById("createMsg").textContent = "";
+        createOpen = false;
+        document.getElementById("createPanel").classList.remove("open");
+        loadList();
+      }, 800);
+    } catch (e) {
+      document.getElementById("createMsg").textContent = "실패: " + e.message;
+    }
+  });
+
+  document.getElementById("refreshBtn").addEventListener("click", loadList);
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+    const c2 = cfg(); delete c2.token;
+    localStorage.setItem(LS, JSON.stringify(c2));
+    localStorage.removeItem("auction-live-cfg");
+    location.href = "login.html";
+  });
+
+  loadList();
+  // 30초마다 자동 갱신
+  setInterval(loadList, 30000);
+</script>
+</body>
+</html>

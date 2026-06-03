@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>실시간 경매 · 로그인</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #2f81f7;
+    --up: #3fb950; --down: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "SF Pro Text", "Pretendard", system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .card {
+    width: 100%; max-width: 380px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 36px 32px;
+  }
+  h1 { margin: 0 0 6px; font-size: 20px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+  label { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+  input {
+    width: 100%; padding: 10px 12px; font-size: 14px;
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px; margin-bottom: 14px;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 8px; margin-top: 4px; }
+  button {
+    flex: 1; padding: 11px; font-size: 14px; font-weight: 600;
+    border-radius: 7px; border: 1px solid var(--border); cursor: pointer;
+    transition: opacity .15s;
+  }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .secondary { background: transparent; color: var(--text); }
+  .msg { margin-top: 14px; font-size: 13px; min-height: 20px; text-align: center; }
+  .msg.err { color: var(--down); }
+  .msg.ok  { color: var(--up); }
+  .server-row { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🔨 실시간 경매</h1>
+  <p class="sub">데모 · 테스트 환경</p>
+
+  <div class="server-row">
+    <label>Gateway URL</label>
+    <input id="base" placeholder="http://34.64.61.251" />
+  </div>
+
+  <label>이메일</label>
+  <input id="email" type="email" placeholder="user@test.local" autocomplete="username" />
+
+  <label>비밀번호</label>
+  <input id="pw" type="password" placeholder="Password1!" autocomplete="current-password" />
+
+  <div class="row">
+    <button class="primary" id="loginBtn">로그인</button>
+    <button class="secondary" id="signupBtn">회원가입 후 로그인</button>
+  </div>
+  <div class="msg" id="msg"></div>
+</div>
+
+<script>
+  const LS = "auction-demo-cfg";
+  function load() {
+    try {
+      const c = JSON.parse(localStorage.getItem(LS) || "{}");
+      document.getElementById("base").value  = c.base  || "";
+      document.getElementById("email").value = c.email || "";
+    } catch (_) {}
+  }
+  function save(base, email) {
+    const c = JSON.parse(localStorage.getItem(LS) || "{}");
+    localStorage.setItem(LS, JSON.stringify({ ...c, base, email }));
+  }
+  load();
+
+  function setMsg(txt, type) {
+    const el = document.getElementById("msg");
+    el.textContent = txt; el.className = "msg " + (type || "");
+  }
+  function setBusy(v) {
+    document.getElementById("loginBtn").disabled = v;
+    document.getElementById("signupBtn").disabled = v;
+  }
+
+  async function doLogin(base, email, pw) {
+    const r = await fetch(`${base}/api/users/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: pw }),
+    });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.message || `HTTP ${r.status}`);
+    return body.accessToken;
+  }
+
+  async function doSignup(base, email, pw) {
+    const nick = email.split("@")[0];
+    const r = await fetch(`${base}/api/users/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: pw, nickname: nick }),
+    });
+    if (!r.ok) {
+      const body = await r.json().catch(() => ({}));
+      throw new Error(body.message || `signup HTTP ${r.status}`);
+    }
+  }
+
+  async function handleLogin() {
+    const base  = document.getElementById("base").value.trim().replace(/\/$/, "");
+    const email = document.getElementById("email").value.trim();
+    const pw    = document.getElementById("pw").value;
+    if (!base || !email || !pw) { setMsg("모든 항목을 입력하세요.", "err"); return; }
+    setBusy(true); setMsg("로그인 중…");
+    try {
+      const token = await doLogin(base, email, pw);
+      save(base, email);
+      const c = JSON.parse(localStorage.getItem(LS) || "{}");
+      localStorage.setItem(LS, JSON.stringify({ ...c, token, base, email }));
+      setMsg("로그인 성공! 이동 중…", "ok");
+      setBusy(false);
+      setTimeout(() => location.href = "auctions.html", 500);
+    } catch (e) {
+      setMsg("로그인 실패: " + e.message, "err");
+      setBusy(false);
+    }
+  }
+
+  async function handleSignup() {
+    const base  = document.getElementById("base").value.trim().replace(/\/$/, "");
+    const email = document.getElementById("email").value.trim();
+    const pw    = document.getElementById("pw").value;
+    if (!base || !email || !pw) { setMsg("모든 항목을 입력하세요.", "err"); return; }
+    setBusy(true); setMsg("계정 생성 중…");
+    try {
+      await doSignup(base, email, pw);
+      setMsg("가입 완료, 로그인 중…", "ok");
+      const token = await doLogin(base, email, pw);
+      save(base, email);
+      const c = JSON.parse(localStorage.getItem(LS) || "{}");
+      localStorage.setItem(LS, JSON.stringify({ ...c, token, base, email }));
+      setMsg("완료! 이동 중…", "ok");
+      setBusy(false);
+      setTimeout(() => location.href = "auctions.html", 500);
+    } catch (e) {
+      setMsg("실패: " + e.message, "err");
+      setBusy(false);
+    }
+  }
+
+  document.getElementById("loginBtn").addEventListener("click", handleLogin);
+  document.getElementById("signupBtn").addEventListener("click", handleSignup);
+  document.getElementById("pw").addEventListener("keydown", e => { if (e.key === "Enter") handleLogin(); });
+</script>
+</body>
+</html>
