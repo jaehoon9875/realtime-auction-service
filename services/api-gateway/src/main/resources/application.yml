@@ -5,8 +5,21 @@ spring:
     gateway:
       server:
         webflux:
-          # 데모 UI(localhost)에서 브라우저 fetch/WebSocket 연결을 허용한다.
-          # 서버 간 호출(curl, k6, 내부 서비스)은 CORS를 무시하므로 기존 동작에 영향 없음.
+          # ── CORS 설정 ────────────────────────────────────────────────────────────
+          # 브라우저는 cross-origin 요청 전에 Origin 헤더를 서버에 보내고,
+          # 서버가 Access-Control-Allow-Origin 헤더를 돌려줘야 실제 요청을 허용한다.
+          # curl·k6·서비스 간 내부 호출 등 비브라우저 클라이언트는 이 검사를 하지 않으므로
+          # 아래 설정은 브라우저 전용이며 기존 API 동작에 영향을 주지 않는다.
+          #
+          # allowedOriginPatterns: "http://localhost:*"
+          #   로컬에서 demo/*.html 을 HTTP 서버로 띄워 Gateway API를 호출할 때 필요하다.
+          #   실제 사용자 트래픽의 Origin은 localhost가 아니므로 프로덕션 요청에 영향 없음.
+          #
+          # allowCredentials 미설정(기본값 false):
+          #   이 API는 인증을 쿠키가 아닌 Authorization 헤더(JWT Bearer)와
+          #   WebSocket 핸드셰이크 시 ?token= 쿼리 파라미터로 처리한다.
+          #   allowCredentials: true 는 쿠키 기반 인증에서 필요한 설정이므로
+          #   여기서는 불필요하며 보안 리스크를 줄이기 위해 명시적으로 제외한다.
           globalcors:
             cors-configurations:
               '[/**]':
@@ -20,7 +33,6 @@ spring:
                   - OPTIONS
                 allowedHeaders:
                   - "*"
-                allowCredentials: true
                 maxAge: 3600
           routes:
             # User Service (README 포트: 8083)
