@@ -82,7 +82,7 @@ BASE_URL=http://<gateway-ip> ./demo/setup-demo.sh
 ```
 
 출력 예시:
-```
+```text
 ✅ 데모 준비 완료
 
 [ auction-live.html 에 입력할 값 ]
@@ -135,7 +135,7 @@ BASE=http://34.64.x.x AUCTION_ID=<uuid> JWT=<token> ./demo/run-scenario.sh compe
 
 ## 전체 플로우 요약
 
-```
+```text
 ./demo/start-demo.sh
         ↓
   브라우저: login.html → 로그인

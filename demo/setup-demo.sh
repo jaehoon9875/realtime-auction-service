@@ -20,7 +20,10 @@ json_field() {
   if command -v jq &>/dev/null; then
     echo "$json" | jq -r ".${field} // empty"
   else
-    echo "$json" | grep -o "\"${field}\":\"[^\"]*\"" | head -1 | cut -d'"' -f4
+    echo "$json" \
+      | grep -oE "\"${field}\"[[:space:]]*:[[:space:]]*(\"[^\"]*\"|[^,}]+)" \
+      | head -1 \
+      | sed -E "s/^[^:]*:[[:space:]]*//; s/^\"//; s/\"$//"
   fi
 }
 

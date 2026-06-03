@@ -64,10 +64,10 @@ make_user() { # suffix → stdout: jwt
   local email="scenario-${ts}@test.local"
   curl -s -X POST "${BASE}/api/users/signup" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"${email}\",\"password\":\"Scene1234!\",\"nickname\":\"bidder-${ts}\"}" > /dev/null
+    -d "{\"email\":\"${email}\",\"password\":\"Scene1234!\",\"nickname\":\"bidder-${ts}\"}" > /dev/null || true
   curl -s -X POST "${BASE}/api/users/login" \
     -H "Content-Type: application/json" \
-    -d "{\"email\":\"${email}\",\"password\":\"Scene1234!\"}" | jq -r '.accessToken'
+    -d "{\"email\":\"${email}\",\"password\":\"Scene1234!\"}" | jq -r '.accessToken' || true
 }
 
 check_env() {
