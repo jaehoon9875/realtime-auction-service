@@ -4,5 +4,6 @@ kind: Kustomization
 resources:
   - grafana-admin-sealed-secret.yaml
   - grafana-dashboard-slo-supplement.yaml
+  - grafana-dashboard-realtime-auction.yaml
   - loki-minio-sealed-secret.yaml
   - tempo-networkpolicy.yaml

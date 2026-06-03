@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - prometheusrule.yaml
   - servicemonitor.yaml
+  - kafka-exporter-servicemonitor.yaml

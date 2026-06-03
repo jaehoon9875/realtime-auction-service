@@ -27,3 +27,14 @@ spec:
   entityOperator:
     topicOperator: {}
     userOperator: {}
+  kafkaExporter:
+    # auction/bid/notification 3개 토픽 consumer lag 노출
+    topicRegex: "auction-events|bid-events|notification-events"
+    groupRegex: ".*"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
