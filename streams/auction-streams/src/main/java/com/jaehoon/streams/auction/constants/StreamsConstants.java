@@ -30,6 +30,7 @@ public final class StreamsConstants {
     public static final String NOTIFICATION_AUCTION_CLOSED = "AUCTION_CLOSED";
     public static final String NOTIFICATION_OUTBID = "OUTBID";
     public static final String NOTIFICATION_BID_REJECTED = "BID_REJECTED";
+    public static final String NOTIFICATION_BID_UPDATED = "BID_UPDATED";
 
     // Processor 이름
     public static final String PROCESSOR_AUCTION_METADATA = "auction-metadata-processor";

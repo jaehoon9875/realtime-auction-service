@@ -96,7 +96,7 @@ class BidStreamsTopologyTest {
     }
 
     @Test
-    void 최초_입찰은_스토어에_저장되고_OUTBID_알림은_발행되지_않는다() {
+    void 최초_입찰은_스토어에_저장되고_OUTBID_없이_BID_UPDATED만_발행된다() {
         bidInput.pipeInput("auction-1", bidEvent("auction-1", "bidder-A", 5000L));
 
         AuctionBidState state = bidStateStore.get("auction-1");
@@ -104,11 +104,15 @@ class BidStreamsTopologyTest {
         assertThat(state.highestBid()).isEqualTo(5000L);
         assertThat(state.highestBidderId()).isEqualTo("bidder-A");
         assertThat(state.bidCount()).isEqualTo(1);
-        assertThat(notificationOutput.isEmpty()).isTrue();
+
+        // 최초 입찰: OUTBID 없이 BID_UPDATED 1건만 발행
+        List<NotificationEvent> notifications = notificationOutput.readValuesToList();
+        assertThat(notifications).hasSize(1);
+        assertThat(notifications.get(0).getNotificationType().toString()).isEqualTo(NOTIFICATION_BID_UPDATED);
     }
 
     @Test
-    void 더_높은_입찰은_스토어를_갱신하고_OUTBID_알림을_발행한다() {
+    void 더_높은_입찰은_스토어를_갱신하고_OUTBID와_BID_UPDATED를_발행한다() {
         bidInput.pipeInput("auction-1", bidEvent("auction-1", "bidder-A", 5000L));
         bidInput.pipeInput("auction-1", bidEvent("auction-1", "bidder-B", 8000L));
 
@@ -117,9 +121,15 @@ class BidStreamsTopologyTest {
         assertThat(state.highestBidderId()).isEqualTo("bidder-B");
         assertThat(state.bidCount()).isEqualTo(2);
 
+        // 1번째 입찰: BID_UPDATED(1), 2번째 입찰: OUTBID + BID_UPDATED(2) → 총 3건
         List<NotificationEvent> notifications = notificationOutput.readValuesToList();
-        assertThat(notifications).hasSize(1);
-        assertThat(notifications.get(0).getNotificationType().toString()).isEqualTo(NOTIFICATION_OUTBID);
+        assertThat(notifications).hasSize(3);
+        assertThat(notifications.stream()
+                .filter(n -> n.getNotificationType().toString().equals(NOTIFICATION_OUTBID))
+                .count()).isEqualTo(1);
+        assertThat(notifications.stream()
+                .filter(n -> n.getNotificationType().toString().equals(NOTIFICATION_BID_UPDATED))
+                .count()).isEqualTo(2);
     }
 
     @Test
@@ -127,7 +137,9 @@ class BidStreamsTopologyTest {
         bidInput.pipeInput("auction-1", bidEvent("auction-1", "bidder-A", 5000L));
         bidInput.pipeInput("auction-1", bidEvent("auction-1", "bidder-B", 8000L));
 
-        NotificationEvent outbid = notificationOutput.readValuesToList().get(0);
+        NotificationEvent outbid = notificationOutput.readValuesToList().stream()
+                .filter(n -> n.getNotificationType().toString().equals(NOTIFICATION_OUTBID))
+                .findFirst().orElseThrow();
         assertThat(outbid.getTargetUserId().toString()).isEqualTo("bidder-A");
         assertThat(outbid.getAuctionId().toString()).isEqualTo("auction-1");
         assertThat(outbid.getPayload()).containsKey("newHighestBid");
@@ -135,7 +147,7 @@ class BidStreamsTopologyTest {
     }
 
     @Test
-    void 현재_최고가_이하_입찰은_스토어를_변경하지_않고_알림도_발행하지_않는다() {
+    void 현재_최고가_이하_입찰은_스토어를_변경하지_않고_추가_알림도_발행하지_않는다() {
         bidInput.pipeInput("auction-1", bidEvent("auction-1", "bidder-A", 5000L));
         bidInput.pipeInput("auction-1", bidEvent("auction-1", "bidder-B", 3000L));
 
@@ -143,7 +155,11 @@ class BidStreamsTopologyTest {
         assertThat(state.highestBid()).isEqualTo(5000L);
         assertThat(state.highestBidderId()).isEqualTo("bidder-A");
         assertThat(state.bidCount()).isEqualTo(1);
-        assertThat(notificationOutput.isEmpty()).isTrue();
+
+        // 첫 입찰에서 BID_UPDATED 1건만 발행, 이하 입찰은 알림 없음
+        List<NotificationEvent> notifications = notificationOutput.readValuesToList();
+        assertThat(notifications).hasSize(1);
+        assertThat(notifications.get(0).getNotificationType().toString()).isEqualTo(NOTIFICATION_BID_UPDATED);
     }
 
     @Test
@@ -181,8 +197,15 @@ class BidStreamsTopologyTest {
         assertThat(state.highestBidderId()).isEqualTo("bidder-C");
         assertThat(state.bidCount()).isEqualTo(3);
 
-        // OUTBID 알림은 A→B, B→C 두 번 발행
-        assertThat(notificationOutput.readValuesToList()).hasSize(2);
+        // A: BID_UPDATED(1), B: OUTBID+BID_UPDATED(2), C: OUTBID+BID_UPDATED(3) → 총 5건
+        List<NotificationEvent> notifications = notificationOutput.readValuesToList();
+        assertThat(notifications).hasSize(5);
+        assertThat(notifications.stream()
+                .filter(n -> n.getNotificationType().toString().equals(NOTIFICATION_OUTBID))
+                .count()).isEqualTo(2);
+        assertThat(notifications.stream()
+                .filter(n -> n.getNotificationType().toString().equals(NOTIFICATION_BID_UPDATED))
+                .count()).isEqualTo(3);
     }
 
     @Test
@@ -192,7 +215,47 @@ class BidStreamsTopologyTest {
 
         assertThat(bidStateStore.get("auction-1").highestBid()).isEqualTo(5000L);
         assertThat(bidStateStore.get("auction-2").highestBid()).isEqualTo(9000L);
-        assertThat(notificationOutput.isEmpty()).isTrue();
+
+        // 각 경매 첫 입찰마다 BID_UPDATED 1건씩 → 총 2건, OUTBID 없음
+        List<NotificationEvent> notifications = notificationOutput.readValuesToList();
+        assertThat(notifications).hasSize(2);
+        assertThat(notifications.stream()
+                .filter(n -> n.getNotificationType().toString().equals(NOTIFICATION_BID_UPDATED))
+                .count()).isEqualTo(2);
+        assertThat(notifications.stream()
+                .filter(n -> n.getNotificationType().toString().equals(NOTIFICATION_OUTBID))
+                .count()).isEqualTo(0);
+    }
+
+    @Test
+    void BID_UPDATED_이벤트는_경매방_채널_라우팅용_auctionId와_현재가_입찰수를_포함한다() {
+        // 시나리오: 최초 입찰 → BID_UPDATED에 targetAuctionId, currentPrice, bidCount 포함 검증
+        bidInput.pipeInput("auction-1", bidEvent("auction-1", "bidder-A", 7000L));
+
+        NotificationEvent bidUpdated = notificationOutput.readValuesToList().get(0);
+        assertThat(bidUpdated.getNotificationType().toString()).isEqualTo(NOTIFICATION_BID_UPDATED);
+        assertThat(bidUpdated.getTargetAuctionId().toString()).isEqualTo("auction-1");
+        assertThat(bidUpdated.getAuctionId().toString()).isEqualTo("auction-1");
+        assertThat(bidUpdated.getTargetUserId()).isNull();
+        assertThat(bidUpdated.getPayload().get("currentPrice")).isEqualTo("7000");
+        assertThat(bidUpdated.getPayload().get("bidCount")).isEqualTo("1");
+    }
+
+    @Test
+    void BID_UPDATED_입찰수는_누적_증가한다() {
+        // 시나리오: 연속 입찰 시 bidCount가 누적 증가하는지 확인
+        bidInput.pipeInput("auction-1", bidEvent("auction-1", "bidder-A", 5000L));
+        bidInput.pipeInput("auction-1", bidEvent("auction-1", "bidder-B", 9000L));
+
+        List<NotificationEvent> bidUpdatedEvents = notificationOutput.readValuesToList().stream()
+                .filter(n -> n.getNotificationType().toString().equals(NOTIFICATION_BID_UPDATED))
+                .toList();
+
+        assertThat(bidUpdatedEvents).hasSize(2);
+        assertThat(bidUpdatedEvents.get(0).getPayload().get("bidCount")).isEqualTo("1");
+        assertThat(bidUpdatedEvents.get(0).getPayload().get("currentPrice")).isEqualTo("5000");
+        assertThat(bidUpdatedEvents.get(1).getPayload().get("bidCount")).isEqualTo("2");
+        assertThat(bidUpdatedEvents.get(1).getPayload().get("currentPrice")).isEqualTo("9000");
     }
 
     @Test

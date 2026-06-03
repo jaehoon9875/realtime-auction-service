@@ -15,7 +15,7 @@ import java.util.UUID;
 
 /**
  * BID_PLACED 이벤트를 받아 auction-highest-bid State Store를 갱신하고,
- * 이전 최고 입찰자가 있으면 OUTBID 알림을 발행한다.
+ * 이전 최고 입찰자에게 OUTBID 알림과 경매방 전체에 BID_UPDATED 브로드캐스트를 발행한다.
  */
 public class BidStateProcessor implements Processor<String, BidEvent, String, NotificationEvent> {
 
@@ -52,6 +52,28 @@ public class BidStateProcessor implements Processor<String, BidEvent, String, No
         // 새 최고 입찰 상태 갱신
         int newBidCount = current != null ? current.bidCount() + 1 : 1;
         bidStateStore.put(auctionId, new AuctionBidState(event.getAmount(), event.getBidderId(), newBidCount));
+
+        // 경매방 구독자 전체에 현재가 갱신 브로드캐스트 (docs/api.md BID_UPDATED 계약)
+        context.forward(new Record<>(
+                auctionId,
+                buildBidUpdatedEvent(auctionId, event.getAmount(), newBidCount, record.timestamp()),
+                record.timestamp()
+        ));
+    }
+
+    private NotificationEvent buildBidUpdatedEvent(String auctionId, long currentPrice, int bidCount, long timestamp) {
+        return NotificationEvent.newBuilder()
+                .setEventId(UUID.randomUUID().toString())
+                .setNotificationType(NOTIFICATION_BID_UPDATED)
+                .setTargetUserId(null)
+                .setTargetAuctionId(auctionId)
+                .setAuctionId(auctionId)
+                .setPayload(Map.of(
+                        "currentPrice", String.valueOf(currentPrice),
+                        "bidCount", String.valueOf(bidCount)
+                ))
+                .setOccurredAt(timestamp)
+                .build();
     }
 
     private NotificationEvent buildOutbidEvent(String auctionId, BidEvent newBid, AuctionBidState prev, long timestamp) {
