@@ -6,6 +6,6 @@ resources:
 images:
 - name: auction-streams
   newName: asia-northeast3-docker.pkg.dev/realtime-auction-service/auction-images/auction-streams
-  newTag: fd800f1
+  newTag: 30c1615
 patches:
 - path: configmap-patch.yaml
