@@ -290,19 +290,19 @@ data:
         {
           "id": 7,
           "type": "timeseries",
-          "title": "HTTP 레이턴시 p95 / p99 (ms)",
-          "description": "서비스별 레이턴시 p95/p99. 병렬화 개선(After 37ef9eb) 구간 p95 -59% 확인 가능",
+          "title": "HTTP 레이턴시 avg / max (ms)",
+          "description": "서비스별 평균·최고 레이턴시. avg = sum/count rate, max = 측정 윈도우 내 최고값",
           "gridPos": { "x": 12, "y": 10, "w": 12, "h": 8 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{namespace=\"$namespace\"}[1m])) by (app, le)) * 1000",
-              "legendFormat": "p95 {{app}}",
+              "expr": "sum(rate(http_server_requests_seconds_sum{namespace=\"$namespace\"}[1m])) by (app) / sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\"}[1m])) by (app) * 1000",
+              "legendFormat": "avg {{app}}",
               "refId": "A"
             },
             {
-              "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{namespace=\"$namespace\"}[1m])) by (app, le)) * 1000",
-              "legendFormat": "p99 {{app}}",
+              "expr": "max(http_server_requests_seconds_max{namespace=\"$namespace\"}) by (app) * 1000",
+              "legendFormat": "max {{app}}",
               "refId": "B"
             }
           ],
