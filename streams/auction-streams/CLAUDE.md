@@ -69,6 +69,7 @@ DLQ 이벤트에는 원본 이벤트 + 실패 원인 + 타임스탬프를 포함
 
 - Kafka Streams는 exactly-once semantics(`processing.guarantee=exactly_once_v2`)로 설정한다.
 - `KafkaStreams` 인스턴스는 Spring 컨테이너 라이프사이클에 맞춰 시작/종료한다 (`SmartLifecycle`).
+- EOS(`exactly_once_v2`) 환경에서 notification-service의 consumer lag은 **파티션 수(3)에 고정**되는 것이 정상이다. COMMIT marker가 오프셋을 점유하지만 `read_committed` consumer에게는 보이지 않아 lag=1 per partition이 아티팩트로 남는다. lag=3 고정 → 정상, lag>3 증가 추세 → 실제 처리 지연.
 - Punctuator는 wall clock time 기반(`PunctuationType.WALL_CLOCK_TIME`)으로 동작한다. stream time 기반은 이벤트 유입이 없으면 발화가 지연될 수 있음에 주의.
 - 경매 마감 판정은 `endsAt < now(UTC)` 기준으로 점검하며, Punctuator는 이 조건을 주기적으로 평가해 알림/이벤트를 발행한다.
 - 입찰 수락 여부의 1차 판단은 Bid Service의 `endsAt` 검증이 담당한다. Streams의 `AUCTION_CLOSED`는 실시간 파이프라인용이며 Auction Service DB `CLOSED`의 진실 원본을 대체하지 않는다.
