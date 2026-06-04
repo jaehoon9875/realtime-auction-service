@@ -48,40 +48,34 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Verify images exist in Artifact Registry
+      # 이번 SHA로 푸시된 이미지가 있는 서비스만 오버레이를 갱신한다.
+      # CI가 변경된 서비스만 빌드·푸시하므로 "SHA 이미지 존재 = 이번에 변경된 서비스"가 성립한다.
+      # 변경 없는 서비스는 기존 태그를 유지해 불필요한 롤링 재시작을 막는다(per-service 배포).
+      - name: Update changed services' overlay image tags
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           SHORT_SHA="${HEAD_SHA:0:7}"
           REGISTRY="${GCP_REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${AR_REPO}"
-          MISSING=()
+          UPDATED=()
 
           for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
-            if ! gcloud artifacts docker images describe "${REGISTRY}/${svc}:${SHORT_SHA}" --quiet 2>/dev/null; then
-              MISSING+=("${svc}:${SHORT_SHA}")
+            if gcloud artifacts docker images describe "${REGISTRY}/${svc}:${SHORT_SHA}" --quiet 2>/dev/null; then
+              if (cd "infra/k8s/overlays/dev/${svc}" && \
+                  kustomize edit set image "${svc}=${REGISTRY}/${svc}:${SHORT_SHA}"); then
+                UPDATED+=("$svc")
+              else
+                echo "::error::${svc} 오버레이 태그 갱신 실패"
+                exit 1
+              fi
             fi
           done
 
-          if [ "${#MISSING[@]}" -gt 0 ]; then
-            echo "이미지 푸시가 확인되지 않은 서비스가 있습니다. 배포를 중단합니다."
-            echo "누락 이미지: ${MISSING[*]}"
-            exit 1
+          if [ "${#UPDATED[@]}" -eq 0 ]; then
+            echo "이번 SHA(${SHORT_SHA})로 갱신할 서비스가 없습니다. 오버레이 변경 없이 진행합니다."
+          else
+            echo "오버레이 갱신: ${UPDATED[*]} → ${SHORT_SHA}"
           fi
-          echo "모든 이미지 확인 완료: ${SHORT_SHA}"
-
-      - name: Update dev overlay image tags
-        env:
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          SHORT_SHA="${HEAD_SHA:0:7}"
-          REGISTRY="${GCP_REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${AR_REPO}"
-
-          for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
-            (cd "infra/k8s/overlays/dev/${svc}" && \
-              kustomize edit set image "${svc}=${REGISTRY}/${svc}:${SHORT_SHA}")
-          done
-
-          echo "Updated image tags to ${SHORT_SHA}"
 
       - name: Commit and push image tag update
         id: deploy-revision

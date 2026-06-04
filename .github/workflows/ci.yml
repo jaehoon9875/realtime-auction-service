@@ -178,13 +178,15 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-  # main push: 전체 서비스 이미지 빌드·푸시 (CD 태그 일관성)
+  # main push: 변경된 서비스 이미지만 빌드·푸시 (변경 없는 서비스는 재푸시하지 않음)
   docker-build-push:
-    needs: ci-success
-    # always()가 없으면 docs-only push 시 build-and-test skipped → skip 전파로 이 job도 스킵됨
+    needs: [changes, ci-success]
+    # always()가 없으면 docs-only push 시 build-and-test skipped → skip 전파로 이 job도 스킵됨.
+    # 매트릭스가 changes 기준이라 변경된 서비스만 돈다. docs-only면 matrix가 비어 이 job 자체가 스킵된다.
     if: |
       always() &&
       needs.ci-success.result == 'success' &&
+      needs.changes.outputs.matrix != '{"include":[]}' &&
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
       !contains(github.event.head_commit.message, '[skip ci]')
@@ -195,20 +197,7 @@ jobs:
       id-token: write
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - service: api-gateway
-            dockerfile: services/api-gateway/Dockerfile
-          - service: auction-service
-            dockerfile: services/auction-service/Dockerfile
-          - service: bid-service
-            dockerfile: services/bid-service/Dockerfile
-          - service: user-service
-            dockerfile: services/user-service/Dockerfile
-          - service: notification-service
-            dockerfile: services/notification-service/Dockerfile
-          - service: auction-streams
-            dockerfile: streams/auction-streams/Dockerfile
+      matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v6
