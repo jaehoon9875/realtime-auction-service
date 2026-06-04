@@ -61,9 +61,13 @@ jobs:
 
           for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
             if gcloud artifacts docker images describe "${REGISTRY}/${svc}:${SHORT_SHA}" --quiet 2>/dev/null; then
-              (cd "infra/k8s/overlays/dev/${svc}" && \
-                kustomize edit set image "${svc}=${REGISTRY}/${svc}:${SHORT_SHA}")
-              UPDATED+=("$svc")
+              if (cd "infra/k8s/overlays/dev/${svc}" && \
+                  kustomize edit set image "${svc}=${REGISTRY}/${svc}:${SHORT_SHA}"); then
+                UPDATED+=("$svc")
+              else
+                echo "::error::${svc} 오버레이 태그 갱신 실패"
+                exit 1
+              fi
             fi
           done
 
