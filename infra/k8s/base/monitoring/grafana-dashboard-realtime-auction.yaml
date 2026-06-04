@@ -259,8 +259,8 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\"}[1m])) by (app)",
-              "legendFormat": "{{app}}",
+              "expr": "sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\"}[1m])) by (container)",
+              "legendFormat": "{{container}}",
               "refId": "A"
             }
           ],
@@ -296,13 +296,13 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(http_server_requests_seconds_sum{namespace=\"$namespace\"}[1m])) by (app) / sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\"}[1m])) by (app) * 1000",
-              "legendFormat": "avg {{app}}",
+              "expr": "sum(rate(http_server_requests_seconds_sum{namespace=\"$namespace\"}[1m])) by (container) / sum(rate(http_server_requests_seconds_count{namespace=\"$namespace\"}[1m])) by (container) * 1000",
+              "legendFormat": "avg {{container}}",
               "refId": "A"
             },
             {
-              "expr": "max(http_server_requests_seconds_max{namespace=\"$namespace\"}) by (app) * 1000",
-              "legendFormat": "max {{app}}",
+              "expr": "max(http_server_requests_seconds_max{namespace=\"$namespace\"}) by (container) * 1000",
+              "legendFormat": "max {{container}}",
               "refId": "B"
             }
           ],
@@ -345,8 +345,8 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(jvm_memory_used_bytes{namespace=\"$namespace\", area=\"heap\"}) by (app)",
-              "legendFormat": "{{app}}",
+              "expr": "sum(jvm_memory_used_bytes{namespace=\"$namespace\", area=\"heap\"}) by (container)",
+              "legendFormat": "{{container}}",
               "refId": "A"
             }
           ],
@@ -382,8 +382,8 @@ data:
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             {
-              "expr": "sum(rate(jvm_gc_pause_seconds_count{namespace=\"$namespace\"}[1m])) by (app)",
-              "legendFormat": "{{app}}",
+              "expr": "sum(rate(jvm_gc_pause_seconds_count{namespace=\"$namespace\"}[1m])) by (container)",
+              "legendFormat": "{{container}}",
               "refId": "A"
             }
           ],

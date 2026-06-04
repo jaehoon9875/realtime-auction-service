@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: auction-kafka-kafka-exporter
+  namespace: auction
+  labels:
+    app.kubernetes.io/instance: auction-kafka
+    app.kubernetes.io/managed-by: strimzi-cluster-operator
+    app.kubernetes.io/name: kafka-exporter
+    strimzi.io/cluster: auction-kafka
+spec:
+  selector:
+    strimzi.io/name: auction-kafka-kafka-exporter
+  ports:
+    - name: tcp-prometheus
+      port: 9404
+      targetPort: 9404
