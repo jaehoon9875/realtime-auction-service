@@ -5,3 +5,4 @@ resources:
   - prometheusrule.yaml
   - servicemonitor.yaml
   - kafka-exporter-servicemonitor.yaml
+  - kafka-exporter-service.yaml
