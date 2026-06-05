@@ -22,6 +22,13 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * AUCTION_CREATED 이벤트를 수신해 경매 메타데이터를 State Store에 저장하고,
+ * 주기적으로 만료된 경매를 탐지해 AUCTION_CLOSED · AUCTION_WON 알림을 발행하는 프로세서.
+ *
+ * <p>Punctuator는 WALL_CLOCK_TIME 기준으로 동작한다. 입찰이 없어도 실제 시계로 마감 시각을 감지할 수 있다.
+ * process()는 메타데이터 저장만 담당하며, 알림 발행은 Punctuator에서만 이루어진다.
+ */
 public class AuctionMetadataProcessor implements Processor<String, AuctionEvent, String, NotificationEvent> {
 
     private static final Logger log = LoggerFactory.getLogger(AuctionMetadataProcessor.class);
@@ -36,6 +43,11 @@ public class AuctionMetadataProcessor implements Processor<String, AuctionEvent,
         this.intervalSeconds = intervalSeconds;
     }
 
+    /**
+     * State Store 참조를 획득하고 경매 마감 감지용 Punctuator를 등록한다.
+     *
+     * @param context 다운스트림 forward 및 State Store 접근에 사용되는 프로세서 컨텍스트
+     */
     @Override
     public void init(ProcessorContext<String, NotificationEvent> context) {
         this.context = context;
@@ -45,6 +57,12 @@ public class AuctionMetadataProcessor implements Processor<String, AuctionEvent,
         context.schedule(Duration.ofSeconds(intervalSeconds), PunctuationType.WALL_CLOCK_TIME, this::checkExpiredAuctions);
     }
 
+    /**
+     * AUCTION_CREATED 이벤트에서 마감 판정에 필요한 메타데이터를 추출해 Store에 저장한다.
+     * Punctuator가 endsAt 기준으로 만료 여부를 주기적으로 판정하므로, 이 시점에는 forward하지 않는다.
+     *
+     * @param record auctionId를 키로 갖는 AUCTION_CREATED 이벤트 레코드
+     */
     @Override
     public void process(Record<String, AuctionEvent> record) {
         if (record.value() == null) return;
