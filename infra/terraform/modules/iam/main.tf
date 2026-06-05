@@ -59,6 +59,14 @@ resource "google_artifact_registry_repository_iam_member" "github_actions_ar_wri
   member     = "serviceAccount:${google_service_account.github_actions.email}"
 }
 
+# CD 파이프라인에서 kubectl exec (Debezium 커넥터 상태 확인) 실행에 필요.
+# container.clusterViewer보다 상위 역할로, pods.list/exec/portforward를 포함.
+resource "google_project_iam_member" "github_actions_container_developer" {
+  project = var.project_id
+  role    = "roles/container.developer"
+  member  = "serviceAccount:${google_service_account.github_actions.email}"
+}
+
 # ──────────────────────────────────────────────────────────────
 # External Secrets Operator — Secret Manager 접근
 # ESO K8s SA → GCP SA 위임 (Workload Identity)
