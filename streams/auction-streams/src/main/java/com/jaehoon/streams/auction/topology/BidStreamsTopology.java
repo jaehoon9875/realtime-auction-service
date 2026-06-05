@@ -39,10 +39,12 @@ public class BidStreamsTopology {
         /**
          * 입찰 이벤트 처리 토폴로지를 등록한다.
          *
-         * BID_PLACED : BidStateProcessor로 최고가 State Store를 갱신하고 OUTBID 알림 발행.
-         * BID_REJECTED : 거부된 입찰자 개인 알림 발행.
-         * unknown : 알 수 없는 이벤트 타입은 bid-dead-letter 토픽으로 라우팅.
-         * 1분 window 내 10건 이상 급증 시 경고 로그 출력. (알림 미발행.)
+         * <ul>
+         *   <li>BID_PLACED  : BidStateProcessor로 최고가 State Store를 갱신하고 OUTBID 알림 발행.</li>
+         *   <li>BID_REJECTED: 거부된 입찰자에게 개인 알림 발행. reason은 Bid Service가 거부한 사유를 이벤트에 담지 않으므로 PRICE_TOO_LOW 고정.</li>
+         *   <li>unknown     : 알 수 없는 이벤트 타입은 bid-dead-letter 토픽으로 라우팅.</li>
+         *   <li>급증 탐지   : 1분 window 내 10건 이상이면 경고 로그 출력. (알림 미발행.)</li>
+         * </ul>
          */
         @PostConstruct
         public void buildTopology() {

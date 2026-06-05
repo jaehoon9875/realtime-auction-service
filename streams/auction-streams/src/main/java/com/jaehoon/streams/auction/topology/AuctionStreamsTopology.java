@@ -16,6 +16,9 @@ import org.apache.kafka.streams.kstream.Named;
 import org.apache.kafka.streams.kstream.Produced;
 import org.springframework.stereotype.Component;
 
+/**
+ * 경매가 만료됐는지 주기적으로 확인하고, 만료되면 낙찰/마감 알림을 발행하는 토폴로지.
+ */
 @Component
 @RequiredArgsConstructor
 public class AuctionStreamsTopology {
@@ -25,6 +28,13 @@ public class AuctionStreamsTopology {
     private final Serde<AuctionEvent> auctionEventSerde;
     private final Serde<NotificationEvent> notificationEventSerde;
 
+    /**
+     * 경매 이벤트 처리 토폴로지를 등록한다.
+     *
+     * auction-events 토픽에서 AUCTION_CREATED 이벤트만 필터링해 AuctionMetadataProcessor로 전달한다.
+     * Processor는 메타데이터를 State Store에 저장하고, Punctuator가 주기적으로 만료 경매를 감지해
+     * AUCTION_CLOSED · AUCTION_WON 이벤트를 notification-events 토픽으로 발행한다.
+     */
     @PostConstruct
     public void buildTopology() {
         builder.stream(TOPIC_AUCTION_EVENTS, Consumed.with(Serdes.String(), auctionEventSerde))

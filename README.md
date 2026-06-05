@@ -14,6 +14,8 @@
 
 Kafka Streams의 상태 기반 처리(State Store), Debezium CDC를 활용한 Outbox Pattern, WebSocket 기반 실시간 알림까지 분산 시스템의 핵심 문제들을 다룹니다.
 
+![Demo](docs/images/auction_demo.gif)
+
 ## Architecture
 
 ```mermaid
@@ -28,11 +30,11 @@ graph TD
 
     OB[("Outbox Table")]
     CDC["Debezium CDC"]
-    KAFKA[["Kafka"]]
-    KS["Kafka Streams<br/>· State Store - 최고가 관리<br/>· Windowed Aggregation - 이상 탐지<br/>· Punctuator - 마감 처리"]
+    KAFKA[("Kafka")]
+    KS["Kafka Streams<br/>· State Store - 최고가 관리<br/>· Windowed Aggregation - 급증 탐지(경고 로그)<br/>· Punctuator - 마감 처리"]
 
     Client -->|REST API| GW
-    Client <-->|"WebSocket (/ws/auctions/{id}, /ws/users/me)"| GW
+    Client <-->|"WebSocket"| GW
 
     GW --> AS
     GW --> BS
@@ -44,8 +46,9 @@ graph TD
     OB --> CDC
     CDC -->|"auction-events, bid-events"| KAFKA
 
-    KAFKA -->|bid-events| KS
-    KS -->|notification-events| NS
+    KAFKA -->|"auction-events, bid-events"| KS
+    KS -->|notification-events| KAFKA
+    KAFKA -->|notification-events| NS
 ```
 
 ## Key Technical Decisions
@@ -102,6 +105,12 @@ Bid Service가 Auction Service에 경매 정보를 조회할 때, Auction Servic
 
 ### Test
 - Testcontainers (Kafka, PostgreSQL, Redis 통합 테스트)
+
+## Screenshots
+
+| ArgoCD GitOps 배포 | Grafana 운영 대시보드 | Loki → Tempo 로그-트레이스 연결 |
+|---|---|---|
+| ![ArgoCD](docs/images/argocd_synced.png) | ![Grafana](docs/images/grafana_dashboard.png) | ![Loki-Tempo](docs/images/loki_tempo.png) |
 
 ## Documentation
 
