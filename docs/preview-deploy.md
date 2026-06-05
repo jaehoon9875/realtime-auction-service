@@ -138,11 +138,18 @@ ArgoCD 관련 Secret(`ARGOCD_AUTH_TOKEN`, `ARGOCD_SERVER`)은 **불필요**하�
 
 ```bash
 REGISTRY="asia-northeast3-docker.pkg.dev/<GCP_PROJECT_ID>/auction-images"
+git fetch origin main --quiet
 
 for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
-  tag=$(awk '
-    $1 == "newTag:" { print $2; exit }
-  ' "infra/k8s/overlays/dev/${svc}/kustomization.yaml")
+  tag=$(git show "origin/main:infra/k8s/overlays/dev/${svc}/kustomization.yaml" | awk -v svc="${svc}" '
+    $1 == "-" && $2 == "name:" { in_target = ($3 == svc); next }
+    in_target && $1 == "newTag:" {
+      tag = $2
+      gsub(/^"|"$/, "", tag)
+      print tag
+      exit
+    }
+  ')
 
   kubectl set image deployment/${svc}-deployment \
     ${svc}=${REGISTRY}/${svc}:${tag} \

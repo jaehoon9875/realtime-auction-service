@@ -172,8 +172,14 @@ jobs:
           for item in json.load(sys.stdin)['include']:
               print(item['service'])
           " | while read -r svc; do
-            desired_tag=$(git show "origin/main:infra/k8s/overlays/dev/${svc}/kustomization.yaml" | awk '
-              $1 == "newTag:" { print $2; exit }
+            desired_tag=$(git show "origin/main:infra/k8s/overlays/dev/${svc}/kustomization.yaml" | awk -v svc="${svc}" '
+              $1 == "-" && $2 == "name:" { in_target = ($3 == svc); next }
+              in_target && $1 == "newTag:" {
+                tag = $2
+                gsub(/^"|"$/, "", tag)
+                print tag
+                exit
+              }
             ')
             [ -z "$desired_tag" ] && { echo "::error::${svc} dev overlay newTag를 찾지 못했습니다"; exit 1; }
             printf '%s=%s/%s:%s\n' "${svc}" "${REGISTRY}" "${svc}" "${desired_tag}" >> "${DESIRED_IMAGES_FILE}"
