@@ -4,7 +4,12 @@ metadata:
   name: auction-streams-deployment
   namespace: auction
 spec:
-  replicas: 1
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app: auction-streams
@@ -18,6 +23,15 @@ spec:
     spec:
       serviceAccountName: auction-streams-serviceaccount
       # Streams는 RocksDB State Store를 사용하므로 default 풀(안정 노드)에 배치
+      nodeSelector:
+        workload-type: infra
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: auction-streams
       # emptyDir은 kubelet이 root 소유로 생성하므로, 앱 컨테이너(UID 999)가 chmod를 수행할 수 있도록
       # initContainer에서 소유권을 미리 변경한다 (fsGroup은 GID만 변경하여 이 문제를 해결하지 못함)
       initContainers:

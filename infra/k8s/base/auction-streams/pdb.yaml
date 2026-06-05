@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auction-streams-pdb
+  namespace: auction
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: auction-streams

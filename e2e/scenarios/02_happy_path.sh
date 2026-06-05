@@ -45,14 +45,14 @@ assert_status "경매 생성" 201 "$HTTP_STATUS"
 AUCTION_ID=$(json_field "id" "$HTTP_BODY")
 assert_not_empty "auctionId 반환" "$AUCTION_ID"
 
-# Debezium CDC → Kafka Streams State Store 반영 대기
-sleep 5
+# Debezium CDC → Kafka Streams State Store 반영은 배포 직후 지연될 수 있어 입찰 폴링에서 흡수한다.
+sleep 3
 
 # ── 입찰 (User B) ─────────────────────────────────────────────────────────────
 
-# 재시도: State Store에 auction 정보가 아직 없을 수 있음
+# 재시도: 배포 직후 Circuit Breaker half-open 전환, CDC, State Store 복구가 겹칠 수 있음
 BID_OK=false
-for i in 1 2 3; do
+for i in $(seq 1 12); do
   http_post "/api/bids" \
     "{\"auctionId\":\"${AUCTION_ID}\",\"amount\":15000}" \
     "$JWT_B"
@@ -60,25 +60,25 @@ for i in 1 2 3; do
     BID_OK=true
     break
   fi
-  echo "  입찰 재시도 ${i}/3 (HTTP ${HTTP_STATUS})..."
-  sleep 3
+  echo "  입찰 재시도 ${i}/12 (HTTP ${HTTP_STATUS})..."
+  sleep 5
 done
 
 if $BID_OK; then
   assert_status "입찰 성공" 201 "$HTTP_STATUS"
 else
-  assert_status "입찰 성공 (3회 시도 모두 실패)" 201 "$HTTP_STATUS"
+  assert_status "입찰 성공 (12회 시도 모두 실패)" 201 "$HTTP_STATUS"
 fi
 
 # State Store 갱신 대기 (Debezium CDC → Kafka Streams 파이프라인 반영)
 PRICE_OK=false
-for i in 1 2 3 4 5 6; do
+for i in $(seq 1 20); do
   http_get "/api/auctions/${AUCTION_ID}" "$JWT_B"
   if [ "$HTTP_STATUS" -eq 200 ] && echo "$HTTP_BODY" | grep -q '"currentPrice":15000'; then
     PRICE_OK=true
     break
   fi
-  echo "  currentPrice 대기 ${i}/6 (HTTP ${HTTP_STATUS})..."
+  echo "  currentPrice 대기 ${i}/20 (HTTP ${HTTP_STATUS})..."
   sleep 3
 done
 
@@ -88,5 +88,5 @@ if $PRICE_OK; then
 else
   http_get "/api/auctions/${AUCTION_ID}" "$JWT_B"
   assert_status "경매 조회" 200 "$HTTP_STATUS"
-  assert_contains "currentPrice=15000 반영 (6회 대기 후)" '"currentPrice":15000' "$HTTP_BODY"
+  assert_contains "currentPrice=15000 반영 (20회 대기 후)" '"currentPrice":15000' "$HTTP_BODY"
 fi
