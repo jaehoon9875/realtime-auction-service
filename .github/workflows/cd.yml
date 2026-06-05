@@ -96,6 +96,8 @@ jobs:
         id: deploy_revision
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          UPDATED_COUNT: ${{ steps.image_update.outputs.updated_count }}
+          INFRA_CHANGED: ${{ steps.image_update.outputs.infra_changed }}
         run: |
           SHORT_SHA="${HEAD_SHA:0:7}"
           git config user.name "github-actions[bot]"
@@ -111,8 +113,7 @@ jobs:
           fi
 
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          if [[ "${{ steps.image_update.outputs.updated_count }}" != "0" ||
-                "${{ steps.image_update.outputs.infra_changed }}" == "true" ]]; then
+          if [[ "$UPDATED_COUNT" != "0" || "$INFRA_CHANGED" == "true" ]]; then
             echo "deploy_required=true" >> "$GITHUB_OUTPUT"
           else
             echo "deploy_required=false" >> "$GITHUB_OUTPUT"
