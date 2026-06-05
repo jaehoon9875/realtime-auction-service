@@ -136,7 +136,7 @@ terraform apply tfplan
 | `cloud-sql` | PostgreSQL 17 × 3 (auction·bid·user DB), Private IP |
 | `memorystore` | Redis 7, Private IP |
 | `artifact-registry` | Docker 이미지 저장소 |
-| `iam` | Workload Identity Pool, GitHub Actions SA, External Secrets SA |
+| `iam` | Workload Identity Pool, GitHub Actions SA (`roles/container.developer` + `roles/artifactregistry.writer`), External Secrets SA |
 
 ---
 
@@ -172,6 +172,16 @@ GitHub Actions·External Secrets 연동에 필요한 값은 `artifact_registry_u
 | OIDC Provider | `token.actions.githubusercontent.com` 발급자 등록 |
 | GitHub Actions SA | Artifact Registry 푸시·GKE 접근 권한을 가진 서비스 계정 |
 | SA 바인딩 | `terraform.tfvars`의 `github_org`/`github_repo` 값으로 해당 레포만 SA 가장 허용 |
+
+#### GitHub Actions SA 부여 권한
+
+| 역할 | 부여 위치 | 용도 |
+|------|-----------|------|
+| `roles/artifactregistry.writer` | Artifact Registry 리포지토리 | 이미지 빌드 후 레지스트리 푸시 |
+| `roles/container.developer` | 프로젝트 | CD 파이프라인에서 `kubectl exec` 실행 (Debezium 커넥터 상태 확인) |
+
+> `roles/container.developer`는 `pods.list`, `pods.exec`, `pods/portforward` 등 파드 수준 작업을 허용합니다.
+> `terraform apply`로 자동 프로비저닝되므로 별도 수동 설정은 불필요합니다.
 
 `terraform.tfvars`에서 아래 두 변수가 올바르게 설정되어야 WIF 바인딩이 정상 생성됩니다.
 
