@@ -1,7 +1,7 @@
 name: Preview Deploy & Smoke Test
 
 # 사용법: Actions 탭 → Preview Deploy & Smoke Test → Run workflow → 테스트할 브랜치 선택
-# 흐름: 변경된 서비스만 이미지 빌드 → kubectl set image로 배포 → smoke test → :latest로 복구
+# 흐름: 변경된 서비스만 이미지 빌드 → kubectl set image로 배포 → smoke test → dev overlay 이미지로 복구
 
 on:
   workflow_dispatch:
@@ -9,6 +9,11 @@ on:
 env:
   GCP_REGION: asia-northeast3
   AR_REPO: auction-images
+
+concurrency:
+  # 공유 auction namespace의 Deployment를 직접 바꾸는 임시 preview 경로라 동시 실행을 허용하지 않는다.
+  group: preview-smoke-auction
+  cancel-in-progress: false
 
 jobs:
   # main 대비 변경된 서비스만 골라낸다
@@ -121,7 +126,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-  # kubectl set image로 배포 → smoke test → :latest로 복구
+  # kubectl set image로 배포 → smoke test → dev overlay 이미지로 복구
   deploy-and-test:
     needs: [detect-changes, build-push]
     if: |
@@ -156,14 +161,23 @@ jobs:
         env:
           MATRIX: ${{ needs.detect-changes.outputs.matrix }}
         run: |
+          git fetch origin main --quiet
           REGISTRY="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}"
           TAG="preview-${GITHUB_SHA:0:7}"
+          DESIRED_IMAGES_FILE="/tmp/preview-desired-images.env"
+          : > "${DESIRED_IMAGES_FILE}"
 
           echo "$MATRIX" | python3 -c "
           import sys, json
           for item in json.load(sys.stdin)['include']:
               print(item['service'])
           " | while read -r svc; do
+            desired_tag=$(git show "origin/main:infra/k8s/overlays/dev/${svc}/kustomization.yaml" | awk '
+              $1 == "newTag:" { print $2; exit }
+            ')
+            [ -z "$desired_tag" ] && { echo "::error::${svc} dev overlay newTag를 찾지 못했습니다"; exit 1; }
+            printf '%s=%s/%s:%s\n' "${svc}" "${REGISTRY}" "${svc}" "${desired_tag}" >> "${DESIRED_IMAGES_FILE}"
+
             echo "배포 중: ${svc}:${TAG}"
             kubectl set image deployment/${svc}-deployment \
               ${svc}=${REGISTRY}/${svc}:${TAG} \
@@ -209,24 +223,23 @@ jobs:
           chmod +x e2e/smoke.sh
           e2e/smoke.sh
 
-      # smoke test 성공/실패 관계없이 항상 실행 — 변경된 서비스를 :latest로 복구
-      - name: Restore deployments to latest
+      # smoke test 성공/실패 관계없이 항상 실행 — 변경된 서비스를 dev overlay 이미지로 복구
+      - name: Restore deployments to dev overlay images
         if: always() && steps.deploy.outcome != 'skipped'
-        env:
-          MATRIX: ${{ needs.detect-changes.outputs.matrix }}
         run: |
-          REGISTRY="${{ env.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}"
+          DESIRED_IMAGES_FILE="/tmp/preview-desired-images.env"
+          if [ ! -s "${DESIRED_IMAGES_FILE}" ]; then
+            echo "복구할 dev overlay 이미지 정보가 없습니다."
+            exit 1
+          fi
 
-          echo "$MATRIX" | python3 -c "
-          import sys, json
-          for item in json.load(sys.stdin)['include']:
-              print(item['service'])
-          " | while read -r svc; do
+          while IFS='=' read -r svc image; do
             [ -z "$svc" ] && continue
-            echo "복구 중: ${svc}:latest"
+            [ -z "$image" ] && { echo "::error::${svc} dev overlay 이미지가 비어 있습니다"; exit 1; }
+            echo "복구 중: ${svc} -> ${image}"
             kubectl set image deployment/${svc}-deployment \
-              ${svc}=${REGISTRY}/${svc}:latest \
+              ${svc}=${image} \
               -n auction
             kubectl rollout status deployment/${svc}-deployment -n auction --timeout=120s
-          done
-          echo "복구 완료 → :latest"
+          done < "${DESIRED_IMAGES_FILE}"
+          echo "복구 완료 → dev overlay 이미지"
