@@ -24,6 +24,8 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    outputs:
+      deploy_required: ${{ steps.deploy_revision.outputs.deploy_required }}
 
     steps:
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1  # v3.2.0
@@ -52,12 +54,20 @@ jobs:
       # CI가 변경된 서비스만 빌드·푸시하므로 "SHA 이미지 존재 = 이번에 변경된 서비스"가 성립한다.
       # 변경 없는 서비스는 기존 태그를 유지해 불필요한 롤링 재시작을 막는다(per-service 배포).
       - name: Update changed services' overlay image tags
+        id: image_update
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           SHORT_SHA="${HEAD_SHA:0:7}"
           REGISTRY="${GCP_REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${AR_REPO}"
           UPDATED=()
+          INFRA_CHANGED=false
+
+          if git rev-parse "${HEAD_SHA}^" >/dev/null 2>&1; then
+            if git diff --name-only "${HEAD_SHA}^" "${HEAD_SHA}" | grep -qE '^(infra/k8s|infra/argocd|infra/helm|infra/terraform|infra/debezium|infra/avro|\.github/scripts)/'; then
+              INFRA_CHANGED=true
+            fi
+          fi
 
           for svc in api-gateway auction-service bid-service user-service notification-service auction-streams; do
             if gcloud artifacts docker images describe "${REGISTRY}/${svc}:${SHORT_SHA}" --quiet 2>/dev/null; then
@@ -77,8 +87,13 @@ jobs:
             echo "오버레이 갱신: ${UPDATED[*]} → ${SHORT_SHA}"
           fi
 
+          {
+            echo "updated_count=${#UPDATED[@]}"
+            echo "infra_changed=${INFRA_CHANGED}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Commit and push image tag update
-        id: deploy-revision
+        id: deploy_revision
         env:
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
@@ -96,8 +111,15 @@ jobs:
           fi
 
           echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          if [[ "${{ steps.image_update.outputs.updated_count }}" != "0" ||
+                "${{ steps.image_update.outputs.infra_changed }}" == "true" ]]; then
+            echo "deploy_required=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy_required=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Configure kubectl for GKE
+        if: steps.deploy_revision.outputs.deploy_required == 'true'
         uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395  # v3.0.0
         with:
           cluster_name: auction-cluster
@@ -105,13 +127,15 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Wait for ArgoCD applications
+        if: steps.deploy_revision.outputs.deploy_required == 'true'
         env:
-          ARGOCD_REVISION: ${{ steps.deploy-revision.outputs.revision }}
+          ARGOCD_REVISION: ${{ steps.deploy_revision.outputs.revision }}
         run: |
           chmod +x .github/scripts/wait-for-argocd-apps.sh
           .github/scripts/wait-for-argocd-apps.sh
 
       - name: Wait for Debezium connectors
+        if: steps.deploy_revision.outputs.deploy_required == 'true'
         run: |
           chmod +x .github/scripts/wait-for-debezium-connectors.sh
           .github/scripts/wait-for-debezium-connectors.sh
@@ -119,6 +143,7 @@ jobs:
 
   smoke-test:
     needs: update-and-deploy
+    if: needs['update-and-deploy'].outputs.deploy_required == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
