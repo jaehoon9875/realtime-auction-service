@@ -70,9 +70,32 @@ spec:
               # 이 시점에 REST API는 이미 응답 가능 → 별도 대기 루프 불필요.
               # 일시적 장애는 backoffLimit(5회 재시도), 전체 상한은 activeDeadlineSeconds로 처리.
 
+              wait_for_connector_running() {
+                connector_name="$1"
+                for i in $(seq 1 60); do
+                  status_json="$(curl -sf "${DEBEZIUM_URL}/connectors/${connector_name}/status")"
+
+                  if echo "${status_json}" | grep -q '"state":"FAILED"'; then
+                    echo "${connector_name} has failed task. restarting failed tasks..."
+                    curl -sf -X POST "${DEBEZIUM_URL}/connectors/${connector_name}/restart?includeTasks=true&onlyFailed=true" >/dev/null
+                  elif echo "${status_json}" | grep -q '"connector":{"state":"RUNNING"' \
+                    && echo "${status_json}" | grep -q '"tasks":\[{"id":0,"state":"RUNNING"'; then
+                    echo "${connector_name} is RUNNING."
+                    return 0
+                  fi
+
+                  echo "${connector_name} RUNNING 대기 ${i}/60"
+                  sleep 5
+                done
+
+                echo "${connector_name}가 RUNNING 상태가 아닙니다."
+                curl -sf "${DEBEZIUM_URL}/connectors/${connector_name}/status"
+                return 1
+              }
+
               # auction-service Outbox 커넥터 등록
               if curl -sf "${DEBEZIUM_URL}/connectors/auction-outbox-connector" > /dev/null 2>&1; then
-                echo "auction-outbox-connector already exists, skipping."
+                echo "auction-outbox-connector already exists."
               else
                 curl -sf -X POST "${DEBEZIUM_URL}/connectors" \
                   -H "Content-Type: application/json" \
@@ -106,10 +129,11 @@ spec:
                   }"
                 echo "auction-outbox-connector registered."
               fi
+              wait_for_connector_running "auction-outbox-connector"
 
               # bid-service Outbox 커넥터 등록
               if curl -sf "${DEBEZIUM_URL}/connectors/bid-outbox-connector" > /dev/null 2>&1; then
-                echo "bid-outbox-connector already exists, skipping."
+                echo "bid-outbox-connector already exists."
               else
                 curl -sf -X POST "${DEBEZIUM_URL}/connectors" \
                   -H "Content-Type: application/json" \
@@ -143,3 +167,4 @@ spec:
                   }"
                 echo "bid-outbox-connector registered."
               fi
+              wait_for_connector_running "bid-outbox-connector"

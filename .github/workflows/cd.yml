@@ -111,6 +111,11 @@ jobs:
           chmod +x .github/scripts/wait-for-argocd-apps.sh
           .github/scripts/wait-for-argocd-apps.sh
 
+      - name: Wait for Debezium connectors
+        run: |
+          chmod +x .github/scripts/wait-for-debezium-connectors.sh
+          .github/scripts/wait-for-debezium-connectors.sh
+
 
   smoke-test:
     needs: update-and-deploy
