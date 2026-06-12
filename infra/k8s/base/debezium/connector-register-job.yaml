@@ -93,78 +93,64 @@ spec:
                 return 1
               }
 
-              # auction-service Outbox 커넥터 등록
-              if curl -sf "${DEBEZIUM_URL}/connectors/auction-outbox-connector" > /dev/null 2>&1; then
-                echo "auction-outbox-connector already exists."
-              else
-                curl -sf -X POST "${DEBEZIUM_URL}/connectors" \
-                  -H "Content-Type: application/json" \
-                  -d "{
-                    \"name\": \"auction-outbox-connector\",
-                    \"config\": {
-                      \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
-                      \"plugin.name\": \"pgoutput\",
-                      \"database.hostname\": \"${AUCTION_POSTGRES_HOST}\",
-                      \"database.port\": \"${AUCTION_POSTGRES_PORT}\",
-                      \"database.user\": \"${POSTGRES_USER}\",
-                      \"database.password\": \"${POSTGRES_PASSWORD}\",
-                      \"database.dbname\": \"${AUCTION_POSTGRES_DB}\",
-                      \"topic.prefix\": \"auction-db\",
-                      \"slot.name\": \"debezium_auction\",
-                      \"publication.name\": \"debezium_auction_pub\",
-                      \"table.include.list\": \"public.outbox_events\",
-                      \"snapshot.mode\": \"never\",
-                      \"transforms\": \"outbox\",
-                      \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
-                      \"transforms.outbox.route.by.field\": \"aggregate_type\",
-                      \"transforms.outbox.table.field.event.key\": \"aggregate_id\",
-                      \"transforms.outbox.table.field.event.type\": \"event_type\",
-                      \"transforms.outbox.table.field.event.payload\": \"payload\",
-                      \"transforms.outbox.route.topic.replacement\": \"auction-events\",
-                      \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
-                      \"value.converter\": \"io.debezium.converters.BinaryDataConverter\",
-                      \"value.converter.delegate.converter.type\": \"org.apache.kafka.connect.json.JsonConverter\",
-                      \"value.converter.delegate.converter.type.schemas.enable\": \"false\"
-                    }
-                  }"
-                echo "auction-outbox-connector registered."
-              fi
+              # auction-service Outbox 커넥터 등록/갱신
+              curl -sf -X PUT "${DEBEZIUM_URL}/connectors/auction-outbox-connector/config" \
+                -H "Content-Type: application/json" \
+                -d "{
+                  \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
+                  \"plugin.name\": \"pgoutput\",
+                  \"database.hostname\": \"${AUCTION_POSTGRES_HOST}\",
+                  \"database.port\": \"${AUCTION_POSTGRES_PORT}\",
+                  \"database.user\": \"${POSTGRES_USER}\",
+                  \"database.password\": \"${POSTGRES_PASSWORD}\",
+                  \"database.dbname\": \"${AUCTION_POSTGRES_DB}\",
+                  \"topic.prefix\": \"auction-db\",
+                  \"slot.name\": \"debezium_auction\",
+                  \"publication.name\": \"debezium_auction_pub\",
+                  \"table.include.list\": \"public.outbox_events\",
+                  \"snapshot.mode\": \"never\",
+                  \"transforms\": \"outbox\",
+                  \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
+                  \"transforms.outbox.route.by.field\": \"aggregate_type\",
+                  \"transforms.outbox.table.field.event.key\": \"aggregate_id\",
+                  \"transforms.outbox.table.field.event.type\": \"event_type\",
+                  \"transforms.outbox.table.field.event.payload\": \"payload\",
+                  \"transforms.outbox.route.topic.replacement\": \"auction-events\",
+                  \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
+                  \"value.converter\": \"io.debezium.converters.BinaryDataConverter\",
+                  \"value.converter.delegate.converter.type\": \"org.apache.kafka.connect.json.JsonConverter\",
+                  \"value.converter.delegate.converter.type.schemas.enable\": \"false\"
+                }"
+              echo "auction-outbox-connector applied."
               wait_for_connector_running "auction-outbox-connector"
 
-              # bid-service Outbox 커넥터 등록
-              if curl -sf "${DEBEZIUM_URL}/connectors/bid-outbox-connector" > /dev/null 2>&1; then
-                echo "bid-outbox-connector already exists."
-              else
-                curl -sf -X POST "${DEBEZIUM_URL}/connectors" \
-                  -H "Content-Type: application/json" \
-                  -d "{
-                    \"name\": \"bid-outbox-connector\",
-                    \"config\": {
-                      \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
-                      \"plugin.name\": \"pgoutput\",
-                      \"database.hostname\": \"${BID_POSTGRES_HOST}\",
-                      \"database.port\": \"${BID_POSTGRES_PORT}\",
-                      \"database.user\": \"${POSTGRES_USER}\",
-                      \"database.password\": \"${POSTGRES_PASSWORD}\",
-                      \"database.dbname\": \"${BID_POSTGRES_DB}\",
-                      \"topic.prefix\": \"bid-db\",
-                      \"slot.name\": \"debezium_bid\",
-                      \"publication.name\": \"debezium_bid_pub\",
-                      \"table.include.list\": \"public.outbox_events\",
-                      \"snapshot.mode\": \"never\",
-                      \"transforms\": \"outbox\",
-                      \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
-                      \"transforms.outbox.route.by.field\": \"aggregate_type\",
-                      \"transforms.outbox.table.field.event.key\": \"aggregate_id\",
-                      \"transforms.outbox.table.field.event.type\": \"event_type\",
-                      \"transforms.outbox.table.field.event.payload\": \"payload\",
-                      \"transforms.outbox.route.topic.replacement\": \"bid-events\",
-                      \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
-                      \"value.converter\": \"io.debezium.converters.BinaryDataConverter\",
-                      \"value.converter.delegate.converter.type\": \"org.apache.kafka.connect.json.JsonConverter\",
-                      \"value.converter.delegate.converter.type.schemas.enable\": \"false\"
-                    }
-                  }"
-                echo "bid-outbox-connector registered."
-              fi
+              # bid-service Outbox 커넥터 등록/갱신
+              curl -sf -X PUT "${DEBEZIUM_URL}/connectors/bid-outbox-connector/config" \
+                -H "Content-Type: application/json" \
+                -d "{
+                  \"connector.class\": \"io.debezium.connector.postgresql.PostgresConnector\",
+                  \"plugin.name\": \"pgoutput\",
+                  \"database.hostname\": \"${BID_POSTGRES_HOST}\",
+                  \"database.port\": \"${BID_POSTGRES_PORT}\",
+                  \"database.user\": \"${POSTGRES_USER}\",
+                  \"database.password\": \"${POSTGRES_PASSWORD}\",
+                  \"database.dbname\": \"${BID_POSTGRES_DB}\",
+                  \"topic.prefix\": \"bid-db\",
+                  \"slot.name\": \"debezium_bid\",
+                  \"publication.name\": \"debezium_bid_pub\",
+                  \"table.include.list\": \"public.outbox_events\",
+                  \"snapshot.mode\": \"never\",
+                  \"transforms\": \"outbox\",
+                  \"transforms.outbox.type\": \"io.debezium.transforms.outbox.EventRouter\",
+                  \"transforms.outbox.route.by.field\": \"aggregate_type\",
+                  \"transforms.outbox.table.field.event.key\": \"event_key\",
+                  \"transforms.outbox.table.field.event.type\": \"event_type\",
+                  \"transforms.outbox.table.field.event.payload\": \"payload\",
+                  \"transforms.outbox.route.topic.replacement\": \"bid-events\",
+                  \"key.converter\": \"org.apache.kafka.connect.storage.StringConverter\",
+                  \"value.converter\": \"io.debezium.converters.BinaryDataConverter\",
+                  \"value.converter.delegate.converter.type\": \"org.apache.kafka.connect.json.JsonConverter\",
+                  \"value.converter.delegate.converter.type.schemas.enable\": \"false\"
+                }"
+              echo "bid-outbox-connector applied."
               wait_for_connector_running "bid-outbox-connector"

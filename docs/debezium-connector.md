@@ -8,7 +8,7 @@ Kafka Connect(Debezium)는 PostgreSQL의 WAL(Write-Ahead Log)을 읽어 `outbox_
 > Debezium은 Kafka 내부 토픽에 진행 상태(offset)를 저장하므로, 컨테이너를 재시작해도 등록이 유지됩니다.
 
 > [!NOTE]
-> **설정 변경 시:** 등록된 커넥터가 이미 존재하면 Job이 skip됩니다. 설정을 바꿀 때는 기존 커넥터를 `DELETE`한 뒤 재등록해야 합니다.
+> **로컬 vs GKE:** 로컬은 `register-connectors.sh`로 최초 등록(POST)합니다. GKE는 ArgoCD PostSync Job(`connector-register-job.yaml`)이 `PUT /connectors/{name}/config`로 커넥터 설정을 매 배포마다 적용합니다.
 
 ---
 
@@ -21,7 +21,7 @@ graph TD
     OT["outbox_events 테이블 저장<br/>(payload: BYTEA)"]
     WAL["PostgreSQL WAL<br/>(wal_level=logical)"]
     DEB["Debezium<br/>(pgoutput 플러그인)"]
-    SMT["EventRouter SMT<br/>aggregate_type → 토픽 라우팅<br/>aggregate_id → 메시지 키"]
+    SMT["EventRouter SMT<br/>aggregate_type → 토픽 라우팅<br/>event key 컬럼 → 메시지 키"]
     CONV["BinaryDataConverter<br/>(BYTEA 그대로 pass-through)"]
     KAFKA["Kafka 토픽: auction-events"]
 
@@ -35,7 +35,8 @@ graph TD
 ```
 
 - `outbox_events` 테이블에 INSERT가 발생하면 Debezium이 WAL에서 감지합니다.
-- **EventRouter SMT**가 `aggregate_type` 컬럼으로 토픽을 결정하고, `aggregate_id`를 Kafka 메시지 키로 사용합니다.
+- **EventRouter SMT**가 `aggregate_type` 컬럼으로 토픽을 결정하고, connector별 key 컬럼을 Kafka 메시지 키로 사용합니다.
+- Auction connector는 `aggregate_id`를 key로 사용합니다. Bid connector는 같은 경매 입찰 순서 보장을 위해 `event_key`(`auctionId`)를 key로 사용합니다.
 - **BinaryDataConverter**는 `payload` BYTEA를 그대로 통과시킵니다. Avro 직렬화는 애플리케이션이 이미 수행했습니다.
 - Avro 직렬화 책임 분리 결정 배경은 [ADR-008](adr/008-outbox-avro-serialization-owner.md) 참고.
 
@@ -48,7 +49,7 @@ graph TD
 | `infra/debezium/connectors/auction-outbox-connector.json` | Auction용 Connector 설정 |
 | `infra/debezium/connectors/bid-outbox-connector.json` | Bid용 Connector 설정 |
 | `infra/debezium/register-connectors.sh` | 비밀번호를 주입하고 등록/삭제를 수행하는 스크립트 |
-| `infra/k8s/base/debezium/connector-register-job.yaml` | GKE에서 최초 1회 실행되는 Kubernetes Job |
+| `infra/k8s/base/debezium/connector-register-job.yaml` | GKE PostSync Job — 커넥터 config를 PUT으로 등록·갱신 |
 
 ---
 
@@ -116,11 +117,11 @@ curl -X DELETE http://localhost:8083/connectors/auction-outbox-connector
 | `snapshot.mode` | `never` | 초기 스냅샷 비활성화. 기존 outbox 행 재처리 방지 |
 | `transforms.outbox.type` | `EventRouter` | Outbox 패턴 전용 SMT. payload를 꺼내 토픽으로 라우팅 |
 | `transforms.outbox.route.by.field` | `aggregate_type` | 이 컬럼 값으로 목적지 토픽을 결정 (`AUCTION` → `auction-events`, `BID` → `bid-events`) |
-| `transforms.outbox.table.field.event.key` | `aggregate_id` | Kafka 메시지 키로 쓸 컬럼 |
+| `transforms.outbox.table.field.event.key` | auction: `aggregate_id`, bid: `event_key` | Kafka 메시지 키로 쓸 컬럼. Bid 이벤트는 `auctionId` 기준 파티셔닝을 위해 `event_key`를 사용 |
 | `transforms.outbox.table.field.event.type` | `event_type` | 이벤트 타입 컬럼 |
 | `transforms.outbox.table.field.event.payload` | `payload` | Kafka 메시지 값으로 쓸 컬럼 (BYTEA) |
 | `transforms.outbox.route.topic.replacement` | `auction-events` / `bid-events` | 최종 Kafka 토픽 이름 |
-| `key.converter` | `StringConverter` | `aggregate_id`를 문자열 키로 발행 |
+| `key.converter` | `StringConverter` | 선택된 event key 컬럼을 문자열 키로 발행 |
 | `value.converter` | `BinaryDataConverter` | BYTEA payload를 그대로 Kafka로 전달. Debezium이 재직렬화하지 않음 |
 | `value.converter.delegate.converter.type` | `JsonConverter` | BinaryDataConverter 내부 fallback 컨버터 (실제 변환은 발생하지 않음) |
 
@@ -145,6 +146,6 @@ curl -X DELETE http://localhost:8083/connectors/auction-outbox-connector
 
 | 항목 | 내용 |
 |------|------|
-| connector-register Job | 커넥터가 이미 존재하면 Job이 skip됩니다. 설정 변경 시 반드시 기존 커넥터 `DELETE` 후 재등록 필요 |
+| connector-register Job | ArgoCD PostSync마다 `PUT /connectors/{name}/config`로 설정을 적용합니다. 신규 클러스터는 PUT이 커넥터를 생성하고, 기존 클러스터는 config를 갱신합니다 |
 | debezium 유저 권한 (Cloud SQL) | `ALTER USER debezium WITH REPLICATION` + `GRANT cloudsqllogical TO debezium` 이 모두 필요합니다. `cloudsqllogical`은 Cloud SQL 전용 역할로 Terraform/init script로 코드화되어 있지 않으므로 수동 적용 후 관리 필요 |
 | SCHEMA_REGISTRY_URL | 커넥터 설정에 Schema Registry URL이 포함되지 않습니다. 앱의 ConfigMap에는 여전히 필요합니다 (앱이 Avro 직렬화 시 사용) |

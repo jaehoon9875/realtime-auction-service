@@ -76,7 +76,7 @@ controller에서 repository를 직접 호출하지 않는다.
 auction-service와 bid-service에만 해당.
 
 - 도메인 이벤트 저장과 Outbox 저장은 **같은 트랜잭션** 안에서 처리한다.
-- Outbox 레코드는 `aggregateType`, `aggregateId`, `eventType`, `payload`(Confluent Avro wire format BYTEA) 필드를 포함한다. 앱이 `KafkaAvroSerializer`로 직렬화하며, Debezium은 `BinaryDataConverter`로 pass-through한다. (ADR-008)
+- Outbox 레코드는 `aggregateType`, `aggregateId`, `eventType`, `payload`(Confluent Avro wire format BYTEA) 필드를 포함한다. Bid Service는 Kafka record key 분리를 위해 `eventKey`도 포함한다. 앱이 `KafkaAvroSerializer`로 직렬화하며, Debezium은 `BinaryDataConverter`로 pass-through한다. (ADR-008)
 
 ---
 

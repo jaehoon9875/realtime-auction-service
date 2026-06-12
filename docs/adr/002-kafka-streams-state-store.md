@@ -27,7 +27,7 @@ decision-makers: jaehoon9875
 
 ## Decision Outcome
 
-Chosen option: **"Kafka Streams 내장 State Store (RocksDB)"**, because `bid-events` 토픽을 Kafka Streams가 소비하면서 동일한 파이프라인 안에서 State Store를 갱신하므로, DB 경합 없이 순차적으로 최고가를 갱신할 수 있고, Interactive Query API로 낮은 레이턴시 조회가 가능하기 때문.
+Chosen option: **"Kafka Streams 내장 State Store (RocksDB)"**, because `bid-events` 토픽을 Kafka Streams가 소비하면서 동일한 파이프라인 안에서 State Store를 갱신하므로, DB 경합 없이 순차적으로 최고가를 갱신할 수 있고, Interactive Query API로 낮은 레이턴시 조회가 가능하기 때문. `bid-events`의 Kafka record key는 `auctionId`로 두어 같은 경매의 입찰이 같은 파티션에서 처리되도록 한다.
 
 ```text
 bid-events 토픽

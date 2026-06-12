@@ -38,6 +38,9 @@ public class OutboxEvent {
     @Column(name = "aggregate_id", nullable = false)
     private UUID aggregateId;
 
+    @Column(name = "event_key", nullable = false)
+    private UUID eventKey;
+
     @Column(name = "event_type", nullable = false, length = 50)
     // 예: BID_PLACED, BID_REJECTED
     private String eventType;
@@ -51,9 +54,10 @@ public class OutboxEvent {
     private Instant createdAt;
 
     @Builder
-    public OutboxEvent(String aggregateType, UUID aggregateId, String eventType, byte[] payload) {
+    public OutboxEvent(String aggregateType, UUID aggregateId, UUID eventKey, String eventType, byte[] payload) {
         this.aggregateType = aggregateType;
         this.aggregateId = aggregateId;
+        this.eventKey = eventKey;
         this.eventType = eventType;
         this.payload = payload;
     }

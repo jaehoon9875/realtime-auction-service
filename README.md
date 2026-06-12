@@ -59,6 +59,7 @@ Outbox Table에 같은 트랜잭션으로 저장하고 Debezium이 WAL을 읽어
 
 ### 2. Kafka Streams State Store
 입찰이 동시에 몰릴 때 DB UPDATE 경합을 피하기 위해 현재 최고가를 DB가 아닌 **Kafka Streams 내장 State Store(RocksDB)** 에서 관리합니다.
+`bid-events`는 `auctionId`를 Kafka record key로 사용해 같은 경매의 입찰을 같은 파티션에서 순차 처리합니다.
 `GET /auctions/{id}` 의 currentPrice는 DB가 아닌 State Store에서 조회합니다.
 
 ### 3. Redis 기반 WebSocket 세션 공유
