@@ -58,7 +58,8 @@ CREATE INDEX idx_bids_bidder_id ON bids(bidder_id);
 CREATE TABLE outbox_events (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     aggregate_type  VARCHAR(50) NOT NULL,   -- 'BID'
-    aggregate_id    UUID NOT NULL,
+    aggregate_id    UUID NOT NULL,          -- Bid aggregate ID (bidId)
+    event_key       UUID NOT NULL,          -- Debezium Kafka key; auctionId로 같은 경매 입찰을 한 파티션에서 순차 처리 (aggregate_id는 bidId)
     event_type      VARCHAR(50) NOT NULL,   -- 'BID_PLACED' | 'BID_REJECTED'
     payload         BYTEA NOT NULL,         -- Confluent Avro wire format (magic byte + schema id + Avro bytes). 직렬화는 앱이 수행 (ADR-008)
     created_at      TIMESTAMP NOT NULL DEFAULT now()
@@ -105,6 +106,11 @@ DECIMAL/FLOAT은 부동소수점 오차가 발생합니다. 금액은 원 단위
 
 **Outbox Table이 서비스마다 있는 이유**
 MSA에서 서비스별 DB가 분리되어 있으므로 Outbox도 각 DB에 존재합니다. Debezium이 각 DB의 WAL을 독립적으로 읽습니다.
+
+**Bid Outbox의 aggregate_id와 event_key를 분리하는 이유**
+`aggregate_id`는 이벤트가 속한 도메인 aggregate 식별자입니다. Bid 이벤트에서는 `bidId`를 유지합니다.
+반면 Kafka record key는 파티션 순서 보장을 위한 키이므로 `auctionId`를 별도 `event_key`에 저장합니다.
+이렇게 해야 같은 경매의 입찰이 같은 Kafka 파티션에서 순차 처리되어 State Store 최고가 정합성을 유지합니다.
 
 **Outbox payload를 BYTEA로 저장하는 이유**
 Debezium `AvroConverter`는 JSONB 컬럼을 `io.debezium.data.Json`(String 타입)으로 읽어 Avro string으로 직렬화합니다.

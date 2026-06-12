@@ -95,6 +95,8 @@ class BidIntegrationTest {
         assertThat(outboxEvents).hasSize(1);
         assertThat(outboxEvents.get(0).getEventType()).isEqualTo("BID_PLACED");
         assertThat(outboxEvents.get(0).getAggregateType()).isEqualTo("BID");
+        assertThat(outboxEvents.get(0).getAggregateId()).isEqualTo(response.id());
+        assertThat(outboxEvents.get(0).getEventKey()).isEqualTo(auctionId);
 
         BidEvent payload = (BidEvent) outboxAvroDeserializer.deserialize(
                 OutboxAvroSerializer.BID_EVENTS_TOPIC,

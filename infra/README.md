@@ -60,14 +60,14 @@ k8s/
 ### KafkaTopic CR 예시 (Strimzi)
 
 ```yaml
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
   name: bid-events
   namespace: auction
 spec:
-  partitions: 6
-  replicas: 3
+  partitions: 3
+  replicas: 2
 ```
 
 ---

@@ -209,7 +209,7 @@ docker exec -it kafka bash
 
 # 토픽 생성
 kafka-topics --bootstrap-server localhost:9092 --create --topic auction-events --partitions 3 --replication-factor 1
-kafka-topics --bootstrap-server localhost:9092 --create --topic bid-events --partitions 6 --replication-factor 1
+kafka-topics --bootstrap-server localhost:9092 --create --topic bid-events --partitions 3 --replication-factor 1
 kafka-topics --bootstrap-server localhost:9092 --create --topic notification-events --partitions 3 --replication-factor 1
 kafka-topics --bootstrap-server localhost:9092 --create --topic auction-dead-letter --partitions 1 --replication-factor 1
 kafka-topics --bootstrap-server localhost:9092 --create --topic bid-dead-letter --partitions 1 --replication-factor 1

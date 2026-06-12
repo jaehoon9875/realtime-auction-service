@@ -40,6 +40,7 @@ public class BidTransactionService {
         outboxEventRepository.save(OutboxEvent.builder()
                 .aggregateType(OUTBOX_AGGREGATE_TYPE)
                 .aggregateId(bid.getId())
+                .eventKey(auctionId)
                 .eventType(OUTBOX_EVENT_TYPE_BID_PLACED)
                 .payload(buildBidPlacedPayload(bid))
                 .build());

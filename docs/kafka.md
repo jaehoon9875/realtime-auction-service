@@ -5,12 +5,12 @@
 | 토픽 | Partitions | Replication | Retention | 용도 |
 |------|-----------|-------------|-----------|------|
 | auction-events | 3 | 2 | 7d | 경매 생성/마감/취소 |
-| bid-events | 6 | 2 | 7d | 입찰 발생 |
+| bid-events | 3 | 2 | 7d | 입찰 발생 |
 | notification-events | 3 | 2 | 3d | 알림 발송 대상 |
 | auction-dead-letter | 1 | 1 | 30d | auction-events 처리 실패 |
 | bid-dead-letter | 1 | 1 | 30d | bid-events 처리 실패 |
 
-> `bid-events`를 partition 6개로 설정한 이유: 경매 진행 중 입찰이 가장 집중되는 토픽으로, 처리량 확보를 위해 다른 토픽보다 많은 파티션을 할당합니다.
+> `bid-events`의 Kafka record key는 `auctionId`입니다. 같은 경매의 입찰을 같은 파티션에서 순차 처리해 State Store 최고가 갱신 정합성을 유지합니다.
 
 ---
 
@@ -76,6 +76,8 @@ Schema Registry에 등록하여 버전 관리합니다.
 |-----------|----------|
 | BID_PLACED | 입찰 수락 |
 | BID_REJECTED | 입찰 거부 |
+
+Kafka record key는 `auctionId`입니다. Bid Service Outbox에서는 `aggregate_id`에 `bidId`를 저장하고, Debezium EventRouter가 Kafka key로 사용할 `event_key`에 `auctionId`를 저장합니다.
 
 ---
 
@@ -199,3 +201,5 @@ Auction Service와 Bid Service 각각 connector를 등록합니다.
   }
 }
 ```
+
+Bid Service connector는 같은 경매 입찰 순서 보장을 위해 `transforms.outbox.table.field.event.key`를 `event_key`로 설정합니다. 이 값에는 `auctionId`가 저장됩니다.
