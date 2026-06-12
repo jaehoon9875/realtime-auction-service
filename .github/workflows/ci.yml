@@ -3,8 +3,11 @@ name: CI
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+  # 기존에는 main push에서도 CI를 실행해 변경 서비스 이미지를 Google Artifact Registry에 push했다.
+  # 현재는 GKE/GCP 실습 환경을 내려 비용 발생 가능성을 줄이는 마무리 단계이므로,
+  # PR 검증용 CI만 유지하고 main push 트리거는 보존 주석으로 남긴다.
+  # push:
+  #   branches: [main]
 
 env:
   GCP_REGION: asia-northeast3
@@ -179,11 +182,14 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   # main push: 변경된 서비스 이미지만 빌드·푸시 (변경 없는 서비스는 재푸시하지 않음)
+  # 현재는 GKE/GCP 실습 환경을 내려둔 상태라 Artifact Registry push를 막기 위해 비활성화한다.
+  # 다시 배포 환경을 사용할 때는 on.push 주석을 되돌리고 아래 if의 false 가드를 제거한다.
   docker-build-push:
     needs: [changes, ci-success]
     # always()가 없으면 docs-only push 시 build-and-test skipped → skip 전파로 이 job도 스킵됨.
     # 매트릭스가 changes 기준이라 변경된 서비스만 돈다. docs-only면 matrix가 비어 이 job 자체가 스킵된다.
     if: |
+      false &&
       always() &&
       needs.ci-success.result == 'success' &&
       needs.changes.outputs.matrix != '{"include":[]}' &&
