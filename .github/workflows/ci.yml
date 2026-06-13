@@ -179,6 +179,8 @@ jobs:
       - name: Register base branch schemas as baseline
         env:
           REGISTRY_URL: http://localhost:8085
+          # 셸 직접 보간 시 브랜치명 특수문자로 인한 명령 인젝션을 막기 위해 env로 전달한다.
+          BASE_BRANCH: ${{ github.base_ref }}
         run: |
           set -euo pipefail
           # subject 매핑: 파일명 → Schema Registry subject 이름
@@ -187,7 +189,7 @@ jobs:
             ["BidEvent.avsc"]="bid-events-value"
             ["NotificationEvent.avsc"]="notification-events-value"
           )
-          BASE_REF="origin/${{ github.base_ref }}"
+          BASE_REF="origin/${BASE_BRANCH}"
 
           # 로컬·CI 동일 정책 보장: register-schemas.sh와 동일하게 FULL로 설정
           curl -sS -X PUT "${REGISTRY_URL}/config" \
