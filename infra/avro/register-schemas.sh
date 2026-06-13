@@ -30,6 +30,11 @@ register_subject() {
   echo
 }
 
+# 양방향 호환성 보장: Producer 스키마 변경이 기존 Consumer를 깨뜨리는 것도 차단한다.
+curl -sS -X PUT "${REGISTRY_URL}/config" \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{"compatibility": "FULL"}' > /dev/null
+
 register_subject "auction-events-value" "${SCRIPT_DIR}/AuctionEvent.avsc"
 register_subject "bid-events-value" "${SCRIPT_DIR}/BidEvent.avsc"
 register_subject "notification-events-value" "${SCRIPT_DIR}/NotificationEvent.avsc"
