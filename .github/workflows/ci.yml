@@ -25,6 +25,7 @@ jobs:
       pull-requests: read
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      avro-changed: ${{ steps.filter.outputs.avro }}
     steps:
       - uses: actions/checkout@v6
 
@@ -36,6 +37,8 @@ jobs:
               - '*.gradle.kts'
               - 'settings.gradle.kts'
               - 'gradle/**'
+              - 'infra/avro/**'
+            avro:
               - 'infra/avro/**'
             api-gateway:
               - 'services/api-gateway/**'
@@ -140,6 +143,113 @@ jobs:
         with:
           name: test-results-${{ matrix.service }}
           path: ${{ matrix.path }}/build/reports/tests/test/
+
+  # infra/avro/** 변경 PR에서 새 .avsc가 기존 등록 스키마와 호환되는지 검사한다.
+  # baseline: base 브랜치의 .avsc를 임시 Schema Registry에 등록 → PR 버전으로 /compatibility 호출.
+  # 신규 스키마(base에 없음)는 호환성 검사 대상에서 제외한다.
+  avro-compatibility:
+    needs: changes
+    if: |
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.avro-changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Start Kafka and Schema Registry
+        run: docker compose -f infra/docker-compose.avro-ci.yml up -d
+
+      - name: Wait for Schema Registry to be ready
+        run: |
+          echo "Waiting for Schema Registry..."
+          for i in $(seq 1 40); do
+            if curl -sf http://localhost:8085/subjects > /dev/null 2>&1; then
+              echo "Schema Registry is ready (attempt $i)"
+              exit 0
+            fi
+            echo "  [$i/40] not ready yet, retrying in 3s..."
+            sleep 3
+          done
+          echo "Schema Registry did not become ready in time"
+          docker compose -f infra/docker-compose.avro-ci.yml logs
+          exit 1
+
+      - name: Register base branch schemas as baseline
+        env:
+          REGISTRY_URL: http://localhost:8085
+          # 셸 직접 보간 시 브랜치명 특수문자로 인한 명령 인젝션을 막기 위해 env로 전달한다.
+          BASE_BRANCH: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          # subject 매핑: 파일명 → Schema Registry subject 이름
+          declare -A FILE_TO_SUBJECT=(
+            ["AuctionEvent.avsc"]="auction-events-value"
+            ["BidEvent.avsc"]="bid-events-value"
+            ["NotificationEvent.avsc"]="notification-events-value"
+          )
+          BASE_REF="origin/${BASE_BRANCH}"
+
+          # 로컬·CI 동일 정책 보장: register-schemas.sh와 동일하게 FULL로 설정
+          curl -sS -X PUT "${REGISTRY_URL}/config" \
+            -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+            -d '{"compatibility": "FULL"}' > /dev/null
+
+          for file in "${!FILE_TO_SUBJECT[@]}"; do
+            subject="${FILE_TO_SUBJECT[$file]}"
+            if git show "${BASE_REF}:infra/avro/${file}" > "/tmp/base_${file}" 2>/dev/null; then
+              body="$(jq -n --arg schema "$(jq -c . "/tmp/base_${file}")" '{schema: $schema}')"
+              curl -sf -X POST "${REGISTRY_URL}/subjects/${subject}/versions" \
+                -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+                -d "${body}" > /dev/null
+              echo "Registered baseline: ${subject}"
+            else
+              echo "New schema (not in ${BASE_REF}): ${file} — skipping baseline registration"
+            fi
+          done
+
+      - name: Check PR schemas for compatibility
+        env:
+          REGISTRY_URL: http://localhost:8085
+        run: |
+          set -euo pipefail
+          declare -A FILE_TO_SUBJECT=(
+            ["infra/avro/AuctionEvent.avsc"]="auction-events-value"
+            ["infra/avro/BidEvent.avsc"]="bid-events-value"
+            ["infra/avro/NotificationEvent.avsc"]="notification-events-value"
+          )
+          FAILED=false
+
+          for file in "${!FILE_TO_SUBJECT[@]}"; do
+            subject="${FILE_TO_SUBJECT[$file]}"
+
+            # baseline이 없는 신규 스키마는 호환성 검사 대상 아님
+            if ! curl -sf "${REGISTRY_URL}/subjects/${subject}/versions/latest" > /dev/null 2>&1; then
+              echo "SKIP  ${file} — no baseline registered for ${subject}"
+              continue
+            fi
+
+            body="$(jq -n --arg schema "$(jq -c . "${file}")" '{schema: $schema}')"
+            response="$(curl -s -X POST \
+              "${REGISTRY_URL}/compatibility/subjects/${subject}/versions/latest" \
+              -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+              -d "${body}")"
+
+            if echo "${response}" | jq -e '.is_compatible == true' > /dev/null 2>&1; then
+              echo "PASS  ${file}"
+            else
+              echo "FAIL  ${file}"
+              echo "      response: ${response}"
+              FAILED=true
+            fi
+          done
+
+          if [ "${FAILED}" = "true" ]; then
+            echo "::error::Avro 스키마 호환성 위반이 감지됐습니다. 위 FAIL 항목을 확인하세요."
+            exit 1
+          fi
+          echo "All schema compatibility checks passed."
 
   # PR: 변경된 서비스만 Docker 빌드 검증 (push 없음)
   docker-build:
@@ -257,9 +367,9 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-  # build-and-test가 스킵되어도 워크플로가 성공으로 끝나도록 항상 실행한다.
+  # build-and-test·avro-compatibility가 스킵되어도 워크플로가 성공으로 끝나도록 항상 실행한다.
   ci-success:
-    needs: [changes, build-and-test]
+    needs: [changes, build-and-test, avro-compatibility]
     if: always()
     runs-on: ubuntu-latest
     permissions: {}
@@ -279,6 +389,11 @@ jobs:
           if [[ "${{ needs.build-and-test.result }}" != "success" && \
                 "${{ needs.build-and-test.result }}" != "skipped" ]]; then
             echo "build-and-test did not succeed (result: ${{ needs.build-and-test.result }})"
+            exit 1
+          fi
+          if [[ "${{ needs.avro-compatibility.result }}" != "success" && \
+                "${{ needs.avro-compatibility.result }}" != "skipped" ]]; then
+            echo "avro-compatibility did not succeed (result: ${{ needs.avro-compatibility.result }})"
             exit 1
           fi
           echo "CI passed"
