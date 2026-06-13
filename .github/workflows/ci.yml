@@ -159,7 +159,7 @@ jobs:
           fetch-depth: 0
 
       - name: Start Kafka and Schema Registry
-        run: docker compose -f infra/docker-compose.yml up -d kafka schema-registry
+        run: docker compose -f infra/docker-compose.avro-ci.yml up -d
 
       - name: Wait for Schema Registry to be ready
         run: |
@@ -173,7 +173,7 @@ jobs:
             sleep 3
           done
           echo "Schema Registry did not become ready in time"
-          docker compose -f infra/docker-compose.yml logs kafka schema-registry
+          docker compose -f infra/docker-compose.avro-ci.yml logs
           exit 1
 
       - name: Register base branch schemas as baseline
