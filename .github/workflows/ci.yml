@@ -27,7 +27,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       avro-changed: ${{ steps.filter.outputs.avro }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: dorny/paths-filter@v4
         id: filter
@@ -89,7 +89,7 @@ jobs:
       fail-fast: false  # 한 서비스 실패해도 나머지는 계속 실행
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -154,7 +154,7 @@ jobs:
       needs.changes.outputs.avro-changed == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -264,7 +264,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Check Dockerfile exists
         id: check
@@ -316,7 +316,7 @@ jobs:
       matrix: ${{ fromJSON(needs.changes.outputs.matrix) }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Check Dockerfile exists
         id: check
